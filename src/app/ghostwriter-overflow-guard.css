@@ -1,0 +1,99 @@
+/* Ghostwriter overflow guard.
+   This exists specifically to prevent horizontal overflow regressions that
+   create the white bottom-left scrollbar/thumb artifact on the app page.
+   Do not remove without replacing it with equivalent protection and tests. */
+
+html,
+body {
+  width: 100%;
+  min-width: 0;
+  max-width: 100vw;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+
+body {
+  position: relative;
+  min-width: 0;
+}
+
+::-webkit-scrollbar:horizontal,
+*::-webkit-scrollbar:horizontal,
+html::-webkit-scrollbar:horizontal,
+body::-webkit-scrollbar:horizontal,
+body > *::-webkit-scrollbar:horizontal,
+body > div::-webkit-scrollbar:horizontal,
+body > [data-nextjs-scroll-focus-boundary]::-webkit-scrollbar:horizontal,
+.ghostwriter::-webkit-scrollbar:horizontal,
+.ghostwriter .gw-overflow-guard::-webkit-scrollbar:horizontal {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb:horizontal,
+*::-webkit-scrollbar-thumb:horizontal,
+::-webkit-scrollbar-track:horizontal,
+*::-webkit-scrollbar-track:horizontal,
+::-webkit-scrollbar-track-piece:horizontal,
+*::-webkit-scrollbar-track-piece:horizontal,
+::-webkit-scrollbar-button:horizontal,
+*::-webkit-scrollbar-button:horizontal,
+::-webkit-scrollbar-corner,
+*::-webkit-scrollbar-corner {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body > * {
+  max-width: 100vw;
+  overflow-x: clip;
+}
+
+body > div,
+body > [data-nextjs-scroll-focus-boundary] {
+  max-width: 100vw;
+  overflow-x: clip;
+}
+
+.ghostwriter {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: clip;
+}
+
+.ghostwriter .gw-overflow-guard {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.ghostwriter section,
+.ghostwriter picture {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ghostwriter .gw-overflow-grid {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ghostwriter .gw-overflow-grid > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ghostwriter img,
+.ghostwriter canvas,
+.ghostwriter svg,
+.ghostwriter video {
+  max-width: 100%;
+}

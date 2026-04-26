@@ -1,0 +1,819 @@
+"use client";
+
+import Link from "next/link";
+import { BookOpen, LoaderCircle, Sparkles } from "lucide-react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { AUTHORS, AuthorOrbital } from "@/components/ghostwriter/AuthorOrbital";
+import { HeroArtwork } from "@/components/ghostwriter/HeroArtwork";
+import { HowItWorksDrawer } from "@/components/ghostwriter/HowItWorksDrawer";
+import { MoodDial } from "@/components/ghostwriter/MoodDial";
+import {
+  RewritePlayback,
+  type RewritePlaybackProvenance,
+  type RewriteShareLink,
+} from "@/components/ghostwriter/RewritePlayback";
+import type { RewriteFeedbackSubmission } from "@/components/ghostwriter/RewriteFeedbackPanel";
+import type { RewriteLabWinnerSelection } from "@/lib/ghostwriter-lab-shared";
+import { PUBLIC_REWRITE_SHARE_CONSENT } from "@/lib/ghostwriter-share";
+import {
+  DEMO_PRESETS,
+  SAMPLES,
+  moodLabelFor,
+  type AuthorId,
+} from "@/lib/ghostwriter-shared";
+
+type RewriteRun = {
+  author: AuthorId | null;
+  moodLabel: string;
+  mood: number | null;
+  provenance: RewritePlaybackProvenance | null;
+  rewrite: string;
+  runId: number;
+  source: string;
+};
+type RewriteAttempt = {
+  author: AuthorId;
+  mood: number;
+  text: string;
+};
+type RewriteErrorState = {
+  message: string;
+  requestId: string | null;
+};
+type GhostwriterFeatureAvailability = {
+  feedbackEnabled: boolean;
+  publicSharingEnabled: boolean;
+};
+
+const CSRF_COOKIE = "gw_csrf";
+const REQUEST_ID_HEADER = "x-request-id";
+const REWRITE_CLIENT_TIMEOUT_MS = 35_000;
+const SHARE_CLIENT_TIMEOUT_MS = 15_000;
+const FEEDBACK_CLIENT_TIMEOUT_MS = 12_000;
+const MAX_NONCE_ATTEMPTS = 2_000_000;
+const YIELD_INTERVAL = 300;
+const DEFAULT_AUTHOR_ID: AuthorId = "tolkien";
+const EMPTY_RUN: RewriteRun = {
+  author: null,
+  moodLabel: "",
+  mood: null,
+  provenance: null,
+  rewrite: "",
+  runId: 0,
+  source: "",
+};
+const DEFAULT_FEATURES: GhostwriterFeatureAvailability = {
+  feedbackEnabled: false,
+  publicSharingEnabled: false,
+};
+
+const encoder = new TextEncoder();
+const RECOVERABLE_SESSION_ERRORS = [
+  "Protection cookies are missing. Refresh the page and try again.",
+  "Request verification failed.",
+  "Security session expired. Refresh and try again.",
+] as const;
+
+class RewriteRequestError extends Error {
+  requestId: string | null;
+
+  constructor(message: string, requestId: string | null) {
+    super(message);
+    this.name = "RewriteRequestError";
+    this.requestId = requestId;
+  }
+}
+
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function digestToHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer), (value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+function isRecoverableSessionError(message: string) {
+  return RECOVERABLE_SESSION_ERRORS.includes(
+    message as (typeof RECOVERABLE_SESSION_ERRORS)[number],
+  );
+}
+
+function requestIdFrom(response: Response): string | null {
+  return response.headers.get(REQUEST_ID_HEADER);
+}
+
+async function fetchRewriteChallenge(csrfToken: string, signal: AbortSignal) {
+  const challengeResponse = await fetch("/api/ghostwriter/challenge", {
+    headers: {
+      "x-ghostwriter-csrf": csrfToken,
+    },
+    method: "GET",
+    signal,
+  });
+  const challenge = (await challengeResponse.json().catch(() => ({}))) as {
+    challengeToken?: string;
+    difficulty?: number | null;
+    error?: string | null;
+  };
+
+  if (
+    !challengeResponse.ok ||
+    challenge.error ||
+    !challenge.challengeToken ||
+    typeof challenge.difficulty !== "number"
+  ) {
+    throw new RewriteRequestError(
+      challenge.error || "The rewrite challenge could not be issued.",
+      requestIdFrom(challengeResponse),
+    );
+  }
+
+  return {
+    challengeToken: challenge.challengeToken,
+    difficulty: challenge.difficulty,
+  };
+}
+
+function toRewriteErrorState(error: unknown): RewriteErrorState {
+  if (error instanceof RewriteRequestError) {
+    return {
+      message: error.message,
+      requestId: error.requestId,
+    };
+  }
+
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return {
+      message: "The rewrite took too long to finish. Try again.",
+      requestId: null,
+    };
+  }
+
+  return {
+    message: error instanceof Error ? error.message : "The rewrite could not be completed.",
+    requestId: null,
+  };
+}
+
+async function solveChallenge(challengeToken: string, difficulty: number): Promise<string> {
+  const prefix = "0".repeat(difficulty);
+
+  for (let nonce = 0; nonce < MAX_NONCE_ATTEMPTS; nonce += 1) {
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      encoder.encode(`${challengeToken}.${nonce}`),
+    );
+
+    if (digestToHex(digest).startsWith(prefix)) {
+      return String(nonce);
+    }
+
+    if (nonce % YIELD_INTERVAL === 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    }
+  }
+
+  throw new Error("The rewrite proof took too long. Try again.");
+}
+
+function resizeComposer(node: HTMLTextAreaElement) {
+  const minHeight = Number.parseFloat(window.getComputedStyle(node).minHeight) || 0;
+  node.style.height = "auto";
+  node.style.height = `${Math.max(node.scrollHeight, minHeight)}px`;
+}
+
+async function refreshShieldSession(): Promise<string | null> {
+  const response = await fetch("/second-voice?shield=refresh", {
+    cache: "no-store",
+    credentials: "same-origin",
+    method: "GET",
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return readCookie(CSRF_COOKIE);
+}
+
+export function GhostwriterPage({
+  features = DEFAULT_FEATURES,
+}: {
+  features?: GhostwriterFeatureAvailability;
+}) {
+  const [activeId, setActiveId] = useState<AuthorId>(DEFAULT_AUTHOR_ID);
+  const [mood, setMood] = useState(52);
+  const [input, setInput] = useState(SAMPLES[1]?.text ?? "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<RewriteErrorState | null>(null);
+  const [howItWorksOpen, setHowItWorksOpen] = useState(false);
+  const [latestRun, setLatestRun] = useState<RewriteRun>(EMPTY_RUN);
+  const [lastAttempt, setLastAttempt] = useState<RewriteAttempt | null>(null);
+  const [requestContext, setRequestContext] = useState<{
+    author: AuthorId;
+    mood: number;
+    moodLabel: string;
+    source: string;
+  } | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const studioRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    if (composerRef.current) {
+      resizeComposer(composerRef.current);
+    }
+  }, [input]);
+
+  const active = useMemo(
+    () => AUTHORS.find((author) => author.id === activeId) ?? AUTHORS[0],
+    [activeId],
+  );
+  const headlineNeedsAuthorWrap = active.cardTitle.length >= 7;
+  const displayedAuthor =
+    (requestContext?.author
+      ? AUTHORS.find((author) => author.id === requestContext.author)
+      : latestRun.author
+        ? AUTHORS.find((author) => author.id === latestRun.author)
+        : null) ?? active;
+  const displayedMood = requestContext?.mood ?? latestRun.mood ?? mood;
+  const displayedSource = requestContext?.source ?? latestRun.source;
+  const displayedMoodLabel =
+    requestContext?.moodLabel || latestRun.moodLabel || moodLabelFor(active.id, mood);
+  const canRewrite = input.trim().length > 0 && !loading;
+
+  function scrollToRewriteStudio() {
+    window.requestAnimationFrame(() => {
+      const studio = studioRef.current;
+
+      if (!studio) {
+        return;
+      }
+
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      studio.scrollIntoView({
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+        block: "start",
+        inline: "nearest",
+      });
+    });
+  }
+
+  async function handleRewrite(overrides?: {
+    author?: AuthorId;
+    mood?: number;
+    text?: string;
+  }) {
+    const authorId = overrides?.author ?? active.id;
+    const nextMood = overrides?.mood ?? mood;
+    const source = (overrides?.text ?? input).trim();
+
+    if (!source) {
+      setError({
+        message: "Paste a line first.",
+        requestId: null,
+      });
+      return;
+    }
+
+    const nextMoodLabel = moodLabelFor(authorId, nextMood);
+    const attempt: RewriteAttempt = {
+      author: authorId,
+      mood: nextMood,
+      text: source,
+    };
+
+    setError(null);
+    setLastAttempt(attempt);
+    setLoading(true);
+    setRequestContext({
+      author: authorId,
+      mood: nextMood,
+      source,
+      moodLabel: nextMoodLabel,
+    });
+
+    const abortController = new AbortController();
+    const timeoutId = window.setTimeout(() => abortController.abort(), REWRITE_CLIENT_TIMEOUT_MS);
+
+    try {
+      let csrfToken = readCookie(CSRF_COOKIE);
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          if (!csrfToken) {
+            throw new Error("Protection cookies are missing. Refresh the page and try again.");
+          }
+
+          const challenge = await fetchRewriteChallenge(csrfToken, abortController.signal);
+          const challengeNonce = await solveChallenge(challenge.challengeToken, challenge.difficulty);
+
+          const rewriteResponse = await fetch("/api/ghostwriter", {
+            body: JSON.stringify({
+              author: authorId,
+              challengeNonce,
+              challengeToken: challenge.challengeToken,
+              mood: nextMood,
+              share: false,
+              text: source,
+            }),
+            headers: {
+              "content-type": "application/json",
+              "x-ghostwriter-csrf": csrfToken,
+            },
+            method: "POST",
+            signal: abortController.signal,
+          });
+
+          const payload = (await rewriteResponse.json().catch(() => ({}))) as {
+            error?: string | null;
+            moodLabel?: string | null;
+            rewrite?: string;
+          };
+
+          if (!rewriteResponse.ok || payload.error || !payload.rewrite) {
+            throw new RewriteRequestError(
+              payload.error || "The rewrite came back empty. Try again.",
+              requestIdFrom(rewriteResponse),
+            );
+          }
+
+          const rewrite = payload.rewrite;
+
+          setLatestRun((previous) => ({
+            author: authorId,
+            moodLabel: payload.moodLabel || nextMoodLabel,
+            mood: nextMood,
+            provenance: null,
+            rewrite,
+            runId: previous.runId + 1,
+            source,
+          }));
+
+          return;
+        } catch (attemptError) {
+          const message =
+            attemptError instanceof Error
+              ? attemptError.message
+              : "The rewrite could not be completed.";
+
+          if (attempt === 0 && isRecoverableSessionError(message)) {
+            csrfToken = await refreshShieldSession();
+
+            if (csrfToken) {
+              continue;
+            }
+          }
+
+          throw attemptError;
+        }
+      }
+    } catch (caughtError) {
+      setError(toRewriteErrorState(caughtError));
+    } finally {
+      window.clearTimeout(timeoutId);
+      setLoading(false);
+    }
+  }
+
+  function retryLastRewrite() {
+    if (!lastAttempt || loading) {
+      return;
+    }
+
+    setActiveId(lastAttempt.author);
+    setMood(lastAttempt.mood);
+    setInput(lastAttempt.text);
+    void handleRewrite(lastAttempt);
+    scrollToRewriteStudio();
+  }
+
+  function applyLabWinner(selection: RewriteLabWinnerSelection) {
+    const nextRewrite = selection.rewrite.trim();
+
+    if (!nextRewrite) {
+      return;
+    }
+
+    setError(null);
+    setLatestRun((previous) => {
+      if (!previous.rewrite || !previous.source) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        provenance: {
+          label: selection.label,
+          overall: selection.overall,
+          reason: selection.reason,
+          source: "rewrite-lab",
+        },
+        rewrite: nextRewrite,
+        runId: previous.runId + 1,
+      };
+    });
+  }
+
+  async function shareCurrentRewrite(): Promise<RewriteShareLink> {
+    if (!latestRun.author || latestRun.mood === null || !latestRun.source || !latestRun.rewrite) {
+      throw new Error("Run a rewrite before creating a public link.");
+    }
+
+    const abortController = new AbortController();
+    const timeoutId = window.setTimeout(() => abortController.abort(), SHARE_CLIENT_TIMEOUT_MS);
+
+    try {
+      let csrfToken = readCookie(CSRF_COOKIE);
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          if (!csrfToken) {
+            throw new Error("Protection cookies are missing. Refresh the page and try again.");
+          }
+
+          const challenge = await fetchRewriteChallenge(csrfToken, abortController.signal);
+          const challengeNonce = await solveChallenge(challenge.challengeToken, challenge.difficulty);
+          const artifactProvenance =
+            latestRun.provenance?.source === "rewrite-lab"
+              ? {
+                  source: "rewrite_lab" as const,
+                  label: latestRun.provenance.label,
+                  overall: latestRun.provenance.overall,
+                  reason: latestRun.provenance.reason,
+                }
+              : { source: "single_rewrite" as const };
+
+          const shareResponse = await fetch("/api/ghostwriter/share", {
+            body: JSON.stringify({
+              author: latestRun.author,
+              artifactProvenance,
+              challengeNonce,
+              challengeToken: challenge.challengeToken,
+              mood: latestRun.mood,
+              rewrite: latestRun.rewrite,
+              shareConsent: PUBLIC_REWRITE_SHARE_CONSENT,
+              text: latestRun.source,
+            }),
+            headers: {
+              "content-type": "application/json",
+              "x-ghostwriter-csrf": csrfToken,
+            },
+            method: "POST",
+            signal: abortController.signal,
+          });
+          const payload = (await shareResponse.json().catch(() => ({}))) as {
+            error?: string | null;
+            shortId?: string | null;
+          };
+
+          if (!shareResponse.ok || payload.error || !payload.shortId) {
+            throw new RewriteRequestError(
+              payload.error || "The public link could not be created.",
+              requestIdFrom(shareResponse),
+            );
+          }
+
+          return {
+            href: `/g/${payload.shortId}`,
+            shortId: payload.shortId,
+          };
+        } catch (attemptError) {
+          const message =
+            attemptError instanceof Error
+              ? attemptError.message
+              : "The public link could not be created.";
+
+          if (attempt === 0 && isRecoverableSessionError(message)) {
+            csrfToken = await refreshShieldSession();
+
+            if (csrfToken) {
+              continue;
+            }
+          }
+
+          throw attemptError;
+        }
+      }
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+
+    throw new Error("The public link could not be created.");
+  }
+
+  async function submitRewriteFeedback(submission: RewriteFeedbackSubmission): Promise<void> {
+    if (!latestRun.author || latestRun.mood === null || !latestRun.source || !latestRun.rewrite) {
+      throw new Error("Run a rewrite before leaving feedback.");
+    }
+
+    const abortController = new AbortController();
+    const timeoutId = window.setTimeout(() => abortController.abort(), FEEDBACK_CLIENT_TIMEOUT_MS);
+
+    try {
+      let csrfToken = readCookie(CSRF_COOKIE);
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          if (!csrfToken) {
+            throw new Error("Protection cookies are missing. Refresh the page and try again.");
+          }
+
+          const challenge = await fetchRewriteChallenge(csrfToken, abortController.signal);
+          const challengeNonce = await solveChallenge(challenge.challengeToken, challenge.difficulty);
+          const artifactProvenance =
+            latestRun.provenance?.source === "rewrite-lab"
+              ? {
+                  source: "rewrite_lab" as const,
+                  label: latestRun.provenance.label,
+                  overall: latestRun.provenance.overall,
+                  reason: latestRun.provenance.reason,
+                }
+              : { source: "single_rewrite" as const };
+          const feedbackResponse = await fetch("/api/ghostwriter/feedback", {
+            body: JSON.stringify({
+              author: latestRun.author,
+              artifactProvenance,
+              challengeNonce,
+              challengeToken: challenge.challengeToken,
+              mood: latestRun.mood,
+              rating: submission.rating,
+              reason: submission.reason,
+              rewrite: latestRun.rewrite,
+            }),
+            headers: {
+              "content-type": "application/json",
+              "x-ghostwriter-csrf": csrfToken,
+            },
+            method: "POST",
+            signal: abortController.signal,
+          });
+          const payload = (await feedbackResponse.json().catch(() => ({}))) as {
+            error?: string | null;
+          };
+
+          if (!feedbackResponse.ok || payload.error) {
+            throw new RewriteRequestError(
+              payload.error || "Feedback could not be saved.",
+              requestIdFrom(feedbackResponse),
+            );
+          }
+
+          return;
+        } catch (attemptError) {
+          const message =
+            attemptError instanceof Error
+              ? attemptError.message
+              : "Feedback could not be saved.";
+
+          if (attempt === 0 && isRecoverableSessionError(message)) {
+            csrfToken = await refreshShieldSession();
+
+            if (csrfToken) {
+              continue;
+            }
+          }
+
+          throw attemptError;
+        }
+      }
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+
+    throw new Error("Feedback could not be saved.");
+  }
+
+  function handleSurpriseMe() {
+    if (loading) {
+      return;
+    }
+
+    const userSource = input.trim();
+    const presetsWithNewMood = DEMO_PRESETS.filter((preset) => preset.mood !== mood);
+    const presetPool = presetsWithNewMood.length > 0 ? presetsWithNewMood : DEMO_PRESETS;
+    const preset = presetPool[Math.floor(Math.random() * presetPool.length)];
+    const source = userSource || preset.text;
+
+    setActiveId(preset.author);
+    setMood(preset.mood);
+
+    if (!userSource) {
+      setInput(preset.text);
+    }
+
+    void handleRewrite({
+      author: preset.author,
+      mood: preset.mood,
+      text: source,
+    });
+    scrollToRewriteStudio();
+  }
+
+  return (
+    <div className="ghostwriter gw-overflow-guard relative min-h-dvh overflow-x-clip" data-voice={active.id}>
+      <div className="gw-overflow-guard relative z-10 mx-auto w-full max-w-[1460px] px-4 pb-20 pt-10 sm:px-8 sm:pb-24 sm:pt-12 lg:px-10 xl:px-12">
+        <section className="hero" data-headline-length={headlineNeedsAuthorWrap ? "long" : "short"}>
+          <div className="hero-text">
+            <h1
+              className={[
+                "hero-headline max-w-[min(100%,24ch)] font-serif text-[clamp(2.65rem,13vw,6.15rem)] font-medium leading-[0.98] tracking-[-0.035em] text-[var(--ghost)] lg:max-w-[15ch] lg:text-[clamp(3rem,6.8vw,6.35rem)] lg:leading-[1.01] lg:tracking-[-0.025em]",
+                headlineNeedsAuthorWrap
+                  ? "lg:max-w-[13.8ch] lg:text-[clamp(3rem,5.8vw,5.2rem)] xl:max-w-[13.6ch] xl:text-[clamp(3rem,4.6vw,5.05rem)]"
+                  : "xl:text-[clamp(3rem,5.45vw,5.95rem)]",
+              ].join(" ")}
+            >
+              <span className="hero-rewrite-line">Rewrite</span>
+              {" "}
+              <span className="hero-anything-line whitespace-nowrap">anything with</span>
+              {" "}
+              <span className="hero-author-line">
+                <span className="gw-voice-text italic font-normal">
+                  {active.cardTitle}
+                </span>
+                {" "}
+                <span className="hero-author-tail">as author.</span>
+              </span>
+            </h1>
+            <p className="hero-copy mt-7 max-w-[38rem] text-[0.99rem] leading-[1.62] text-[var(--mist)] sm:mt-8 sm:text-[1.02rem] lg:max-w-[29rem] lg:text-[1rem]">
+              Pick a writer, drag the mood dial, and watch your words come back from that author.
+            </p>
+
+            <div className="hero-actions mt-6 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSurpriseMe}
+                className="gw-primary-cta gw-hero-primary-cta inline-flex items-center gap-2 disabled:cursor-not-allowed"
+                disabled={loading}
+              >
+                {loading ? (
+                  <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden />
+                ) : (
+                  <Sparkles className="h-5 w-5" aria-hidden />
+                )}
+                {loading ? "Rewriting..." : "Surprise me"}
+              </button>
+              <button
+                type="button"
+                className="gw-hero-link gw-how-trigger inline-flex items-center gap-2 border bg-transparent font-medium transition-colors"
+                aria-haspopup="dialog"
+                aria-expanded={howItWorksOpen}
+                aria-controls="gw-how-drawer"
+                onClick={() => setHowItWorksOpen(true)}
+              >
+                How it works
+              </button>
+              <Link
+                href="/second-voice/case-study"
+                className="gw-hero-link inline-flex items-center gap-2 border bg-transparent font-medium transition-colors"
+              >
+                <BookOpen className="h-4 w-4" aria-hidden />
+                Read the case study
+              </Link>
+            </div>
+          </div>
+
+          <HeroArtwork />
+        </section>
+
+        <section className="gw-voice-console" aria-labelledby="gw-voice-title">
+          <header className="gw-voice-console-header">
+            <div>
+              <p className="gw-voice-kicker">Voice controls</p>
+              <h2 id="gw-voice-title" className="gw-voice-title">
+                Choose a writer
+              </h2>
+              <p className="gw-voice-instruction">
+                Pick one of the cards. Then tune the mood.
+              </p>
+            </div>
+          </header>
+
+          <AuthorOrbital active={active.id} disabled={loading} onSelect={setActiveId} />
+
+          <div className="gw-voice-divider" aria-hidden />
+
+          <MoodDial
+            author={active.id}
+            disabled={loading}
+            value={mood}
+            onChange={setMood}
+          />
+        </section>
+
+        <section
+          id="ghostwriter-studio"
+          ref={studioRef}
+          className="gw-overflow-grid mt-10 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]"
+        >
+          <div className="gw-card-strong p-6 sm:p-7 lg:p-8">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h3 className="font-playfair text-[1.08rem] font-medium tracking-[-0.015em] text-[var(--ghost)] sm:text-[1.14rem]">Your sentence</h3>
+                <p className="mt-1 text-[12px] leading-relaxed text-[var(--mist)] sm:text-[13px]">
+                  Paste a line, a paragraph, or something fragile enough to rewrite.
+                </p>
+              </div>
+              <span className="text-[10px] tracking-[0.03em] text-[var(--whisper)] sm:text-[11px]">{input.length} / 2000</span>
+            </div>
+
+            <div className="gw-input-panel mt-5">
+              <label htmlFor="second-voice-input" className="gw-input-label">
+                Write or paste here
+              </label>
+              <textarea
+                id="second-voice-input"
+                ref={composerRef}
+                value={input}
+                onChange={(event) => {
+                  resizeComposer(event.currentTarget);
+                  setInput(event.target.value.slice(0, 2000));
+                }}
+                rows={8}
+                maxLength={2000}
+                placeholder="Paste your sentence, paragraph, or messy draft here."
+                className="gw-input-textarea min-h-[240px] w-full resize-none overflow-hidden p-4 text-[1.05rem] leading-relaxed text-[var(--ghost)] outline-none sm:p-5"
+              />
+            </div>
+
+            <div className="mt-5">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--whisper)]">
+                Quick starts
+              </p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {SAMPLES.map((sample) => (
+                  <button
+                    key={sample.label}
+                    type="button"
+                    onClick={() => setInput(sample.text)}
+                    className="gw-chip"
+                  >
+                    {sample.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="gw-composer-actions">
+              <div className="gw-composer-action-row">
+                <button
+                  type="button"
+                  disabled={!canRewrite}
+                  onClick={() => void handleRewrite()}
+                  className="gw-primary-cta gw-composer-primary-cta inline-flex items-center gap-2 disabled:cursor-not-allowed"
+                >
+                  {loading && <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden />}
+                  {loading ? "Rewriting..." : `Rewrite as ${active.cardTitle}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSurpriseMe}
+                  className="gw-chip gw-surprise-cta"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden />
+                  ) : (
+                    <Sparkles className="h-5 w-5" aria-hidden />
+                  )}
+                  {loading ? "Rewriting..." : "Surprise me"}
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+          <RewritePlayback
+            author={displayedAuthor}
+            error={error?.message ?? null}
+            errorRequestId={error?.requestId ?? null}
+            loading={loading}
+            loadingLabel="Working with"
+            mood={displayedMood}
+            moodLabel={displayedMoodLabel}
+            onApplyRewrite={applyLabWinner}
+            onRetry={lastAttempt && !loading ? retryLastRewrite : undefined}
+            onShareRewrite={features.publicSharingEnabled ? shareCurrentRewrite : undefined}
+            onSubmitFeedback={features.feedbackEnabled ? submitRewriteFeedback : undefined}
+            provenance={latestRun.provenance}
+            result={latestRun.rewrite}
+            runId={latestRun.runId}
+            source={displayedSource}
+          />
+        </section>
+
+        <section className="mt-9 flex flex-col gap-4 border-t border-[var(--gw-border-subtle)] pt-6 sm:flex-row sm:items-center sm:justify-end">
+          <Link href="/second-voice/case-study" className="gw-chip">
+            Read the case study
+          </Link>
+        </section>
+      </div>
+
+      <HowItWorksDrawer open={howItWorksOpen} onClose={() => setHowItWorksOpen(false)} />
+    </div>
+  );
+}

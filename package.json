@@ -6,12 +6,23 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "security:check": "node scripts/security-check.mjs",
+    "test:release:gate": "npm run lint && npx tsc --noEmit && npm run test:security && npm run test:scroll",
+    "test:scroll": "node --experimental-strip-types --experimental-specifier-resolution=node --test tests/ui-layout-guard.test.ts",
+    "test:security": "node --experimental-strip-types --experimental-specifier-resolution=node --test tests/*.test.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.104.0",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.8.0",
     "next": "16.2.4",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.3.6"
+  },
+  "overrides": {
+    "postcss": "8.5.10"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

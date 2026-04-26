@@ -1,0 +1,55 @@
+name: Security
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  hardening:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run test:release:gate
+
+      - run: npm run security:check
+        env:
+          GHOSTWRITER_PROVIDER: groq
+          GHOSTWRITER_ABUSE_STORE_MODE: supabase
+          GHOSTWRITER_SECURITY_SECRET: 0123456789abcdef0123456789abcdef
+          GHOSTWRITER_TRUST_PROXY: false
+          GROQ_API_KEY: ci-placeholder-key
+          NEXT_PUBLIC_SITE_URL: https://ghostwriter.example
+          NODE_ENV: production
+          SUPABASE_PUBLISHABLE_KEY: ci-publishable-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
+          SUPABASE_URL: https://supabase.example
+
+      - run: npm run build -- --webpack
+        env:
+          GHOSTWRITER_PROVIDER: groq
+          GHOSTWRITER_ABUSE_STORE_MODE: supabase
+          GHOSTWRITER_SECURITY_SECRET: 0123456789abcdef0123456789abcdef
+          GHOSTWRITER_TRUST_PROXY: false
+          GROQ_API_KEY: ci-placeholder-key
+          NEXT_PUBLIC_SITE_URL: https://ghostwriter.example
+          NODE_ENV: production
+          SUPABASE_PUBLISHABLE_KEY: ci-publishable-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
+          SUPABASE_URL: https://supabase.example
+
+      - run: npm audit --audit-level=moderate

@@ -1,0 +1,250 @@
+"use client";
+
+import Link from "next/link";
+import { AnimatePresence, motion, type Transition, useReducedMotion } from "framer-motion";
+import { BookOpen, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
+type HowItWorksStep = {
+  body: string;
+  id: string;
+  title: string;
+};
+
+type HowItWorksDrawerProps = {
+  open: boolean;
+  onClose: () => void;
+};
+
+const HOW_TO_USE_STEPS: HowItWorksStep[] = [
+  {
+    id: "write",
+    title: "Write one thing",
+    body: "Paste a sentence, a small paragraph, or tap Surprise me if you just want a demo.",
+  },
+  {
+    id: "choose",
+    title: "Choose the feeling",
+    body: "Pick a writer card, then move the mood dial until it sounds close to what you want.",
+  },
+  {
+    id: "rewrite",
+    title: "Press rewrite",
+    body: "The result appears as an edit, so you can see what changed instead of guessing.",
+  },
+];
+
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "textarea:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
+function getFocusableElements(node: HTMLElement | null) {
+  if (!node) {
+    return [];
+  }
+
+  return Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (element) => !element.hasAttribute("disabled") && element.getAttribute("aria-hidden") !== "true",
+  );
+}
+
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.matchMedia(query).matches;
+  });
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const update = () => setMatches(media.matches);
+
+    update();
+    media.addEventListener("change", update);
+
+    return () => media.removeEventListener("change", update);
+  }, [query]);
+
+  return matches;
+}
+
+export function HowItWorksDrawer({ open, onClose }: HowItWorksDrawerProps) {
+  const drawerRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  const prefersReducedMotion = useReducedMotion();
+  const isMobileSheet = useMediaQuery("(max-width: 767px)");
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbarGap = window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = "hidden";
+
+    if (scrollbarGap > 0) {
+      document.body.style.paddingRight = `${scrollbarGap}px`;
+    }
+
+    const focusTimer = window.setTimeout(() => {
+      closeButtonRef.current?.focus({ preventScroll: true });
+    }, prefersReducedMotion ? 0 : 90);
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const focusable = getFocusableElements(drawerRef.current);
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (!first || !last) {
+        event.preventDefault();
+        drawerRef.current?.focus({ preventScroll: true });
+        return;
+      }
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus({ preventScroll: true });
+        return;
+      }
+
+      if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus({ preventScroll: true });
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
+
+      if (previousFocusRef.current?.isConnected) {
+        previousFocusRef.current.focus({ preventScroll: true });
+      }
+    };
+  }, [open, prefersReducedMotion]);
+
+  const transition: Transition = prefersReducedMotion
+    ? { duration: 0.01 }
+    : { duration: 0.28, ease: [0.22, 1, 0.36, 1] };
+  const drawerOffset = isMobileSheet ? { x: 0, y: 28 } : { x: 28, y: 0 };
+
+  return (
+    <AnimatePresence>
+      {open ? (
+        <>
+          <motion.button
+            type="button"
+            aria-label="Close How it works drawer"
+            className="gw-how-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={transition}
+            onClick={onClose}
+          />
+
+          <motion.div
+            className="gw-how-drawer-wrap"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={transition}
+          >
+            <motion.aside
+              id="gw-how-drawer"
+              ref={drawerRef}
+              className="gw-how-drawer"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="gw-how-title"
+              aria-describedby="gw-how-intro"
+              tabIndex={-1}
+              initial={{ opacity: 0, ...drawerOffset }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              exit={{ opacity: 0, ...drawerOffset }}
+              transition={transition}
+            >
+              <header className="gw-how-header">
+                <div>
+                  <p className="gw-how-kicker">Start here</p>
+                  <h2 id="gw-how-title" className="gw-how-title">
+                    How to use Second Voice
+                  </h2>
+                  <p id="gw-how-intro" className="gw-how-intro">
+                    Write something, pick a writer, move the mood dial, then press rewrite.
+                    That is the whole game.
+                  </p>
+                </div>
+
+                <button
+                  ref={closeButtonRef}
+                  type="button"
+                  className="gw-how-close"
+                  aria-label="Close How it works"
+                  onClick={onClose}
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </header>
+
+              <section className="gw-how-plain-steps" aria-label="How to use Second Voice">
+                {HOW_TO_USE_STEPS.map((step, index) => (
+                  <article key={step.id} className="gw-how-step">
+                    <span className="gw-how-step-number">{index + 1}</span>
+                    <div>
+                      <h3 className="gw-how-step-title">{step.title}</h3>
+                      <p className="gw-how-step-body">{step.body}</p>
+                    </div>
+                  </article>
+                ))}
+              </section>
+
+              <footer className="gw-how-footer">
+                <Link href="/second-voice/case-study" className="gw-how-case-link" onClick={onClose}>
+                  <BookOpen className="h-4 w-4" aria-hidden />
+                  Read the case study
+                </Link>
+                <button type="button" className="gw-how-secondary" onClick={onClose}>
+                  Close
+                </button>
+              </footer>
+            </motion.aside>
+          </motion.div>
+        </>
+      ) : null}
+    </AnimatePresence>
+  );
+}

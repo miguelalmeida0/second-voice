@@ -5,7 +5,7 @@ export type AiIdentity = { accountId: string; emailVerified: true; sessionId?: s
 export type AiAuthenticationResult =
  | {identity: AiIdentity; ok:true}
  | {error:string; ok:false; status:401|403|503};
-const denied = (): AiAuthenticationResult => ({ok:false,status:401,error:"Sign in with an approved beta account."});
+const denied = (): AiAuthenticationResult => ({ok:false,status:401,error:"Sign in to use your available portfolio trial. Your text has been kept."});
 export async function authenticateAiRequest(request:Request):Promise<AiAuthenticationResult> {
   const authorization=request.headers.get("authorization");
   const token=authorization ? authorization.match(/^Bearer ([^\s]+)$/i)?.[1] : readAuthCookie(request,"access");

@@ -33,7 +33,7 @@ export function getGhostwriterFeatureAvailability(): GhostwriterFeatureAvailabil
   const rewriteUnavailableReason = rewriteEnabled
     ? null
     : !aiPolicy.enabled
-    ? "Live rewrite is available only to explicitly enabled closed-beta accounts."
+    ? "AI demo is temporarily unavailable. Your text stays here."
     : abuseStore.reason
       ? "Rewrite is temporarily unavailable because request protection is not configured."
       : null;

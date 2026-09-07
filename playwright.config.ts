@@ -31,6 +31,7 @@ export default defineConfig({
     command: `./node_modules/.bin/next dev --webpack --disable-source-maps -H 127.0.0.1 -p ${port}`,
     env: {
       AI_ENABLED: "false",
+      GHOSTWRITER_RELEASE_PROFILE: "isolated-e2e",
       GHOSTWRITER_ABUSE_STORE_MODE: "memory",
       GHOSTWRITER_ALLOW_PUBLIC_SHARING: "true",
       GHOSTWRITER_E2E_FIXTURE_MODE: "true",

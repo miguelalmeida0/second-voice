@@ -538,7 +538,7 @@ test("ghostwriter composer auto-expands instead of trapping page scroll", () => 
   assert.match(clientGuard, /response\.headers\.get\(GHOSTWRITER_REQUEST_ID_HEADER\)/);
   assert.match(page, /const \[lastAttempt, setLastAttempt\] = useState<RewriteAttempt \| null>\(null\);/);
   assert.match(page, /function retryLastRewrite\(\)/);
-  assert.match(page, /onRetry=\{lastAttempt && !loading && features\.rewriteEnabled \? retryLastRewrite : undefined\}/);
+  assert.match(page, /onRetry=\{lastAttempt && !loading && generationEnabled && !portfolioAccess \? retryLastRewrite : undefined\}/);
   assert.match(playback, /errorRequestId\?: string \| null;/);
   assert.match(playback, /className="gw-error-panel"/);
   assert.match(playback, /role="alert"/);
@@ -704,7 +704,7 @@ test("composer separates quick starts from the primary action row", () => {
   assert.match(page, /const rewriteCta =/);
   assert.match(page, /`Rewrite as \$\{active\.cardTitle\}`/);
   assert.match(page, /`Rewrite to \$\{activeOutcome\.label\.toLowerCase\(\)\}`/);
-  assert.match(page, /\{loading \? "Rewriting\.\.\." : rewriteCta\}/);
+  assert.match(page, /\{loading \? "Rewriting\.\.\." : accessView\?\.signIn \? "Sign in with GitHub" : rewriteCta\}/);
   assert.match(page, /\{loading \? "Rewriting\.\.\." : "Surprise me"\}/);
   assert.match(page, /const userSource = input\.trim\(\);/);
   assert.match(page, /const source = userSource \|\| preset\.text;/);

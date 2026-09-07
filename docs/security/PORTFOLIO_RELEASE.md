@@ -1,6 +1,10 @@
 # Limited Free-only portfolio release
 
-This deployment supersedes the paid-SaaS launch scope. Paid inference remains disabled; the broader `verify:release` and historical financial evidence are retained, not declared passed. No production action or live inference was authorized or performed.
+This deployment supersedes the paid-SaaS launch scope. Paid inference remains disabled; the broader `verify:release` and historical financial evidence are retained, not declared passed. The continuation request authorizes one local Free canary only after real authentication, target schema and durable control verification. That call has not been performed; production inference is not authorized.
+
+Continuation state (2026-09-07): the owner attests that the dedicated local Groq key belongs to the Free plan. Supabase and Vercel CLI account checks report logged out, and no exact Supabase project or Vercel linkage is configured. Browser account access was denied. Local configuration selects `portfolio-free` with AI and unconfigured login methods disabled. No hosted migrations, OAuth changes, deployment, keys or billing changes were made. `vercel.json` pins the tested Next.js webpack build; production environment configuration and plan/project verification still require account access. Local secrets and test artifacts are explicitly excluded by `.vercelignore`.
+
+The composer now uses privately fetched verified session/allowance state for its sign-in, remaining-trial, exhausted and paused presentation. Production admission remains authoritative. Browser UI acceptance uses explicitly synthetic auth/rewrite responses and is separate from the real isolated GoTrue authentication proof; neither establishes real GitHub OAuth or Groq execution. Scroll integrity preserves the native document scroller and requires bottom-edge screenshots as well as the scroll tests.
 
 ## Implemented boundary
 

@@ -167,13 +167,22 @@ try{
  const browserCode=await admin.auth.admin.generateLink({type:"magiclink",email});
  assert.equal(browserCode.error,null);
  browser=await chromium.launch();
- const context=await browser.newContext();const page=await context.newPage();
+ // Use the same synthetic browser identity as the HTTP proof. The production
+ // guard intentionally rejects the default HeadlessChrome automation identity;
+ // no application guard or authentication check is disabled for this test.
+ const context=await browser.newContext({userAgent:ua});const page=await context.newPage();
  // No traces/videos/screenshots: even synthetic auth tokens stay out of artifacts.
  await page.goto("http://127.0.0.1:3219/second-voice");
  await page.getByText("Invited beta access",{exact:true}).click();
  await page.getByLabel("Email",{exact:true}).fill(email);
  await page.getByLabel("Email code",{exact:true}).fill(browserCode.data.properties.email_otp);
+ const verificationResponse=page.waitForResponse(response=>response.url().endsWith("/api/ghostwriter/auth") && response.request().postDataJSON()?.action==="verify");
+ const signInNavigation=page.waitForEvent("framenavigated",{predicate:frame=>frame===page.mainFrame() && new URL(frame.url()).pathname==="/second-voice"});
  await page.getByRole("button",{name:"Sign in",exact:true}).click();
+ assert.equal((await verificationResponse).status(),200,"Browser verification rejected");
+ // Cookie receipt precedes the app's privacy-clearing reload. Do not race that
+ // navigation with the separate refresh/logout acceptance below.
+ await signInNavigation;await page.waitForLoadState("load");
  await wait(async()=> (await context.cookies()).some(c=>c.name==="gw-access"),"Verified auth cookie");
  const captured=(await context.cookies()).find(c=>c.name==="gw-access");
  assert.ok(captured.httpOnly);assert.equal(captured.sameSite,"Strict");

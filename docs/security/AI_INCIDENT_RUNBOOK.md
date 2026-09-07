@@ -59,7 +59,7 @@ An operation is ambiguous when the provider may have accepted/billed it but the 
 1. Disable AI and remove public traffic from the compromised deployment.
 2. Revoke `GROQ_API_KEY` to stop direct provider spend.
 3. Rotate `SUPABASE_SERVICE_ROLE_KEY`; audit database roles, RLS, function grants, Auth administration, changed rows, new users, and exfiltration paths.
-4. Rotate `GHOSTWRITER_SECURITY_SECRET`; expect browser shield, CSRF, artifact tokens, and request fingerprints created with the old secret to stop validating. Existing idempotency records may conflict rather than replay after rotation; do not delete them to restore convenience.
+4. Rotate `GHOSTWRITER_SECURITY_SECRET`; expect browser shield, CSRF, and artifact tokens created with the old root to stop validating. Request fingerprints use the separate GHOSTWRITER_FINGERPRINT_SECRET and remain stable during root rotation. Rotating the fingerprint key itself may produce safe conflicts; never delete idempotency history to restore convenience.
 5. Rotate hosting/deployment/CI credentials with access to production secrets, followed by other environment-specific secrets exposed to the same principal.
 6. Do not rotate `SUPABASE_PUBLISHABLE_KEY` as if it were confidential; rotate it only if project policy or abuse containment requires it. It is public by design, while authorization remains server/RLS enforced.
 7. Rebuild from a reviewed commit and clean dependency install. Verify artifact provenance and deployment audit logs.

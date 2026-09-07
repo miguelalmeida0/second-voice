@@ -1,3 +1,5 @@
+> Continuation status: see [deployment readiness](docs/security/DEPLOYMENT_READINESS.md). Live transport is blocked pending the full provider token/billing proof. Use npm run verify:release for scoped evidence; no production readiness is claimed.
+
 # Ghostwritter / Second Voice AI
 
 Ghostwritter is a Next.js 16 rewrite app with author-style and outcome-based rewriting, private quality feedback, and opt-in public artifacts. Owner-funded inference is disabled by default and is available only through one authenticated, durable, financially bounded server gateway.
@@ -162,3 +164,6 @@ npm run build
 ```
 
 The unit, concurrency, and security suites use local fixtures plus an in-memory transactional mock provider/ledger and never send paid provider requests. The integration suite starts the digest-pinned PostgreSQL 16 image locally. Run the digest-pinned full-history secret scan and the exact production build recipe documented in [`docs/security/LAUNCH_GATE.md`](docs/security/LAUNCH_GATE.md) before release.
+# Current release: limited Free-only portfolio
+
+Use `npm run verify:portfolio` and the [portfolio release instructions](docs/security/PORTFOLIO_RELEASE.md). Paid mode remains disabled. Free inference requires verified actual Free accounts, matching durable target configuration and explicit owner enablement; it is not enabled merely by a flag.

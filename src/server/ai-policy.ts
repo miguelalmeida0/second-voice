@@ -1,4 +1,5 @@
 import "../lib/server-only.ts";
+import { rejectAmbiguousSecrets } from "./signing-purpose.ts";
 
 export const AI_PROVIDER_ID = "groq" as const;
 export const AI_MODEL_ID = "openai/gpt-oss-20b" as const;
@@ -6,6 +7,13 @@ export const AI_PRICING_VERSION = "groq-openai-gpt-oss-20b-2026-09-07" as const;
 export const AI_INPUT_MICRO_USD_PER_MILLION_TOKENS = 75_000;
 export const AI_OUTPUT_MICRO_USD_PER_MILLION_TOKENS = 300_000;
 export const MICRO_USD_PER_USD = 1_000_000;
+export const AI_PRICING_EXPIRES_AT = "2026-09-14T00:00:00.000Z";
+// Provider-managed chat framing and billable reasoning have not been independently
+// bounded. This release cannot authorize paid transport until that proof exists.
+export function resolveLiveAiPolicy(): AiPolicyResolution {
+  if (process.env.GHOSTWRITER_RELEASE_PROFILE === "portfolio-free") return resolvePortfolioFreePolicy();
+  return { config: null, enabled: false, reason: "Provider token/billing contract is not yet verified." };
+}
 
 const DEFAULTS = {
   accountConcurrency: 1,
@@ -31,6 +39,9 @@ const CHAT_TEMPLATE_TOKEN_OVERHEAD = 256;
 const PLACEHOLDER_VALUE = /change_me|placeholder|example|replace_me|todo|ci-placeholder/i;
 
 export type AiPolicyConfig = {
+  profile?: "portfolio-free";
+  freeOrganizationId?: string;
+  freeProjectId?: string;
   accountConcurrency: number;
   accountGenerationsPer24Hours: number;
   accountGenerationsPerMinute: number;
@@ -92,6 +103,9 @@ export function calculateMaximumAiCostMicroUsd(options: {
   maxInputTokens: number;
   maxOutputTokens: number;
 }): number {
+  if (![options.maxInputTokens, options.maxOutputTokens].every(v => Number.isSafeInteger(v) && v >= 0)) {
+    throw new Error("Invalid token count");
+  }
   const input = ceilDiv(
     BigInt(options.maxInputTokens) * BigInt(AI_INPUT_MICRO_USD_PER_MILLION_TOKENS),
     BigInt(1_000_000),
@@ -132,8 +146,9 @@ export function conservativeInputTokenUpperBound(system: string, user: string): 
   return Buffer.byteLength(system, "utf8") + Buffer.byteLength(user, "utf8") + CHAT_TEMPLATE_TOKEN_OVERHEAD;
 }
 
-export function resolveAiPolicyConfig(
+function resolveConfiguredPolicy(
   environment: AiPolicyEnvironment = process.env,
+  freeProfile = false,
 ): AiPolicyResolution {
   if (!enabled(environment.AI_ENABLED)) {
     return {
@@ -142,12 +157,18 @@ export function resolveAiPolicyConfig(
       reason: "AI is disabled by the server kill switch.",
     };
   }
+  try { rejectAmbiguousSecrets(environment); } catch {
+    return {config:null, enabled:false, reason:"Ambiguous secret configuration."};
+  }
+  if (!freeProfile && Date.now() >= Date.parse(AI_PRICING_EXPIRES_AT)) {
+    return {config:null, enabled:false, reason:"Pricing review expired."};
+  }
 
   const provider = environment.GHOSTWRITER_PROVIDER?.trim();
   const model = environment.GROQ_MODEL?.trim();
   const pricingVersion = environment.GHOSTWRITER_AI_PRICING_VERSION?.trim();
   const providerApiKey = environment.GROQ_API_KEY?.trim() ?? "";
-  const fingerprintSecret = environment.GHOSTWRITER_SECURITY_SECRET?.trim() ?? "";
+  const fingerprintSecret = environment.GHOSTWRITER_FINGERPRINT_SECRET?.trim() ?? "";
 
   if (provider !== AI_PROVIDER_ID) {
     return { config: null, enabled: false, reason: "The AI provider is not explicitly allowlisted." };
@@ -167,6 +188,9 @@ export function resolveAiPolicyConfig(
 
   if (fingerprintSecret.length < 32 || PLACEHOLDER_VALUE.test(fingerprintSecret)) {
     return { config: null, enabled: false, reason: "The request fingerprint secret is unavailable." };
+  }
+  if ([environment.GHOSTWRITER_SECURITY_SECRET?.trim(), providerApiKey, environment.SUPABASE_SERVICE_ROLE_KEY?.trim()].includes(fingerprintSecret)) {
+    return {config:null,enabled:false,reason:"Fingerprint signing material must be separate."};
   }
 
   if (
@@ -310,6 +334,24 @@ export function resolveAiPolicyConfig(
     enabled: true,
     reason: null,
   };
+}
+
+export function resolveAiPolicyConfig(environment: AiPolicyEnvironment = process.env): AiPolicyResolution {
+  return resolveConfiguredPolicy(environment);
+}
+
+export function resolvePortfolioFreePolicy(environment: AiPolicyEnvironment = process.env): AiPolicyResolution {
+  const deny = (reason: string): AiPolicyResolution => ({config:null,enabled:false,reason});
+  if (environment.GHOSTWRITER_RELEASE_PROFILE !== "portfolio-free") return deny("Free profile not selected.");
+  if (environment.VERCEL_ENV && environment.VERCEL_ENV !== "production") return deny("Inference is disabled in previews.");
+  if (environment.NODE_ENV === "production" && environment.GHOSTWRITER_E2E_FIXTURE_MODE === "true") return deny("Fixtures forbidden in production.");
+  const org=environment.GROQ_FREE_ORGANIZATION_ID, project=environment.GROQ_FREE_PROJECT_ID;
+  if (!org || !project || !/^[A-Za-z0-9_-]{3,120}$/.test(org) || !/^[A-Za-z0-9_-]{3,120}$/.test(project)) return deny("Free organization/project metadata missing.");
+  // These identifiers are NOT proof of billing plan. Admission and dispatch also
+  // require the operator-reviewed, time-bounded matching record in PostgreSQL.
+  const result=resolveConfiguredPolicy(environment,true);
+  if (!result.enabled) return result;
+  return {enabled:true,reason:null,config:{...result.config,profile:"portfolio-free",freeOrganizationId:org,freeProjectId:project,accountGenerationsPer24Hours:3,accountGenerationsPerMinute:1,globalGenerationsPerMinute:2,globalConcurrency:1}};
 }
 
 export function isAiKillSwitchEnabled(environment: AiPolicyEnvironment = process.env): boolean {

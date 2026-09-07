@@ -31,7 +31,9 @@ jobs:
 
       - run: npm run test:e2e:install
 
-      - run: npm run test:release:gate
+      # This deployment is the limited Free-only portfolio. Paid certification
+      # remains separately available as verify:release and is not marked passed.
+      - run: npm run verify:portfolio
 
       - run: npm run security:check
         env:

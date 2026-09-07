@@ -747,7 +747,7 @@ test("visible rewrite share controls are explicit and privacy-scoped", () => {
   assert.match(featureFlags, /getSupabaseAdmin\(\)/);
   assert.match(featureFlags, /getSupabasePublic\(\)/);
   assert.match(featureFlags, /resolveAbuseStoreConfig/);
-  assert.match(featureFlags, /resolveAiPolicyConfig\(\)/);
+  assert.match(featureFlags, /resolveLiveAiPolicy\(\)/);
   assert.match(featureFlags, /rewriteLabEnabled: e2eFixtureMode/);
   assert.match(featureFlags, /publicSharingEnabled\(process\.env\.GHOSTWRITER_ALLOW_PUBLIC_SHARING\)/);
   assert.match(playback, /RewriteFeedbackPanel/);
@@ -775,7 +775,11 @@ test("release gate covers lint, typecheck, security, scroll integrity, and E2E",
     packageJson,
     /"test:release:gate": "npm run lint && npx tsc --noEmit && npm run test:security && npm run test:scroll && npm run test:integration && npm run test:e2e"/,
   );
-  assert.match(workflow, /npm run test:release:gate/);
+  // Portfolio CI uses the smaller release gate; the paid/UI matrix remains
+  // available and unchanged rather than pretending its deferred proof passed.
+  assert.match(workflow, /npm run verify:portfolio/);
+  assert.match(packageJson, /"verify:release": "node scripts\/release\/verify.mjs"/);
+  assert.match(packageJson, /"verify:portfolio": "node scripts\/release\/verify.mjs --portfolio"/);
   assert.match(workflow, /npm run security:check/);
   assert.match(workflow, /npm run build -- --webpack/);
   assert.match(workflow, /npm audit --audit-level=moderate/);

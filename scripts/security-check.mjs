@@ -71,7 +71,11 @@ function fail(message) {
   failures.push(message);
 }
 
+if (process.env.GHOSTWRITTER_SECURITY_SECRET !== undefined) fail("Unsupported GHOSTWRITTER_SECURITY_SECRET spelling.");
+
 const aiEnabled = (process.env.AI_ENABLED ?? "").trim().toLowerCase() === "true";
+if (aiEnabled) fail("Live transport is blocked pending the complete provider token/billing proof.");
+
 const abuseStoreMode = (process.env.GHOSTWRITER_ABUSE_STORE_MODE ?? "").trim().toLowerCase();
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim();
 const sharingEnabled = isPublicSharingEnabled(process.env.GHOSTWRITER_ALLOW_PUBLIC_SHARING);
@@ -169,6 +173,11 @@ function requirePositiveInteger(name, maximum) {
 }
 
 if (aiEnabled) {
+  if(process.env.GHOSTWRITER_RELEASE_PROFILE==="portfolio-free"){
+    if(!process.env.GROQ_FREE_ORGANIZATION_ID || !process.env.GROQ_FREE_PROJECT_ID)fail("Free profile requires organization/project metadata and matching operator-verified database record.");
+    if(process.env.VERCEL_ENV && process.env.VERCEL_ENV!=="production")fail("Inference cannot be enabled in previews.");
+    if(process.env.GHOSTWRITER_GITHUB_LOGIN_ENABLED!=="true" && process.env.GHOSTWRITER_EMAIL_LOGIN_ENABLED!=="true")fail("Free profile requires configured visitor authentication.");
+  }
   requireExact("GHOSTWRITER_PROVIDER", "groq");
   requireExact("GROQ_MODEL", AI_MODEL);
   requireExact("GHOSTWRITER_AI_PRICING_VERSION", AI_PRICING_VERSION);

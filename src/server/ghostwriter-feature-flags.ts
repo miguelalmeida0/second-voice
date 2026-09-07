@@ -5,7 +5,7 @@ import {
   getSupabasePublic,
 } from "@/integrations/supabase/client.server";
 import { publicSharingEnabled, resolveAbuseStoreConfig } from "@/lib/security-env";
-import { resolveAiPolicyConfig } from "@/server/ai-policy";
+import { resolveLiveAiPolicy } from "@/server/ai-policy";
 
 export type GhostwriterFeatureAvailability = {
   feedbackEnabled: boolean;
@@ -21,7 +21,7 @@ export function getGhostwriterFeatureAvailability(): GhostwriterFeatureAvailabil
     process.env.GHOSTWRITER_E2E_FIXTURE_MODE?.trim().toLowerCase() === "true";
   const hasWritableStore = Boolean(getSupabaseAdmin());
   const hasPublicReadStore = Boolean(getSupabasePublic());
-  const aiPolicy = resolveAiPolicyConfig();
+  const aiPolicy = resolveLiveAiPolicy();
   const abuseStore = resolveAbuseStoreConfig({
     mode: process.env.GHOSTWRITER_ABUSE_STORE_MODE,
     nodeEnv: process.env.NODE_ENV,

@@ -1,4 +1,5 @@
 import "../lib/server-only.ts";
+import { signingKey, rejectAmbiguousSecrets } from "./signing-purpose.ts";
 
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
@@ -106,6 +107,7 @@ type ArtifactTokenPayload = z.infer<typeof ArtifactTokenPayloadSchema>;
 let cachedEphemeralSecret: string | null = null;
 
 function tokenSecret(): string {
+  rejectAmbiguousSecrets();
   if (!cachedEphemeralSecret) {
     cachedEphemeralSecret = randomBytes(32).toString("base64url");
   }
@@ -143,7 +145,7 @@ function safeEqualBase64Url(left: string, right: string): boolean {
 }
 
 function signPayload(encodedPayload: string): string {
-  return createHmac("sha256", tokenSecret())
+  return createHmac("sha256", signingKey(tokenSecret(), "gw.artifact"))
     .update(`gw.artifact.${encodedPayload}`)
     .digest("base64url");
 }

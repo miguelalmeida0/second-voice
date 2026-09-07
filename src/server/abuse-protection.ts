@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { signingKey, rejectAmbiguousSecrets } from "./signing-purpose.ts";
 import type { NextRequest } from "next/server";
 import {
   consumeAbuseRateLimits,
@@ -83,6 +84,7 @@ function now(): number {
 }
 
 function secret(): string {
+  rejectAmbiguousSecrets();
   if (!cachedEphemeralSecret) {
     cachedEphemeralSecret = randomBytes(32).toString("base64url");
   }
@@ -121,8 +123,9 @@ function base64UrlDecode(input: string): string {
 }
 
 function signToken(kind: string, payload: Record<string, unknown>): string {
+  rejectAmbiguousSecrets();
   const encodedPayload = base64UrlEncode(JSON.stringify(payload));
-  const signature = createHmac("sha256", secret()).update(`${kind}.${encodedPayload}`).digest("base64url");
+  const signature = createHmac("sha256", signingKey(secret(), kind)).update(`${kind}.${encodedPayload}`).digest("base64url");
   return `${encodedPayload}.${signature}`;
 }
 
@@ -139,7 +142,7 @@ function verifyToken<T>(kind: string, token: string): T | null {
     return null;
   }
 
-  const expectedSignature = createHmac("sha256", secret())
+  const expectedSignature = createHmac("sha256", signingKey(secret(), kind))
     .update(`${kind}.${encodedPayload}`)
     .digest("base64url");
 
@@ -608,7 +611,8 @@ async function reject(
 async function enforceRateLimits(
   rules: AbuseRateRule[],
   guard: GuardSuccess,
-  location: "challenge" | "feedback" | "ingress" | "lab" | "rewrite" | "share",
+  location: "challenge" | "feedback" | "ingress" | "lab" | "rewrite" | "share"
+    | `auth-${"send-code" | "verify" | "refresh" | "logout" | "status"}`,
 ): Promise<GuardFailure | null> {
   try {
     const result = await consumeAbuseRateLimits(rules, guard.penaltyKeyHashes, now());
@@ -753,7 +757,7 @@ async function validateChallengeProof(
   return null;
 }
 
-export async function validateGhostwriterHeaders(request: Request): Promise<GuardSuccess | GuardFailure> {
+export async function validateGhostwriterHeaders(request: Request, purpose: "rewrite" | "auth" = "rewrite"): Promise<GuardSuccess | GuardFailure> {
   const guard = await validateBrowserGuard(request);
 
   if ("status" in guard) {
@@ -762,7 +766,9 @@ export async function validateGhostwriterHeaders(request: Request): Promise<Guar
 
   if (request.method !== "GET") {
     const ingressRateFailure = await enforceRateLimits(
-      buildPostIngressRateRules(guard.ip, guard.sessionId, guard.userAgent),
+      purpose === "auth"
+        ? [{ keyHash: hashAbuseKey("auth-ingress", guard.sessionId), limit: 30, windowMs: 60_000 }]
+        : buildPostIngressRateRules(guard.ip, guard.sessionId, guard.userAgent),
       guard,
       "ingress",
     );
@@ -858,6 +864,25 @@ export async function validateGhostwriterPost(
   }
 
   return guard;
+}
+
+export async function validateGhostwriterAuthPost(
+  guard: GuardSuccess,
+  action: "send-code" | "verify" | "refresh" | "logout" | "status" | "github",
+  challengeToken?: string,
+  challengeNonce?: string,
+): Promise<GuardSuccess | GuardFailure> {
+  const limit = action === "send-code" ? 2 : 10;
+  const windowMs = action === "send-code" ? 600_000 : 60_000;
+  const rules = [{keyHash: hashAbuseKey(`auth-${action}-session`, guard.sessionId),limit,windowMs}];
+  if (guard.ip) rules.push({keyHash:hashAbuseKey(`auth-${action}-ip`,guard.ip),limit:limit * 3,windowMs});
+  const failure = await enforceRateLimits(rules, guard, action==="github"?"auth-verify":`auth-${action}`);
+  if (failure) return failure;
+  // Revocation/status retain same-origin, CSRF, session and independent rate
+  // checks. They must not depend on generation or challenge issuance capacity.
+  if (action === "logout" || action === "status") return guard;
+  if (!challengeToken || !challengeNonce) return {error:"Challenge required.",status:403};
+  return await validateChallengeProof(guard, challengeToken, challengeNonce) ?? guard;
 }
 
 export async function validateGhostwriterLabPost(

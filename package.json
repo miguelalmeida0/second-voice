@@ -13,11 +13,17 @@
     "test:e2e:install": "playwright install --with-deps",
     "test:e2e:ui": "playwright test --ui",
     "test:concurrency": "node --experimental-strip-types --experimental-specifier-resolution=node --test tests/ai-financial-boundary.test.ts",
-    "test:integration": "bash scripts/test-ai-ledger-postgres.sh",
+    "test:integration": "node scripts/release/test-ledger.mjs",
     "test:release:gate": "npm run lint && npx tsc --noEmit && npm run test:security && npm run test:scroll && npm run test:integration && npm run test:e2e",
     "test:scroll": "node --experimental-strip-types --experimental-specifier-resolution=node --test tests/ui-layout-guard.test.ts",
     "test:security": "node --experimental-strip-types --experimental-specifier-resolution=node --test tests/*.test.ts",
-    "test:unit": "node --experimental-strip-types --experimental-specifier-resolution=node --test tests/ghostwriter-portfolio-film.test.ts tests/ghostwriter-quality-contract.test.ts tests/observability.test.ts tests/provider-http.test.ts tests/rewrite-lab.test.ts"
+    "test:unit": "node --experimental-strip-types --experimental-specifier-resolution=node --test tests/ghostwriter-portfolio-film.test.ts tests/ghostwriter-quality-contract.test.ts tests/observability.test.ts tests/provider-http.test.ts tests/rewrite-lab.test.ts",
+    "verify:release": "node scripts/release/verify.mjs",
+    "verify:portfolio": "node scripts/release/verify.mjs --portfolio",
+    "test:portfolio": "node scripts/release/test-ledger.mjs --portfolio",
+    "preflight:portfolio": "node scripts/release/preflight-portfolio.mjs",
+    "preflight:deploy": "node scripts/release/preflight.mjs deploy",
+    "preflight:enable-ai": "node scripts/release/preflight.mjs enable-ai"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.0",

@@ -392,6 +392,7 @@ export function GhostwriterPage({
     } finally {
       window.clearTimeout(timeoutId);
       setLoading(false);
+      window.dispatchEvent(new Event("ghostwriter-allowance-changed"));
     }
   }
 

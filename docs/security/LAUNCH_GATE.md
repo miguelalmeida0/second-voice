@@ -1,3 +1,5 @@
+> Continuation: the newer forward migrations, auth flow, and executable gates are described in [DEPLOYMENT_READINESS.md](DEPLOYMENT_READINESS.md). Historical checked items below do not replace current .tmp/release/evidence.json or target verification.
+
 # Ghostwritter security launch gate
 
 Owner: Miguel. Review date: 2026-09-07. Current verdict: **DO NOT LAUNCH**.

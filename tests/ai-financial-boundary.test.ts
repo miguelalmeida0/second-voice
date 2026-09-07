@@ -1,4 +1,7 @@
-import test from "node:test";
+import test, {mock} from "node:test";
+// Reproduce the historical paid-policy review date. Runtime pricing still
+// expires normally; Free-profile expiry separation is tested independently.
+mock.timers.enable({apis:["Date"],now:Date.UTC(2026,8,7,12)});
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import {
@@ -50,6 +53,7 @@ function policy(overrides: Partial<AiPolicyConfig> = {}): AiPolicyConfig {
     GHOSTWRITER_AI_PRICING_VERSION: AI_PRICING_VERSION,
     GHOSTWRITER_PROVIDER: "groq",
     GHOSTWRITER_SECURITY_SECRET: TEST_SIGNING_VALUE,
+    GHOSTWRITER_FINGERPRINT_SECRET: TEST_SIGNING_VALUE + "-fingerprint",
     GROQ_API_KEY: "unit-test-provider-credential",
     GROQ_MODEL: AI_MODEL_ID,
     SUPABASE_PUBLISHABLE_KEY: "unit-test-publishable-key",
@@ -89,6 +93,7 @@ test("AI policy requires the exact audited transport body cap", () => {
       GHOSTWRITER_AI_REQUEST_BODY_BYTES: requestBodyBytes,
       GHOSTWRITER_PROVIDER: "groq",
       GHOSTWRITER_SECURITY_SECRET: TEST_SIGNING_VALUE,
+    GHOSTWRITER_FINGERPRINT_SECRET: TEST_SIGNING_VALUE + "-fingerprint",
       GROQ_API_KEY: "unit-test-provider-credential",
       GROQ_MODEL: AI_MODEL_ID,
       SUPABASE_PUBLISHABLE_KEY: "unit-test-publishable-key",
@@ -125,6 +130,7 @@ test("AI policy rejects every server limit above its audited maximum", () => {
       GHOSTWRITER_AI_PRICING_VERSION: AI_PRICING_VERSION,
       GHOSTWRITER_PROVIDER: "groq",
       GHOSTWRITER_SECURITY_SECRET: TEST_SIGNING_VALUE,
+    GHOSTWRITER_FINGERPRINT_SECRET: TEST_SIGNING_VALUE + "-fingerprint",
       GROQ_API_KEY: "unit-test-provider-credential",
       GROQ_MODEL: AI_MODEL_ID,
       SUPABASE_PUBLISHABLE_KEY: "unit-test-publishable-key",
@@ -538,8 +544,10 @@ test("the paid provider request is fixed server-side and all former lab calls ar
   assert.match(providerSource, /model: options\.policy\.model/);
   assert.match(providerSource, /max_completion_tokens: options\.policy\.maxOutputTokens/);
   assert.doesNotMatch(providerSource, /options\.user\.model|options\.user\.max_tokens/);
-  assert.equal(serverFetchFiles.length, 1);
-  assert.match(serverFetchFiles[0] ?? "", /\/src\/server\/ai-provider\.ts$/);
+  assert.deepEqual(serverFetchFiles.map(path => path.split("/").pop()).sort(), ["ai-provider.ts", "auth-session.ts"]);
+  const authTransport = readFileSync(new URL("../src/server/auth-session.ts", import.meta.url), "utf8");
+  assert.match(authTransport, /target.origin!==allowedOrigin/);
+  assert.match(authTransport, /target.pathname.startsWith\("\/auth\/v1\/"\)/);
   assert.doesNotMatch(labSource, /fetch\(|Promise\.allSettled|evaluateCandidates/);
 });
 

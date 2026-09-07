@@ -8,7 +8,7 @@ import {
   calculateActualAiCostMicroUsd,
   conservativeInputTokenUpperBound,
   isAiKillSwitchEnabled,
-  resolveAiPolicyConfig,
+  resolveLiveAiPolicy,
   type AiPolicyConfig,
   type AiPolicyResolution,
 } from "./ai-policy.ts";
@@ -64,7 +64,7 @@ const DEFAULT_DEPENDENCIES: GatewayDependencies = {
   finalize: finalizeRewrite,
   killSwitchEnabled: () => isAiKillSwitchEnabled(),
   ledger: new SupabaseAiLedger(),
-  resolvePolicy: () => resolveAiPolicyConfig(),
+  resolvePolicy: () => resolveLiveAiPolicy(),
 };
 
 function failure(
@@ -103,8 +103,11 @@ function requestFingerprint(
 }
 
 function denial(reason: string, moodLabel: string): GovernedGhostwriterResult {
+  if (["service_paused","unresolved_liability"].includes(reason)) return failure(moodLabel,"Free rewriting is temporarily paused. Your text has been kept.",503);
+  if (reason === "session_revoked") return failure(moodLabel,"Your session expired or was signed out. Sign in again; your text has been kept.",401);
+  if (["account_lifetime_limit","global_lifetime_limit","trial_capacity","trial_already_claimed"].includes(reason)) return failure(moodLabel,"This limited portfolio trial has reached its lifetime allowance. Your text has been kept.",429);
   if (reason === "not_entitled" || reason === "entitlement_expired") {
-    return failure(moodLabel, "This account is not approved for the closed beta.", 403);
+    return failure(moodLabel, "Sign in to claim an available trial. Trial access may be full or revoked.", 403);
   }
 
   if (reason.includes("budget")) {
@@ -201,6 +204,7 @@ export async function executeGovernedRewrite(
   try {
     reservation = await dependencies.ledger.reserve({
       accountId: authentication.identity.accountId,
+      sessionId: authentication.identity.sessionId,
       idempotencyKey: idempotencyKey.data,
       policy: config,
       requestFingerprint: requestFingerprint(
@@ -319,6 +323,8 @@ export async function executeGovernedRewrite(
     providerResult.promptTokens > config.maxInputTokens ||
     providerResult.completionTokens > config.maxOutputTokens
   ) {
+    // Persist the observed liability without clamping and close fleet admission.
+    await dependencies.ledger.reportAnomaly?.(operationId, accountId, actualMicroUsd).catch(() => undefined);
     await preserveReservationAsUncertain(
       dependencies,
       operationId,

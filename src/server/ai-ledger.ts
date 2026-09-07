@@ -14,6 +14,7 @@ export type StoredAiResult = Record<string, unknown>;
 
 export type AiReservationRequest = {
   accountId: string;
+  sessionId?: string;
   idempotencyKey: string;
   policy: AiPolicyConfig;
   requestFingerprint: string;
@@ -32,6 +33,7 @@ export type AiReservationResult =
   | { kind: "denied"; reason: string };
 
 export interface AiLedger {
+  reportAnomaly?(operationId: string, accountId: string, observedMicroUsd: number | null): Promise<boolean>;
   failBeforeDispatch(operationId: string, accountId: string, reason: string): Promise<boolean>;
   markDispatched(operationId: string, accountId: string): Promise<boolean>;
   markUncertain(operationId: string, accountId: string, reason: string): Promise<boolean>;
@@ -94,12 +96,22 @@ async function booleanRpc(name: string, args: Record<string, unknown>): Promise<
 }
 
 export class SupabaseAiLedger implements AiLedger {
+  reportAnomaly(operationId: string, accountId: string, observedMicroUsd: number | null): Promise<boolean> {
+    return booleanRpc("ghostwriter_ai_report_anomaly", {
+      p_operation_id: operationId, p_account_id: accountId, p_observed_micro_usd: observedMicroUsd,
+    });
+  }
   async reserve(request: AiReservationRequest): Promise<AiReservationResult> {
     const { policy } = request;
-    const { data, error } = await rpcClient().rpc("ghostwriter_ai_reserve", {
+    const { data, error } = await rpcClient().rpc(policy.profile === "portfolio-free" ? "ghostwriter_free_reserve" : "ghostwriter_ai_reserve", policy.profile === "portfolio-free" ? {
+      p_account_id:request.accountId,p_session_id:request.sessionId ?? null,
+      p_idempotency_key:request.idempotencyKey,p_request_fingerprint:request.requestFingerprint,
+      p_organization_id:policy.freeOrganizationId,p_project_id:policy.freeProjectId,
+    } : {
       p_account_concurrency_limit: policy.accountConcurrency,
       p_account_day_limit: policy.accountGenerationsPer24Hours,
       p_account_id: request.accountId,
+      p_session_id: request.sessionId ?? null,
       p_account_lifetime_limit: policy.lifetimeGenerationsPerAccount,
       p_account_minute_limit: policy.accountGenerationsPerMinute,
       p_beta_lifetime_budget_micro_usd: policy.betaLifetimeBudgetMicroUsd,

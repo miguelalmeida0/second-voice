@@ -62,6 +62,7 @@ export async function dispatchRewriteToProvider(options: {
         "Content-Type": "application/json",
       },
       method: "POST",
+      redirect: "error",
       signal: controller.signal,
     });
 

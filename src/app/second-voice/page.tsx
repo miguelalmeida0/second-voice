@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { GhostwriterPage } from "@/components/ghostwriter/GhostwriterPage";
+import { BetaSignIn } from "@/components/ghostwriter/BetaSignIn";
 import { getGhostwriterFeatureAvailability } from "@/server/ghostwriter-feature-flags";
 
 export const metadata: Metadata = {
@@ -16,5 +17,5 @@ export const metadata: Metadata = {
 export default async function SecondVoiceRoute() {
   await headers();
 
-  return <GhostwriterPage features={getGhostwriterFeatureAvailability()} />;
+  return <><BetaSignIn emailEnabled={process.env.GHOSTWRITER_EMAIL_LOGIN_ENABLED==="true"} githubEnabled={process.env.GHOSTWRITER_GITHUB_LOGIN_ENABLED==="true"} portfolio={process.env.GHOSTWRITER_RELEASE_PROFILE==="portfolio-free"}/><GhostwriterPage features={getGhostwriterFeatureAvailability()} /></>;
 }

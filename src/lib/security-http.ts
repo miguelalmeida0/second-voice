@@ -15,7 +15,7 @@ export function buildContentSecurityPolicy(options: {
     ? `script-src 'self' 'nonce-${options.nonce}' 'strict-dynamic' 'unsafe-eval';`
     : `script-src 'self' 'nonce-${options.nonce}' 'strict-dynamic';`;
 
-  return compactDirectives([
+  const directives = [
     "default-src 'self';",
     scriptSrc,
     `style-src 'self' 'nonce-${options.nonce}';`,
@@ -26,8 +26,13 @@ export function buildContentSecurityPolicy(options: {
     "form-action 'self';",
     "frame-ancestors 'none';",
     "object-src 'none';",
-    "upgrade-insecure-requests;",
-  ]);
+  ];
+
+  if (!options.isDevelopment) {
+    directives.push("upgrade-insecure-requests;");
+  }
+
+  return compactDirectives(directives);
 }
 
 export function buildBaselineSecurityHeaders(options: {

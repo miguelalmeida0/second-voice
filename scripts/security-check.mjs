@@ -54,13 +54,13 @@ loadLocalEnvFile();
 
 const isProduction = process.env.NODE_ENV === "production";
 const failures = [];
+const AI_PRICING_VERSION = "groq-openai-gpt-oss-20b-2026-09-07";
+const AI_MODEL = "openai/gpt-oss-20b";
+const PLACEHOLDER = /change_me|dev-only-secret|placeholder|example|replace_me|todo|ci-placeholder/i;
 
 function hasStrongSecret(value) {
   const trimmed = (value ?? "").trim();
-  return (
-    trimmed.length >= 32 &&
-    !/change_me|dev-only-secret|placeholder|example|replace_me|todo/i.test(trimmed)
-  );
+  return trimmed.length >= 32 && !PLACEHOLDER.test(trimmed);
 }
 
 function isPublicSharingEnabled(value) {
@@ -71,32 +71,31 @@ function fail(message) {
   failures.push(message);
 }
 
-const provider = (process.env.GHOSTWRITER_PROVIDER ?? "groq").trim().toLowerCase();
+const aiEnabled = (process.env.AI_ENABLED ?? "").trim().toLowerCase() === "true";
 const abuseStoreMode = (process.env.GHOSTWRITER_ABUSE_STORE_MODE ?? "").trim().toLowerCase();
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim();
 const sharingEnabled = isPublicSharingEnabled(process.env.GHOSTWRITER_ALLOW_PUBLIC_SHARING);
-
-if (provider !== "groq" && provider !== "gemini") {
-  fail("GHOSTWRITER_PROVIDER must be either 'groq' or 'gemini'.");
-}
-
-if (provider === "groq" && !process.env.GROQ_API_KEY?.trim()) {
-  fail("GROQ_API_KEY is required when GHOSTWRITER_PROVIDER=groq.");
-}
-
-if (provider === "gemini" && !process.env.GEMINI_API_KEY?.trim()) {
-  fail("GEMINI_API_KEY is required when GHOSTWRITER_PROVIDER=gemini.");
-}
+const trustedClientIpHeader = (process.env.GHOSTWRITER_CLIENT_IP_HEADER ?? "")
+  .trim()
+  .toLowerCase();
 
 if (isProduction && !hasStrongSecret(process.env.GHOSTWRITER_SECURITY_SECRET)) {
   fail("Production requires a strong GHOSTWRITER_SECURITY_SECRET (32+ random characters).");
 }
 
+if (isProduction && (process.env.GHOSTWRITER_TRUST_PROXY ?? "").trim().toLowerCase() !== "true") {
+  fail("Production requires GHOSTWRITER_TRUST_PROXY=true so AI abuse limits can bind to a stable client IP.");
+}
+
 if (
   isProduction &&
-  !["true", "false"].includes((process.env.GHOSTWRITER_TRUST_PROXY ?? "").trim().toLowerCase())
+  !["cf-connecting-ip", "fly-client-ip", "x-forwarded-for", "x-real-ip"].includes(
+    trustedClientIpHeader,
+  )
 ) {
-  fail("Set GHOSTWRITER_TRUST_PROXY explicitly to true or false in production.");
+  fail(
+    "Production requires GHOSTWRITER_CLIENT_IP_HEADER to be one of cf-connecting-ip, fly-client-ip, x-forwarded-for, or x-real-ip.",
+  );
 }
 
 if (isProduction && abuseStoreMode !== "supabase") {
@@ -135,6 +134,80 @@ if (sharingEnabled) {
   if (!process.env.SUPABASE_PUBLISHABLE_KEY?.trim()) {
     fail("SUPABASE_PUBLISHABLE_KEY is required when public sharing is enabled.");
   }
+}
+
+if (isProduction && sharingEnabled) {
+  fail("Closed-beta production requires GHOSTWRITER_ALLOW_PUBLIC_SHARING=false.");
+}
+
+if (
+  isProduction &&
+  (process.env.GHOSTWRITER_E2E_FIXTURE_MODE ?? "").trim().toLowerCase() === "true"
+) {
+  fail("GHOSTWRITER_E2E_FIXTURE_MODE must never be enabled in production.");
+}
+
+function requireExact(name, expected) {
+  if ((process.env[name] ?? "").trim() !== expected) {
+    fail(`${name} must equal the audited value '${expected}' when AI is enabled.`);
+  }
+}
+
+function requirePositiveInteger(name, maximum) {
+  const raw = (process.env[name] ?? "").trim();
+
+  if (!/^\d+$/.test(raw)) {
+    fail(`${name} must be an explicit positive integer when AI is enabled.`);
+    return;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || (maximum && parsed > maximum)) {
+    fail(`${name} is outside the audited range.`);
+  }
+}
+
+if (aiEnabled) {
+  requireExact("GHOSTWRITER_PROVIDER", "groq");
+  requireExact("GROQ_MODEL", AI_MODEL);
+  requireExact("GHOSTWRITER_AI_PRICING_VERSION", AI_PRICING_VERSION);
+
+  if (!process.env.GROQ_API_KEY?.trim() || PLACEHOLDER.test(process.env.GROQ_API_KEY)) {
+    fail("AI_ENABLED=true requires a non-placeholder GROQ_API_KEY.");
+  }
+
+  if (abuseStoreMode !== "supabase") {
+    fail("AI_ENABLED=true requires GHOSTWRITER_ABUSE_STORE_MODE=supabase.");
+  }
+
+  if (!process.env.SUPABASE_PUBLISHABLE_KEY?.trim()) {
+    fail("AI_ENABLED=true requires SUPABASE_PUBLISHABLE_KEY for server-side user verification.");
+  }
+
+  const boundedIntegers = [
+    ["GHOSTWRITER_BETA_MAX_APPROVED_ACCOUNTS", 25],
+    ["GHOSTWRITER_AI_LIFETIME_GENERATIONS_PER_ACCOUNT", 10],
+    ["GHOSTWRITER_AI_ACCOUNT_GENERATIONS_PER_24H", 5],
+    ["GHOSTWRITER_AI_ACCOUNT_GENERATIONS_PER_MINUTE", 3],
+    ["GHOSTWRITER_AI_ACCOUNT_CONCURRENCY", 1],
+    ["GHOSTWRITER_AI_GLOBAL_GENERATIONS_PER_MINUTE", 10],
+    ["GHOSTWRITER_AI_GLOBAL_CONCURRENCY", 2],
+    ["GHOSTWRITER_AI_MAX_INPUT_TOKENS", 2000],
+    ["GHOSTWRITER_AI_MAX_OUTPUT_TOKENS", 2000],
+    ["GHOSTWRITER_AI_MAX_OPERATION_MICRO_USD", 10000],
+    ["GHOSTWRITER_AI_HOURLY_BUDGET_MICRO_USD", 500000],
+    ["GHOSTWRITER_AI_24H_BUDGET_MICRO_USD", 2000000],
+    ["GHOSTWRITER_AI_BETA_LIFETIME_BUDGET_MICRO_USD", 10000000],
+    ["GHOSTWRITER_AI_REQUEST_BODY_BYTES", 10000],
+    ["GHOSTWRITER_AI_REQUEST_TIMEOUT_MS", 30000],
+  ];
+
+  for (const [name, maximum] of boundedIntegers) {
+    requirePositiveInteger(name, maximum);
+  }
+
+  requireExact("GHOSTWRITER_AI_REQUEST_BODY_BYTES", "10000");
 }
 
 if (failures.length > 0) {

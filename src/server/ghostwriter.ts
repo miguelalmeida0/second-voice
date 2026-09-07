@@ -1,27 +1,42 @@
 import "../lib/server-only.ts";
 
 import { z } from "zod";
-import { getSupabaseAdmin } from "@/integrations/supabase/client.server";
-import { moodBandIndex, moodLabelFor, type AuthorId } from "@/lib/ghostwriter-shared";
-import { publicSharingEnabled, selectAiProvider } from "@/lib/security-env";
-import { readLimitedJsonResponse } from "@/server/ai-provider-http";
+import { getSupabaseAdmin } from "../integrations/supabase/client.server.ts";
+import {
+  DEFAULT_OUTCOME_ID,
+  DEFAULT_REWRITE_MODE,
+  OUTCOMES,
+  moodBandIndex,
+  moodLabelFor,
+  outcomeLabelFor,
+  type AuthorId,
+  type OutcomeId,
+  type RewriteMode,
+} from "../lib/ghostwriter-shared.ts";
+import { publicSharingEnabled } from "../lib/security-env.ts";
+import {
+  issueRewriteArtifactToken,
+  verifyRewriteArtifactToken,
+  type VerifiedRewriteArtifact,
+} from "./ghostwriter-artifact-token.ts";
 import {
   cleanupRewriteOutput,
   REWRITE_OUTPUT_MAX_CHARS,
   REWRITE_PROMPT_VERSION,
-  validateRewriteProviderPayload,
-} from "@/server/ghostwriter-quality";
-import { logSecurityEvent } from "@/server/security-events";
+} from "./ghostwriter-quality.ts";
+import { logSecurityEvent } from "./security-events.ts";
 
 export {
   cleanupRewriteOutput,
   REWRITE_OUTPUT_MAX_CHARS,
   REWRITE_PROMPT_VERSION,
-} from "@/server/ghostwriter-quality";
+} from "./ghostwriter-quality.ts";
 
 export const InputSchema = z.object({
   text: z.string().trim().min(1).max(2000),
-  author: z.enum(["hemingway", "tolkien", "tolstoy", "stephenking"]),
+  mode: z.enum(["author", "outcome"]).default(DEFAULT_REWRITE_MODE),
+  author: z.enum(["hemingway", "tolkien", "tolstoy", "stephenking"]).default("tolkien"),
+  outcome: z.enum(["clarity", "reply", "confident", "concise", "persuasive"]).default(DEFAULT_OUTCOME_ID),
   mood: z.number().int().min(0).max(100).default(50),
 });
 
@@ -40,7 +55,7 @@ export const RewriteArtifactProvenanceSchema = z.discriminatedUnion("source", [
 export type RewriteArtifactProvenance = z.infer<typeof RewriteArtifactProvenanceSchema>;
 export type RewriteGenerationSource = "single_rewrite" | "rewrite_lab";
 
-type GhostwriterInput = z.infer<typeof InputSchema> & {
+export type GhostwriterInput = z.infer<typeof InputSchema> & {
   artifactProvenance?: RewriteArtifactProvenance;
   sharePublicly?: boolean;
 };
@@ -55,7 +70,8 @@ type AuthorProfile = {
   bands: [MoodBand, MoodBand, MoodBand, MoodBand, MoodBand];
 };
 
-type GhostwriterResult = {
+export type GhostwriterResult = {
+  artifactToken: string | null;
   rewrite: string;
   shortId: string | null;
   moodLabel: string;
@@ -63,7 +79,7 @@ type GhostwriterResult = {
   status: number;
 };
 export type PublicRewriteArtifactInput = z.infer<typeof InputSchema> & {
-  artifactProvenance?: RewriteArtifactProvenance;
+  artifactToken: string;
   rewrite: string;
 };
 export type PublicRewriteArtifactResult = {
@@ -71,7 +87,7 @@ export type PublicRewriteArtifactResult = {
   shortId: string | null;
   status: number;
 };
-type RewriteRequestContext = {
+export type RewriteRequestContext = {
   requestId?: string;
 };
 type RewriteArtifactInsertOptions = {
@@ -82,6 +98,10 @@ type RewriteArtifactProvenanceFields = {
   lab_selection_reason: string | null;
   lab_winner_label: string | null;
   lab_winner_score: number | null;
+};
+type RewriteModeFields = {
+  outcome: OutcomeId | null;
+  rewrite_mode: RewriteMode;
 };
 
 const AUTHOR_PROFILES: Record<AuthorId, AuthorProfile> = {
@@ -195,23 +215,6 @@ const AUTHOR_PROFILES: Record<AuthorId, AuthorProfile> = {
   },
 };
 
-const GROQ_OPENAI_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GEMINI_OPENAI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b";
-const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite";
-const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
-const MAX_REQUEST_TIMEOUT_MS = 30_000;
-const PROVIDER_RESPONSE_MAX_BYTES = 64 * 1024;
-const REWRITE_MAX_TOKENS = 800;
-
-export type ProviderConfig = {
-  apiKey: string;
-  label: "Groq" | "Gemini";
-  model: string;
-  url: string;
-};
-
 function shortId(): string {
   const alphabet = "abcdefghijkmnopqrstuvwxyz23456789";
   const bytes = crypto.getRandomValues(new Uint8Array(8));
@@ -243,6 +246,47 @@ function artifactProvenanceFields(
     lab_selection_reason: parsed.data.reason,
     lab_winner_label: parsed.data.label,
     lab_winner_score: parsed.data.overall,
+  };
+}
+
+function artifactProvenanceFromVerifiedArtifact(
+  artifact: VerifiedRewriteArtifact,
+): RewriteArtifactProvenance {
+  if (artifact.generationSource !== "rewrite_lab") {
+    return {
+      source: "single_rewrite",
+    };
+  }
+
+  if (
+    !artifact.labWinnerLabel ||
+    artifact.labWinnerScore === null ||
+    !artifact.labSelectionReason
+  ) {
+    return {
+      source: "single_rewrite",
+    };
+  }
+
+  return {
+    label: artifact.labWinnerLabel,
+    overall: artifact.labWinnerScore,
+    reason: artifact.labSelectionReason,
+    source: "rewrite_lab",
+  };
+}
+
+function rewriteModeFields(input: Pick<GhostwriterInput, "mode" | "outcome">): RewriteModeFields {
+  if (input.mode === "outcome") {
+    return {
+      outcome: input.outcome,
+      rewrite_mode: "outcome",
+    };
+  }
+
+  return {
+    outcome: null,
+    rewrite_mode: "author",
   };
 }
 
@@ -283,26 +327,37 @@ Quality bar:
   };
 }
 
-export function getProviderConfig(): ProviderConfig | null {
-  const provider = selectAiProvider({
-    geminiApiKey: process.env.GEMINI_API_KEY,
-    geminiModel: process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL,
-    geminiUrl: GEMINI_OPENAI_URL,
-    groqApiKey: process.env.GROQ_API_KEY,
-    groqModel: process.env.GROQ_MODEL?.trim() || DEFAULT_GROQ_MODEL,
-    groqUrl: GROQ_OPENAI_URL,
-    preferredProvider: process.env.GHOSTWRITER_PROVIDER,
-  });
-
-  if (!provider) {
-    return null;
-  }
+export function buildOutcomePrompt(outcome: OutcomeId): { outcomeLabel: string; system: string } {
+  const selectedOutcome = OUTCOMES.find((entry) => entry.id === outcome) ?? OUTCOMES[0];
 
   return {
-    apiKey: provider.apiKey,
-    label: provider.name === "groq" ? "Groq" : "Gemini",
-    model: provider.model,
-    url: provider.url,
+    outcomeLabel: selectedOutcome.label,
+    system: `You are an outcome-driven rewrite engine.
+
+Your task is to rewrite the user's passage to achieve a specific real-world outcome while preserving the original meaning, facts, intent, and point of view.
+
+Contract version:
+${REWRITE_PROMPT_VERSION}
+
+Hard rules:
+- Return only the rewritten passage.
+- Do not explain your choices.
+- Do not add quotation marks around the answer.
+- Do not mention the outcome label.
+- Do not imitate a famous author or literary style.
+- Preserve formatting where possible.
+- Keep the rewrite natural, human, and close to the user's voice.
+- Keep the rewrite similar in length unless the selected outcome benefits from compression.
+- Never invent details, claims, promises, or emotional stakes that were not present.
+
+Selected outcome:
+${selectedOutcome.instruction}.
+
+Outcome quality bar:
+- Improve clarity, structure, and flow.
+- Remove unnecessary filler.
+- Bring the main point earlier when that improves the outcome.
+- Avoid robotic phrasing, buzzwords, and generic AI-sounding language.`,
   };
 }
 
@@ -319,6 +374,7 @@ async function insertRewriteArtifact(
     options.shareSourceText ??
     process.env.GHOSTWRITER_SHARE_SOURCE_TEXT?.trim().toLowerCase() === "true";
   const provenanceFields = artifactProvenanceFields(input.artifactProvenance);
+  const modeFields = rewriteModeFields(input);
 
   if (!supabaseAdmin) {
     logSecurityEvent("share_storage_unavailable", {
@@ -342,7 +398,9 @@ async function insertRewriteArtifact(
       lab_winner_score: provenanceFields.lab_winner_score,
       mood: input.mood,
       input_text: shareSourceText ? input.text : "",
+      outcome: modeFields.outcome,
       output_text: rewrite,
+      rewrite_mode: modeFields.rewrite_mode,
       source_visible: shareSourceText,
     });
 
@@ -403,11 +461,31 @@ export async function createPublicRewriteArtifact(
     };
   }
 
+  const verifiedArtifact = verifyRewriteArtifactToken({
+    artifactToken: input.artifactToken,
+    author: input.author,
+    mode: input.mode,
+    mood: input.mood,
+    outcome: input.outcome,
+    rewrite,
+    source: input.text,
+  });
+
+  if (!verifiedArtifact) {
+    return {
+      error: "Invalid rewrite artifact.",
+      shortId: null,
+      status: 400,
+    };
+  }
+
   const shortId = await insertRewriteArtifact(
     {
-      author: input.author,
-      artifactProvenance: input.artifactProvenance,
-      mood: input.mood,
+      author: verifiedArtifact.author,
+      mode: verifiedArtifact.mode,
+      outcome: verifiedArtifact.outcome ?? DEFAULT_OUTCOME_ID,
+      artifactProvenance: artifactProvenanceFromVerifiedArtifact(verifiedArtifact),
+      mood: verifiedArtifact.mood,
       text: input.text,
     },
     rewrite,
@@ -430,148 +508,52 @@ export async function createPublicRewriteArtifact(
   };
 }
 
-export async function rewriteText(
+export async function finalizeRewrite(
   data: GhostwriterInput,
+  rewrite: string,
   context: RewriteRequestContext = {},
 ): Promise<GhostwriterResult> {
-  const provider = getProviderConfig();
-  const { system, moodLabel } = buildPrompt(data.author, data.mood);
   const startedAt = Date.now();
+  const permalinkId = await persistRewrite(data, rewrite, context);
+  const provenanceFields = artifactProvenanceFields(data.artifactProvenance);
+  const modeFields = rewriteModeFields(data);
+  const artifactToken = issueRewriteArtifactToken({
+    author: data.author,
+    generationSource: provenanceFields.generation_source,
+    labSelectionReason: provenanceFields.lab_selection_reason,
+    labWinnerLabel: provenanceFields.lab_winner_label,
+    labWinnerScore: provenanceFields.lab_winner_score,
+    mode: data.mode,
+    mood: data.mood,
+    outcome: modeFields.outcome,
+    rewrite,
+    source: data.text,
+  });
 
-  if (!provider) {
-    return {
-      rewrite: "",
-      shortId: null,
-      moodLabel,
-      error: "Rewrite service unavailable.",
-      status: 503,
-    };
-  }
+  logSecurityEvent("rewrite_completed", {
+    author: data.author,
+    generationSource: data.artifactProvenance?.source ?? "single_rewrite",
+    latencyMs: Date.now() - startedAt,
+    model: "openai/gpt-oss-20b",
+    mood: data.mood,
+    outcome: data.mode === "outcome" ? data.outcome : "none",
+    outputChars: rewrite.length,
+    promptVersion: REWRITE_PROMPT_VERSION,
+    provider: "Groq",
+    requestId: context.requestId,
+    rewriteMode: data.mode,
+    shared: Boolean(permalinkId),
+  });
 
-  const controller = new AbortController();
-  const timeoutMs = Math.max(
-    5_000,
-    Math.min(
-      MAX_REQUEST_TIMEOUT_MS,
-      Number.parseInt(process.env.GHOSTWRITER_REQUEST_TIMEOUT_MS ?? "", 10) ||
-        DEFAULT_REQUEST_TIMEOUT_MS,
-    ),
-  );
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const response = await fetch(provider.url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${provider.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        max_tokens: REWRITE_MAX_TOKENS,
-        model: provider.model,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: data.text },
-        ],
-      }),
-      cache: "no-store",
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return {
-          rewrite: "",
-          shortId: null,
-          moodLabel,
-          error: "Too many requests. Wait a moment.",
-          status: 429,
-        };
-      }
-
-      logSecurityEvent("ai_provider_error", {
-        providerRequestId:
-          response.headers.get("x-request-id") ||
-          response.headers.get("x-groq-id") ||
-          response.headers.get("x-cloud-trace-context") ||
-          response.headers.get("cf-ray") ||
-          "unavailable",
-        provider: provider.label,
-        requestId: context.requestId,
-        status: response.status,
-      });
-
-      return {
-        rewrite: "",
-        shortId: null,
-        moodLabel,
-        error: "Rewrite service unavailable.",
-        status: 503,
-      };
-    }
-
-    const json = await readLimitedJsonResponse(response, PROVIDER_RESPONSE_MAX_BYTES, {
-      signal: controller.signal,
-    });
-    const validatedRewrite = validateRewriteProviderPayload(json);
-
-    if (!validatedRewrite.ok) {
-      logSecurityEvent("ai_provider_output_rejected", {
-        guardVersion: validatedRewrite.guardVersion,
-        promptVersion: REWRITE_PROMPT_VERSION,
-        provider: provider.label,
-        reason: validatedRewrite.reason,
-        requestId: context.requestId,
-        schemaVersion: validatedRewrite.schemaVersion,
-      });
-
-      return {
-        rewrite: "",
-        shortId: null,
-        moodLabel,
-        error: "Rewrite service unavailable.",
-        status: 502,
-      };
-    }
-
-    const rewrite = validatedRewrite.rewrite;
-    const permalinkId = await persistRewrite(data, rewrite, context);
-
-    logSecurityEvent("rewrite_completed", {
-      author: data.author,
-      generationSource: data.artifactProvenance?.source ?? "single_rewrite",
-      latencyMs: Date.now() - startedAt,
-      model: provider.model,
-      mood: data.mood,
-      outputChars: rewrite.length,
-      promptVersion: REWRITE_PROMPT_VERSION,
-      provider: provider.label,
-      requestId: context.requestId,
-      shared: Boolean(permalinkId),
-    });
-
-    return {
-      rewrite,
-      shortId: permalinkId,
-      moodLabel: moodLabelFor(data.author, data.mood),
-      error: null,
-      status: 200,
-    };
-  } catch (error) {
-    logSecurityEvent("rewrite_failed", {
-      error: error instanceof Error ? error.message : "unknown",
-      provider: provider.label,
-      requestId: context.requestId,
-    });
-
-    return {
-      rewrite: "",
-      shortId: null,
-      moodLabel,
-      error: "Rewrite service unavailable.",
-      status: 502,
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
+  return {
+    artifactToken,
+    rewrite,
+    shortId: permalinkId,
+    moodLabel:
+      data.mode === "outcome"
+        ? outcomeLabelFor(data.outcome)
+        : moodLabelFor(data.author, data.mood),
+    error: null,
+    status: 200,
+  };
 }

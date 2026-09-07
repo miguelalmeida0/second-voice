@@ -10,6 +10,7 @@ type SecurityEventDefinition = {
 
 const SECURITY_EVENT_DEFINITIONS: Record<string, SecurityEventDefinition> = {
   abuse_store_error: { alert: true, category: "operations", level: "error" },
+  ai_operation_uncertain: { alert: true, category: "operations", level: "error" },
   ai_provider_error: { alert: false, category: "provider", level: "warn" },
   ai_provider_output_rejected: { alert: true, category: "provider", level: "warn" },
   challenge_replay_detected: { alert: true, category: "abuse", level: "warn" },
@@ -39,11 +40,7 @@ function maskValue(value: unknown): unknown {
     return trimmed;
   }
 
-  if (trimmed.length <= 8) {
-    return `sha256:${createHash("sha256").update(trimmed).digest("hex").slice(0, 10)}`;
-  }
-
-  return `${trimmed.slice(0, 3)}…${trimmed.slice(-3)}`;
+  return `sha256:${createHash("sha256").update(trimmed).digest("hex").slice(0, 12)}`;
 }
 
 function consoleForLevel(level: SecurityEventLevel) {
@@ -68,7 +65,7 @@ export function logSecurityEvent(event: string, details: Record<string, unknown>
   const payload = Object.fromEntries(
     Object.entries(details).map(([key, value]) => [
       key,
-      /cookie|csrf|challenge|ip|key|secret|session|token|userAgent/i.test(key)
+      /account|cookie|csrf|challenge|ip|key|operationId|secret|session|token|userAgent|userId/i.test(key)
         ? maskValue(value)
         : value,
     ]),

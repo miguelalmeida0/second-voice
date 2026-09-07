@@ -54,6 +54,10 @@ const CASE_STUDY_WHAT_CHANGED_PATH = new URL(
 const HERO_ART_PATH = new URL("../src/components/ghostwriter/HeroArtwork.tsx", import.meta.url);
 const ORBITAL_PATH = new URL("../src/components/ghostwriter/AuthorOrbital.tsx", import.meta.url);
 const MOOD_DIAL_PATH = new URL("../src/components/ghostwriter/MoodDial.tsx", import.meta.url);
+const OUTCOME_OPTIONS_PATH = new URL(
+  "../src/components/ghostwriter/OutcomeOptions.tsx",
+  import.meta.url,
+);
 const REWRITE_PLAYBACK_PATH = new URL(
   "../src/components/ghostwriter/RewritePlayback.tsx",
   import.meta.url,
@@ -87,6 +91,7 @@ const REWRITE_LAB_SHARED_PATH = new URL(
   "../src/lib/ghostwriter-lab-shared.ts",
   import.meta.url,
 );
+const CLIENT_GUARD_PATH = new URL("../src/lib/ghostwriter-client-guard.ts", import.meta.url);
 const HOW_IT_WORKS_DRAWER_PATH = new URL(
   "../src/components/ghostwriter/HowItWorksDrawer.tsx",
   import.meta.url,
@@ -108,12 +113,12 @@ const SCROLL_SKILL_PATH = new URL("../skills/ghostwriter-scroll-integrity/SKILL.
 const GITHUB_SECURITY_WORKFLOW_PATH = new URL("../.github/workflows/security.yml", import.meta.url);
 
 test("imports the ghostwriter overflow guard stylesheet", () => {
-  const globals = readFileSync(GLOBALS_PATH, "utf8");
+  const layout = readFileSync(LAYOUT_PATH, "utf8");
 
-  assert.match(globals, /@import "\.\/ghostwriter-overflow-guard\.css";/);
+  assert.match(layout, /import "\.\/ghostwriter-overflow-guard\.css";/);
 });
 
-test("ghostwriter global font import includes the handoff serif family", () => {
+test("ghostwriter global font import includes the required local font families", () => {
   const globals = readFileSync(GLOBALS_PATH, "utf8");
   const layout = readFileSync(LAYOUT_PATH, "utf8");
 
@@ -123,9 +128,10 @@ test("ghostwriter global font import includes the handoff serif family", () => {
   assert.match(globals, /--color-card:\s*var\(--card\)/);
   assert.match(globals, /--success:\s*oklch\(0\.75 0\.18 145\)/);
   assert.match(layout, /next\/font\/google/);
-  assert.match(layout, /Instrument_Serif/);
+  assert.doesNotMatch(layout, /Instrument_Serif/);
   assert.match(layout, /Source_Serif_4/);
   assert.match(layout, /JetBrains_Mono/);
+  assert.match(layout, /preload:\s*false/);
   assert.match(layout, /sourceSerif\.variable/);
   assert.doesNotMatch(layout, /fonts\.googleapis\.com|fonts\.gstatic\.com/);
 });
@@ -181,8 +187,8 @@ test("Second Voice AI keeps canonical second-voice URLs while legacy ghostwriter
   const ogRoute = readFileSync(OG_ROUTE_PATH, "utf8");
   const proxy = readFileSync(PROXY_PATH, "utf8");
 
-  assert.match(home, /redirect\("\/second-voice"\)/);
-  assert.match(page, /fetch\("\/second-voice\?shield=refresh"/);
+  assert.match(home, /permanentRedirect\("\/second-voice"\)/);
+  assert.match(page, /refreshGhostwriterShieldSession/);
   assert.match(page, /href="\/second-voice\/case-study"/);
   assert.match(topBar, /href="\/second-voice"/);
   assert.match(footer, /href="\/second-voice"/);
@@ -193,9 +199,10 @@ test("Second Voice AI keeps canonical second-voice URLs while legacy ghostwriter
   assert.match(shareNotFound, /href="\/second-voice\/case-study"/);
   assert.match(ogRoute, /→ \/second-voice/);
   assert.match(proxy, /pathname === "\/second-voice"/);
-  assert.match(proxy, /pathname\.startsWith\("\/second-voice\/"\)/);
-  assert.match(proxy, /pathname === "\/ghostwriter"/);
-  assert.match(proxy, /pathname\.startsWith\("\/ghostwriter\/"\)/);
+  assert.doesNotMatch(proxy, /pathname\.startsWith\("\/second-voice\/"\)/);
+  assert.doesNotMatch(proxy, /pathname === "\/ghostwriter"/);
+  assert.doesNotMatch(proxy, /pathname\.startsWith\("\/ghostwriter\/"\)/);
+  assert.match(proxy, /pathname\.startsWith\("\/g\/"\)/);
 });
 
 test("hero image optimization prefers modern transparent formats", () => {
@@ -336,14 +343,16 @@ test("main app includes an accessible How It Works drawer", () => {
   const drawer = readFileSync(HOW_IT_WORKS_DRAWER_PATH, "utf8");
   const globals = readFileSync(GLOBALS_PATH, "utf8");
 
-  assert.match(page, /import \{ HowItWorksDrawer \} from "@\/components\/ghostwriter\/HowItWorksDrawer";/);
+  assert.match(page, /const HowItWorksDrawer = dynamic\(/);
+  assert.match(page, /import\("@\/components\/ghostwriter\/HowItWorksDrawer"\)/);
+  assert.match(page, /loading: \(\) => null/);
   assert.match(page, /const \[howItWorksOpen, setHowItWorksOpen\] = useState\(false\);/);
   assert.match(page, /aria-haspopup="dialog"/);
   assert.match(page, /aria-expanded=\{howItWorksOpen\}/);
   assert.match(page, /aria-controls="gw-how-drawer"/);
   assert.match(page, /How it works/);
   assert.match(page, /Read the case study/);
-  assert.match(page, /<HowItWorksDrawer open=\{howItWorksOpen\} onClose=\{\(\) => setHowItWorksOpen\(false\)\} \/>/);
+  assert.match(page, /<HowItWorksDrawer[\s\S]*open=\{howItWorksOpen\}[\s\S]*onClose=\{\(\) => setHowItWorksOpen\(false\)\}[\s\S]*returnFocusRef=\{howItWorksTriggerRef\}[\s\S]*\/>/);
 
   assert.match(drawer, /const HOW_TO_USE_STEPS/);
   assert.match(drawer, /id: "write"/);
@@ -385,6 +394,7 @@ test("main app includes an accessible How It Works drawer", () => {
 test("ghostwriter page renders the four-card writer selector from the mockup", () => {
   const page = readFileSync(PAGE_PATH, "utf8");
   const orbital = readFileSync(ORBITAL_PATH, "utf8");
+  const outcomeOptions = readFileSync(OUTCOME_OPTIONS_PATH, "utf8");
   const globals = readFileSync(GLOBALS_PATH, "utf8");
   const authorCardBlock =
     globals.match(/\.ghostwriter \.gw-author-card \{[\s\S]*?\n\}/)?.[0] ?? "";
@@ -402,13 +412,21 @@ test("ghostwriter page renders the four-card writer selector from the mockup", (
     globals.match(/\.ghostwriter \.gw-voice-divider \{[\s\S]*?\n\}/)?.[0] ?? "";
 
   assert.match(page, /<section className="gw-voice-console" aria-labelledby="gw-voice-title">/);
-  assert.match(page, /<p className="gw-voice-kicker">Voice controls<\/p>/);
+  assert.match(page, /<p className="gw-voice-kicker">Rewrite controls<\/p>/);
   assert.match(page, /<h2 id="gw-voice-title" className="gw-voice-title">/);
   assert.match(page, /Choose a writer/);
+  assert.match(page, /Choose an outcome/);
   assert.doesNotMatch(page, /ArrowDown|gw-voice-arrow|gw-voice-cue|&darr;/);
   assert.doesNotMatch(page, /gw-voice-cue-line|gw-voice-cue-dot/);
   assert.match(page, /Pick one of the cards\. Then tune the mood\./);
+  assert.match(page, /Pick what the rewrite should accomplish\./);
+  assert.match(page, /className="gw-mode-toggle"/);
+  assert.match(page, /<button[\s\S]*>\s*Authors\s*<\/button>/);
+  assert.match(page, /<button[\s\S]*>\s*Outcomes\s*<\/button>/);
   assert.match(page, /<AuthorOrbital active=\{active\.id\} disabled=\{loading\} onSelect=\{setActiveId\} \/>/);
+  assert.match(page, /<OutcomeOptions/);
+  assert.match(outcomeOptions, /options\.map\(\(option\) =>/);
+  assert.match(outcomeOptions, /className="gw-outcome-card"/);
   assert.match(page, /<div className="gw-voice-divider" aria-hidden \/>/);
   assert.doesNotMatch(page, /<section className="pb-8">|<section className="mt-4">/);
   assert.match(orbital, /<div className="gw-author-grid grid w-full grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">/);
@@ -440,8 +458,11 @@ test("ghostwriter page renders the four-card writer selector from the mockup", (
   assert.match(voiceConsoleBlock, /background: transparent;/);
   assert.match(voiceConsoleBlock, /box-shadow: none;/);
   assert.doesNotMatch(voiceConsoleBlock, /border-radius:/);
-  assert.match(voiceHeaderBlock, /max-width: min\(100%, 58rem\);/);
+  assert.match(voiceHeaderBlock, /grid-template-columns: minmax\(0, 1fr\) auto;/);
+  assert.match(voiceHeaderBlock, /width: 100%;/);
+  assert.match(voiceHeaderBlock, /max-width: 100%;/);
   assert.match(voiceHeaderBlock, /margin-bottom: clamp\(1rem, 2vw, 1\.35rem\);/);
+  assert.match(voiceHeaderBlock, /display: grid;/);
   assert.match(voiceTitleBlock, /display: block;/);
   assert.match(voiceTitleBlock, /font-size: clamp\(2\.35rem, 5\.1vw, 4\.65rem\);/);
   assert.match(voiceTitleBlock, /letter-spacing: 0;/);
@@ -449,6 +470,16 @@ test("ghostwriter page renders the four-card writer selector from the mockup", (
   assert.match(voiceInstructionBlock, /max-width: min\(100%, 28rem\);/);
   assert.match(voiceInstructionBlock, /margin: clamp\(0\.62rem, 1\.1vw, 0\.82rem\) 0 0;/);
   assert.match(globals, /\.ghostwriter \.gw-voice-instruction::before \{[\s\S]*width: clamp\(1\.4rem, 2\.2vw, 2\.2rem\);/);
+  assert.match(globals, /\.ghostwriter \.gw-mode-toggle \{[\s\S]*grid-template-columns: repeat\(2, max-content\);/);
+  assert.match(globals, /\.ghostwriter \.gw-mode-toggle \{[\s\S]*width: max-content;/);
+  assert.match(globals, /\.ghostwriter \.gw-mode-toggle \{[\s\S]*min-width: 0;/);
+  assert.doesNotMatch(globals, /\.ghostwriter \.gw-mode-toggle \{[\s\S]*min-width: min\(100%, 14rem\);/);
+  assert.doesNotMatch(globals, /\.ghostwriter \.gw-mode-toggle \{[\s\S]*width: min\(100%, 18rem\);/);
+  assert.match(globals, /\.ghostwriter \.gw-mode-toggle-button\[data-selected="true"\] \{[\s\S]*background: var\(--gw-author-cta-color\);/);
+  assert.match(globals, /\.ghostwriter \.gw-outcome-grid \{[\s\S]*grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);/);
+  assert.match(globals, /\.ghostwriter \.gw-outcome-card \{[\s\S]*min-height: 10\.5rem;/);
+  assert.match(globals, /\.ghostwriter \.gw-outcome-card\[data-selected="true"\] \{[\s\S]*background: var\(--gw-author-cta-color\);/);
+  assert.match(globals, /@media \(max-width: 1023px\) \{[\s\S]*\.ghostwriter \.gw-outcome-grid \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
   assert.match(voiceDividerBlock, /width: min\(54rem, 64%\);/);
   assert.match(voiceDividerBlock, /height: 1px;/);
   assert.match(
@@ -500,12 +531,14 @@ test("ghostwriter composer auto-expands instead of trapping page scroll", () => 
   assert.match(playback, /Rewriting with \$\{author\.first\}\.\.\./);
   assert.match(playback, /gw-loading-bars/);
   assert.match(page, /const REWRITE_CLIENT_TIMEOUT_MS = 35_000;/);
-  assert.match(page, /class RewriteRequestError extends Error/);
-  assert.match(page, /requestIdFrom\(response: Response\)/);
-  assert.match(page, /response\.headers\.get\(REQUEST_ID_HEADER\)/);
+  assert.match(page, /GhostwriterRequestError/);
+  assert.match(page, /requestIdFrom\(rewriteResponse\)/);
+  const clientGuard = readFileSync(CLIENT_GUARD_PATH, "utf8");
+  assert.match(clientGuard, /export function requestIdFrom\(response: Response\): string \| null/);
+  assert.match(clientGuard, /response\.headers\.get\(GHOSTWRITER_REQUEST_ID_HEADER\)/);
   assert.match(page, /const \[lastAttempt, setLastAttempt\] = useState<RewriteAttempt \| null>\(null\);/);
   assert.match(page, /function retryLastRewrite\(\)/);
-  assert.match(page, /onRetry=\{lastAttempt && !loading \? retryLastRewrite : undefined\}/);
+  assert.match(page, /onRetry=\{lastAttempt && !loading && features\.rewriteEnabled \? retryLastRewrite : undefined\}/);
   assert.match(playback, /errorRequestId\?: string \| null;/);
   assert.match(playback, /className="gw-error-panel"/);
   assert.match(playback, /role="alert"/);
@@ -545,19 +578,22 @@ test("Rewrite Lab is explicit, protected, and inspectable after playback", () =>
   const globals = readFileSync(GLOBALS_PATH, "utf8");
 
   assert.match(page, /type RewriteRun = \{[\s\S]*provenance: RewritePlaybackProvenance \| null;/);
+  assert.match(page, /artifactToken: string \| null;/);
   assert.match(page, /provenance: null,/);
   assert.match(page, /function applyLabWinner\(selection: RewriteLabWinnerSelection\)/);
   assert.match(page, /const nextRewrite = selection\.rewrite\.trim\(\);/);
   assert.match(page, /runId: previous\.runId \+ 1/);
   assert.match(page, /provenance: \{[\s\S]*label: selection\.label,[\s\S]*overall: selection\.overall,[\s\S]*reason: selection\.reason,[\s\S]*source: "rewrite-lab",/);
-  assert.match(page, /onApplyRewrite=\{applyLabWinner\}/);
+  assert.match(page, /features\.rewriteLabEnabled && displayedMode === "author" \? applyLabWinner : undefined/);
   assert.match(page, /provenance=\{latestRun\.provenance\}/);
-  assert.match(playback, /import \{ RewriteLabPanel \}/);
+  assert.match(playback, /const RewriteLabPanel = dynamic\(/);
+  assert.match(playback, /import\("@\/components\/ghostwriter\/RewriteLabPanel"\)/);
+  assert.match(playback, /loading: \(\) => null/);
   assert.match(playback, /import type \{ RewriteLabWinnerSelection \}/);
   assert.match(playback, /export type RewritePlaybackProvenance = \{[\s\S]*source: "rewrite-lab";/);
   assert.match(playback, /const \[labRunId, setLabRunId\] = useState<number \| null>\(null\);/);
   assert.match(playback, /const visiblePhase: RewritePlaybackPhase = error \? "error" : loading \? "requesting" : phase;/);
-  assert.match(playback, /const canOpenLab = visiblePhase === "complete"/);
+  assert.match(playback, /const canOpenLab =[\s\S]*mode === "author" && visiblePhase === "complete"/);
   assert.match(playback, /onApplyRewrite\?: \(selection: RewriteLabWinnerSelection\) => void;/);
   assert.match(playback, /provenance\?: RewritePlaybackProvenance \| null;/);
   assert.match(playback, /function useLabRewrite\(selection: RewriteLabWinnerSelection\)/);
@@ -595,6 +631,7 @@ test("Rewrite Lab is explicit, protected, and inspectable after playback", () =>
   assert.match(panel, /async function copyWinner\(\)/);
   assert.match(panel, /function useWinner\(\)/);
   assert.match(panel, /writeClipboardText\(winner\.rewrite\)/);
+  assert.match(panel, /artifactToken: winner\.artifactToken,/);
   assert.match(panel, /label: winner\.label,/);
   assert.match(panel, /overall: winner\.scores\.overall,/);
   assert.match(panel, /reason: state\.status === "success" \? state\.lab\.selectionReason : "",/);
@@ -623,15 +660,11 @@ test("Rewrite Lab is explicit, protected, and inspectable after playback", () =>
   assert.match(route, /runRewriteLab/);
   assert.match(route, /GHOSTWRITER_MAX_BODY_BYTES/);
   assert.match(route, /satisfies RewriteLabResponse/);
-  assert.match(server, /Promise\.allSettled/);
-  assert.match(server, /CANDIDATE_TIMEOUT_MS = 14_000/);
-  assert.match(server, /EVALUATOR_TIMEOUT_MS = 10_000/);
-  assert.match(server, /EvaluationSchema\.parse/);
-  assert.match(server, /calculateRewriteLabOverall/);
-  assert.match(server, /selectRewriteLabWinner/);
-  assert.match(server, /schemaValidation/);
-  assert.match(server, /fallbackBehavior/);
+  assert.match(server, /Live multi-pass AI is intentionally unavailable/);
+  assert.match(server, /closed-beta cost boundary is in force/);
+  assert.doesNotMatch(server, /fetch\(|Promise\.allSettled|evaluateCandidates/);
   assert.match(shared, /REWRITE_LAB_CANDIDATE_IDS/);
+  assert.match(shared, /artifactToken: string;/);
   assert.match(shared, /export type RewriteLabWinnerSelection = \{/);
   assert.match(shared, /overreachPenalty/);
   assert.match(shared, /calculateRewriteLabOverall/);
@@ -668,7 +701,10 @@ test("composer separates quick starts from the primary action row", () => {
   assert.match(page, /<div className="gw-composer-action-row">/);
   assert.match(page, /gw-primary-cta gw-composer-primary-cta/);
   assert.match(page, /className="gw-chip gw-surprise-cta"/);
-  assert.match(page, /\{loading \? "Rewriting\.\.\." : `Rewrite as \$\{active\.cardTitle\}`\}/);
+  assert.match(page, /const rewriteCta =/);
+  assert.match(page, /`Rewrite as \$\{active\.cardTitle\}`/);
+  assert.match(page, /`Rewrite to \$\{activeOutcome\.label\.toLowerCase\(\)\}`/);
+  assert.match(page, /\{loading \? "Rewriting\.\.\." : rewriteCta\}/);
   assert.match(page, /\{loading \? "Rewriting\.\.\." : "Surprise me"\}/);
   assert.match(page, /const userSource = input\.trim\(\);/);
   assert.match(page, /const source = userSource \|\| preset\.text;/);
@@ -706,8 +742,13 @@ test("visible rewrite share controls are explicit and privacy-scoped", () => {
   assert.match(route, /getGhostwriterFeatureAvailability/);
   assert.match(page, /features\.publicSharingEnabled \? shareCurrentRewrite : undefined/);
   assert.match(page, /features\.feedbackEnabled \? submitRewriteFeedback : undefined/);
+  assert.match(page, /features\.rewriteEnabled/);
+  assert.match(page, /gw-composer-status/);
   assert.match(featureFlags, /getSupabaseAdmin\(\)/);
   assert.match(featureFlags, /getSupabasePublic\(\)/);
+  assert.match(featureFlags, /resolveAbuseStoreConfig/);
+  assert.match(featureFlags, /resolveAiPolicyConfig\(\)/);
+  assert.match(featureFlags, /rewriteLabEnabled: e2eFixtureMode/);
   assert.match(featureFlags, /publicSharingEnabled\(process\.env\.GHOSTWRITER_ALLOW_PUBLIC_SHARING\)/);
   assert.match(playback, /RewriteFeedbackPanel/);
   assert.match(feedbackPanel, /Did this edit land/);
@@ -726,11 +767,14 @@ test("visible rewrite share controls are explicit and privacy-scoped", () => {
   assert.match(sharePage, /Overall score/);
 });
 
-test("release gate covers lint, typecheck, security, and scroll integrity", () => {
+test("release gate covers lint, typecheck, security, scroll integrity, and E2E", () => {
   const packageJson = readFileSync(PACKAGE_PATH, "utf8");
   const workflow = readFileSync(GITHUB_SECURITY_WORKFLOW_PATH, "utf8");
 
-  assert.match(packageJson, /"test:release:gate": "npm run lint && npx tsc --noEmit && npm run test:security && npm run test:scroll"/);
+  assert.match(
+    packageJson,
+    /"test:release:gate": "npm run lint && npx tsc --noEmit && npm run test:security && npm run test:scroll && npm run test:integration && npm run test:e2e"/,
+  );
   assert.match(workflow, /npm run test:release:gate/);
   assert.match(workflow, /npm run security:check/);
   assert.match(workflow, /npm run build -- --webpack/);
@@ -798,7 +842,8 @@ test("live rewrite mood status matches the designer emphasis", () => {
   const playback = readFileSync(REWRITE_PLAYBACK_PATH, "utf8");
   const globals = readFileSync(GLOBALS_PATH, "utf8");
 
-  assert.match(playback, /const moodStatus = author \? `\$\{mood\}% \$\{MOOD_NAME\[author\.id\]\} · \$\{moodLabel\}` : "Pick an author first";/);
+  assert.match(playback, /const moodStatus =[\s\S]*mode === "outcome"[\s\S]*\? `Outcome · \$\{outcomeLabel\}`/);
+  assert.match(playback, /author[\s\S]*\? `\$\{mood\}% \$\{MOOD_NAME\[author\.id\]\} · \$\{moodLabel\}`/);
   assert.match(playback, /className="gw-rewrite-mood"/);
   assert.match(playback, /aria-label=\{moodStatus\}/);
   assert.match(globals, /\.ghostwriter \.gw-rewrite-mood \{[\s\S]*font-family: var\(--font-serif\);[\s\S]*letter-spacing: 0\.18em;[\s\S]*text-transform: uppercase;/);
@@ -883,10 +928,13 @@ test("scroll integrity rule is documented and runnable", () => {
 
 test("ghostwriter client can refresh stale shield cookies before giving up", () => {
   const page = readFileSync(PAGE_PATH, "utf8");
+  const clientGuard = readFileSync(CLIENT_GUARD_PATH, "utf8");
 
-  assert.match(page, /const RECOVERABLE_SESSION_ERRORS = \[/);
-  assert.match(page, /async function refreshShieldSession\(\): Promise<string \| null>/);
-  assert.match(page, /fetch\("\/second-voice\?shield=refresh"/);
+  assert.match(clientGuard, /export const RECOVERABLE_SESSION_ERRORS = \[/);
+  assert.match(clientGuard, /export async function refreshGhostwriterShieldSession/);
+  assert.match(clientGuard, /fetch\("\/second-voice\?shield=refresh"/);
+  assert.match(clientGuard, /signal: options\.signal/);
+  assert.match(clientGuard, /throwIfAborted\(signal\)/);
   assert.match(page, /isRecoverableSessionError\(message\)/);
 });
 

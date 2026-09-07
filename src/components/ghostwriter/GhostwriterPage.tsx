@@ -1,31 +1,58 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { BookOpen, LoaderCircle, Sparkles } from "lucide-react";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AUTHORS, AuthorOrbital } from "@/components/ghostwriter/AuthorOrbital";
 import { HeroArtwork } from "@/components/ghostwriter/HeroArtwork";
-import { HowItWorksDrawer } from "@/components/ghostwriter/HowItWorksDrawer";
 import { MoodDial } from "@/components/ghostwriter/MoodDial";
+import { OutcomeOptions } from "@/components/ghostwriter/OutcomeOptions";
 import {
   RewritePlayback,
   type RewritePlaybackProvenance,
   type RewriteShareLink,
 } from "@/components/ghostwriter/RewritePlayback";
 import type { RewriteFeedbackSubmission } from "@/components/ghostwriter/RewriteFeedbackPanel";
+import {
+  GhostwriterRequestError,
+  isRecoverableSessionError,
+  issueGhostwriterChallenge,
+  readGhostwriterCsrfToken,
+  refreshGhostwriterShieldSession,
+  requestIdFrom,
+} from "@/lib/ghostwriter-client-guard";
 import type { RewriteLabWinnerSelection } from "@/lib/ghostwriter-lab-shared";
 import { PUBLIC_REWRITE_SHARE_CONSENT } from "@/lib/ghostwriter-share";
 import {
   DEMO_PRESETS,
+  DEFAULT_OUTCOME_ID,
+  DEFAULT_REWRITE_MODE,
+  OUTCOMES,
   SAMPLES,
   moodLabelFor,
+  outcomeLabelFor,
   type AuthorId,
+  type OutcomeId,
+  type RewriteMode,
 } from "@/lib/ghostwriter-shared";
 
+const HowItWorksDrawer = dynamic(
+  () =>
+    import("@/components/ghostwriter/HowItWorksDrawer").then(
+      (module) => module.HowItWorksDrawer,
+    ),
+  { loading: () => null },
+);
+
 type RewriteRun = {
+  artifactToken: string | null;
   author: AuthorId | null;
+  mode: RewriteMode;
   moodLabel: string;
   mood: number | null;
+  outcome: OutcomeId | null;
+  outcomeLabel: string | null;
   provenance: RewritePlaybackProvenance | null;
   rewrite: string;
   runId: number;
@@ -33,7 +60,9 @@ type RewriteRun = {
 };
 type RewriteAttempt = {
   author: AuthorId;
+  mode: RewriteMode;
   mood: number;
+  outcome: OutcomeId;
   text: string;
 };
 type RewriteErrorState = {
@@ -43,20 +72,25 @@ type RewriteErrorState = {
 type GhostwriterFeatureAvailability = {
   feedbackEnabled: boolean;
   publicSharingEnabled: boolean;
+  rewriteLabEnabled: boolean;
+  rewriteEnabled: boolean;
+  rewriteUnavailableReason: string | null;
 };
 
-const CSRF_COOKIE = "gw_csrf";
-const REQUEST_ID_HEADER = "x-request-id";
 const REWRITE_CLIENT_TIMEOUT_MS = 35_000;
 const SHARE_CLIENT_TIMEOUT_MS = 15_000;
 const FEEDBACK_CLIENT_TIMEOUT_MS = 12_000;
-const MAX_NONCE_ATTEMPTS = 2_000_000;
-const YIELD_INTERVAL = 300;
 const DEFAULT_AUTHOR_ID: AuthorId = "tolkien";
+const MODE_STORAGE_KEY = "second_voice_rewrite_mode";
+const OUTCOME_STORAGE_KEY = "second_voice_outcome";
 const EMPTY_RUN: RewriteRun = {
+  artifactToken: null,
   author: null,
+  mode: DEFAULT_REWRITE_MODE,
   moodLabel: "",
   mood: null,
+  outcome: null,
+  outcomeLabel: null,
   provenance: null,
   rewrite: "",
   runId: 0,
@@ -65,82 +99,13 @@ const EMPTY_RUN: RewriteRun = {
 const DEFAULT_FEATURES: GhostwriterFeatureAvailability = {
   feedbackEnabled: false,
   publicSharingEnabled: false,
+  rewriteLabEnabled: true,
+  rewriteEnabled: true,
+  rewriteUnavailableReason: null,
 };
 
-const encoder = new TextEncoder();
-const RECOVERABLE_SESSION_ERRORS = [
-  "Protection cookies are missing. Refresh the page and try again.",
-  "Request verification failed.",
-  "Security session expired. Refresh and try again.",
-] as const;
-
-class RewriteRequestError extends Error {
-  requestId: string | null;
-
-  constructor(message: string, requestId: string | null) {
-    super(message);
-    this.name = "RewriteRequestError";
-    this.requestId = requestId;
-  }
-}
-
-function readCookie(name: string): string | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-function digestToHex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer), (value) => value.toString(16).padStart(2, "0")).join("");
-}
-
-function isRecoverableSessionError(message: string) {
-  return RECOVERABLE_SESSION_ERRORS.includes(
-    message as (typeof RECOVERABLE_SESSION_ERRORS)[number],
-  );
-}
-
-function requestIdFrom(response: Response): string | null {
-  return response.headers.get(REQUEST_ID_HEADER);
-}
-
-async function fetchRewriteChallenge(csrfToken: string, signal: AbortSignal) {
-  const challengeResponse = await fetch("/api/ghostwriter/challenge", {
-    headers: {
-      "x-ghostwriter-csrf": csrfToken,
-    },
-    method: "GET",
-    signal,
-  });
-  const challenge = (await challengeResponse.json().catch(() => ({}))) as {
-    challengeToken?: string;
-    difficulty?: number | null;
-    error?: string | null;
-  };
-
-  if (
-    !challengeResponse.ok ||
-    challenge.error ||
-    !challenge.challengeToken ||
-    typeof challenge.difficulty !== "number"
-  ) {
-    throw new RewriteRequestError(
-      challenge.error || "The rewrite challenge could not be issued.",
-      requestIdFrom(challengeResponse),
-    );
-  }
-
-  return {
-    challengeToken: challenge.challengeToken,
-    difficulty: challenge.difficulty,
-  };
-}
-
 function toRewriteErrorState(error: unknown): RewriteErrorState {
-  if (error instanceof RewriteRequestError) {
+  if (error instanceof GhostwriterRequestError) {
     return {
       message: error.message,
       requestId: error.requestId,
@@ -160,45 +125,10 @@ function toRewriteErrorState(error: unknown): RewriteErrorState {
   };
 }
 
-async function solveChallenge(challengeToken: string, difficulty: number): Promise<string> {
-  const prefix = "0".repeat(difficulty);
-
-  for (let nonce = 0; nonce < MAX_NONCE_ATTEMPTS; nonce += 1) {
-    const digest = await crypto.subtle.digest(
-      "SHA-256",
-      encoder.encode(`${challengeToken}.${nonce}`),
-    );
-
-    if (digestToHex(digest).startsWith(prefix)) {
-      return String(nonce);
-    }
-
-    if (nonce % YIELD_INTERVAL === 0) {
-      await new Promise((resolve) => window.setTimeout(resolve, 0));
-    }
-  }
-
-  throw new Error("The rewrite proof took too long. Try again.");
-}
-
 function resizeComposer(node: HTMLTextAreaElement) {
   const minHeight = Number.parseFloat(window.getComputedStyle(node).minHeight) || 0;
   node.style.height = "auto";
   node.style.height = `${Math.max(node.scrollHeight, minHeight)}px`;
-}
-
-async function refreshShieldSession(): Promise<string | null> {
-  const response = await fetch("/second-voice?shield=refresh", {
-    cache: "no-store",
-    credentials: "same-origin",
-    method: "GET",
-  });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  return readCookie(CSRF_COOKIE);
 }
 
 export function GhostwriterPage({
@@ -207,6 +137,9 @@ export function GhostwriterPage({
   features?: GhostwriterFeatureAvailability;
 }) {
   const [activeId, setActiveId] = useState<AuthorId>(DEFAULT_AUTHOR_ID);
+  const [rewriteMode, setRewriteMode] = useState<RewriteMode>(DEFAULT_REWRITE_MODE);
+  const [outcome, setOutcome] = useState<OutcomeId>(DEFAULT_OUTCOME_ID);
+  const [preferencesReady, setPreferencesReady] = useState(false);
   const [mood, setMood] = useState(52);
   const [input, setInput] = useState(SAMPLES[1]?.text ?? "");
   const [loading, setLoading] = useState(false);
@@ -214,10 +147,14 @@ export function GhostwriterPage({
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [latestRun, setLatestRun] = useState<RewriteRun>(EMPTY_RUN);
   const [lastAttempt, setLastAttempt] = useState<RewriteAttempt | null>(null);
+  const howItWorksTriggerRef = useRef<HTMLButtonElement>(null);
   const [requestContext, setRequestContext] = useState<{
     author: AuthorId;
+    mode: RewriteMode;
     mood: number;
     moodLabel: string;
+    outcome: OutcomeId;
+    outcomeLabel: string;
     source: string;
   } | null>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -229,9 +166,48 @@ export function GhostwriterPage({
     }
   }, [input]);
 
+  useEffect(() => {
+    const preferenceTimer = window.setTimeout(() => {
+      const storedMode = window.localStorage.getItem(MODE_STORAGE_KEY);
+      const storedOutcome = window.localStorage.getItem(OUTCOME_STORAGE_KEY);
+
+      if (storedMode === "author" || storedMode === "outcome") {
+        setRewriteMode(storedMode);
+      }
+
+      if (OUTCOMES.some((entry) => entry.id === storedOutcome)) {
+        setOutcome(storedOutcome as OutcomeId);
+      }
+
+      setPreferencesReady(true);
+    }, 0);
+
+    return () => window.clearTimeout(preferenceTimer);
+  }, []);
+
+  useEffect(() => {
+    if (!preferencesReady) {
+      return;
+    }
+
+    window.localStorage.setItem(MODE_STORAGE_KEY, rewriteMode);
+  }, [preferencesReady, rewriteMode]);
+
+  useEffect(() => {
+    if (!preferencesReady) {
+      return;
+    }
+
+    window.localStorage.setItem(OUTCOME_STORAGE_KEY, outcome);
+  }, [outcome, preferencesReady]);
+
   const active = useMemo(
     () => AUTHORS.find((author) => author.id === activeId) ?? AUTHORS[0],
     [activeId],
+  );
+  const activeOutcome = useMemo(
+    () => OUTCOMES.find((entry) => entry.id === outcome) ?? OUTCOMES[0],
+    [outcome],
   );
   const headlineNeedsAuthorWrap = active.cardTitle.length >= 7;
   const displayedAuthor =
@@ -242,9 +218,18 @@ export function GhostwriterPage({
         : null) ?? active;
   const displayedMood = requestContext?.mood ?? latestRun.mood ?? mood;
   const displayedSource = requestContext?.source ?? latestRun.source;
+  const displayedMode = requestContext?.mode ?? latestRun.mode ?? rewriteMode;
+  const displayedOutcomeLabel =
+    requestContext?.outcomeLabel || latestRun.outcomeLabel || outcomeLabelFor(outcome);
   const displayedMoodLabel =
     requestContext?.moodLabel || latestRun.moodLabel || moodLabelFor(active.id, mood);
-  const canRewrite = input.trim().length > 0 && !loading;
+  const rewriteUnavailableMessage =
+    features.rewriteUnavailableReason ?? "Rewrite is temporarily unavailable.";
+  const canRewrite = features.rewriteEnabled && input.trim().length > 0 && !loading;
+  const rewriteCta =
+    rewriteMode === "outcome"
+      ? `Rewrite to ${activeOutcome.label.toLowerCase()}`
+      : `Rewrite as ${active.cardTitle}`;
 
   function scrollToRewriteStudio() {
     window.requestAnimationFrame(() => {
@@ -265,11 +250,15 @@ export function GhostwriterPage({
 
   async function handleRewrite(overrides?: {
     author?: AuthorId;
+    mode?: RewriteMode;
     mood?: number;
+    outcome?: OutcomeId;
     text?: string;
   }) {
+    const nextMode = overrides?.mode ?? rewriteMode;
     const authorId = overrides?.author ?? active.id;
     const nextMood = overrides?.mood ?? mood;
+    const nextOutcome = overrides?.outcome ?? outcome;
     const source = (overrides?.text ?? input).trim();
 
     if (!source) {
@@ -280,10 +269,21 @@ export function GhostwriterPage({
       return;
     }
 
-    const nextMoodLabel = moodLabelFor(authorId, nextMood);
+    if (!features.rewriteEnabled) {
+      setError({
+        message: rewriteUnavailableMessage,
+        requestId: null,
+      });
+      return;
+    }
+
+    const nextMoodLabel =
+      nextMode === "outcome" ? outcomeLabelFor(nextOutcome) : moodLabelFor(authorId, nextMood);
     const attempt: RewriteAttempt = {
       author: authorId,
+      mode: nextMode,
       mood: nextMood,
+      outcome: nextOutcome,
       text: source,
     };
 
@@ -292,16 +292,20 @@ export function GhostwriterPage({
     setLoading(true);
     setRequestContext({
       author: authorId,
+      mode: nextMode,
       mood: nextMood,
+      outcome: nextOutcome,
+      outcomeLabel: outcomeLabelFor(nextOutcome),
       source,
       moodLabel: nextMoodLabel,
     });
 
     const abortController = new AbortController();
+    const idempotencyKey = crypto.randomUUID();
     const timeoutId = window.setTimeout(() => abortController.abort(), REWRITE_CLIENT_TIMEOUT_MS);
 
     try {
-      let csrfToken = readCookie(CSRF_COOKIE);
+      let csrfToken = readGhostwriterCsrfToken();
 
       for (let attempt = 0; attempt < 2; attempt += 1) {
         try {
@@ -309,20 +313,24 @@ export function GhostwriterPage({
             throw new Error("Protection cookies are missing. Refresh the page and try again.");
           }
 
-          const challenge = await fetchRewriteChallenge(csrfToken, abortController.signal);
-          const challengeNonce = await solveChallenge(challenge.challengeToken, challenge.difficulty);
+          const challenge = await issueGhostwriterChallenge(csrfToken, {
+            signal: abortController.signal,
+          });
 
           const rewriteResponse = await fetch("/api/ghostwriter", {
             body: JSON.stringify({
               author: authorId,
-              challengeNonce,
+              challengeNonce: challenge.challengeNonce,
               challengeToken: challenge.challengeToken,
+              mode: nextMode,
               mood: nextMood,
+              outcome: nextOutcome,
               share: false,
               text: source,
             }),
             headers: {
               "content-type": "application/json",
+              "idempotency-key": idempotencyKey,
               "x-ghostwriter-csrf": csrfToken,
             },
             method: "POST",
@@ -330,13 +338,14 @@ export function GhostwriterPage({
           });
 
           const payload = (await rewriteResponse.json().catch(() => ({}))) as {
+            artifactToken?: string | null;
             error?: string | null;
             moodLabel?: string | null;
             rewrite?: string;
           };
 
-          if (!rewriteResponse.ok || payload.error || !payload.rewrite) {
-            throw new RewriteRequestError(
+          if (!rewriteResponse.ok || payload.error || !payload.rewrite || !payload.artifactToken) {
+            throw new GhostwriterRequestError(
               payload.error || "The rewrite came back empty. Try again.",
               requestIdFrom(rewriteResponse),
             );
@@ -345,9 +354,13 @@ export function GhostwriterPage({
           const rewrite = payload.rewrite;
 
           setLatestRun((previous) => ({
+            artifactToken: payload.artifactToken ?? null,
             author: authorId,
+            mode: nextMode,
             moodLabel: payload.moodLabel || nextMoodLabel,
             mood: nextMood,
+            outcome: nextMode === "outcome" ? nextOutcome : null,
+            outcomeLabel: nextMode === "outcome" ? outcomeLabelFor(nextOutcome) : null,
             provenance: null,
             rewrite,
             runId: previous.runId + 1,
@@ -362,7 +375,9 @@ export function GhostwriterPage({
               : "The rewrite could not be completed.";
 
           if (attempt === 0 && isRecoverableSessionError(message)) {
-            csrfToken = await refreshShieldSession();
+            csrfToken = await refreshGhostwriterShieldSession({
+              signal: abortController.signal,
+            });
 
             if (csrfToken) {
               continue;
@@ -381,12 +396,14 @@ export function GhostwriterPage({
   }
 
   function retryLastRewrite() {
-    if (!lastAttempt || loading) {
+    if (!lastAttempt || loading || !features.rewriteEnabled) {
       return;
     }
 
     setActiveId(lastAttempt.author);
+    setRewriteMode(lastAttempt.mode);
     setMood(lastAttempt.mood);
+    setOutcome(lastAttempt.outcome);
     setInput(lastAttempt.text);
     void handleRewrite(lastAttempt);
     scrollToRewriteStudio();
@@ -407,6 +424,7 @@ export function GhostwriterPage({
 
       return {
         ...previous,
+        artifactToken: selection.artifactToken,
         provenance: {
           label: selection.label,
           overall: selection.overall,
@@ -420,7 +438,13 @@ export function GhostwriterPage({
   }
 
   async function shareCurrentRewrite(): Promise<RewriteShareLink> {
-    if (!latestRun.author || latestRun.mood === null || !latestRun.source || !latestRun.rewrite) {
+    if (
+      !latestRun.artifactToken ||
+      !latestRun.author ||
+      latestRun.mood === null ||
+      !latestRun.source ||
+      !latestRun.rewrite
+    ) {
       throw new Error("Run a rewrite before creating a public link.");
     }
 
@@ -428,7 +452,7 @@ export function GhostwriterPage({
     const timeoutId = window.setTimeout(() => abortController.abort(), SHARE_CLIENT_TIMEOUT_MS);
 
     try {
-      let csrfToken = readCookie(CSRF_COOKIE);
+      let csrfToken = readGhostwriterCsrfToken();
 
       for (let attempt = 0; attempt < 2; attempt += 1) {
         try {
@@ -436,25 +460,18 @@ export function GhostwriterPage({
             throw new Error("Protection cookies are missing. Refresh the page and try again.");
           }
 
-          const challenge = await fetchRewriteChallenge(csrfToken, abortController.signal);
-          const challengeNonce = await solveChallenge(challenge.challengeToken, challenge.difficulty);
-          const artifactProvenance =
-            latestRun.provenance?.source === "rewrite-lab"
-              ? {
-                  source: "rewrite_lab" as const,
-                  label: latestRun.provenance.label,
-                  overall: latestRun.provenance.overall,
-                  reason: latestRun.provenance.reason,
-                }
-              : { source: "single_rewrite" as const };
-
+          const challenge = await issueGhostwriterChallenge(csrfToken, {
+            signal: abortController.signal,
+          });
           const shareResponse = await fetch("/api/ghostwriter/share", {
             body: JSON.stringify({
               author: latestRun.author,
-              artifactProvenance,
-              challengeNonce,
+              artifactToken: latestRun.artifactToken,
+              challengeNonce: challenge.challengeNonce,
               challengeToken: challenge.challengeToken,
+              mode: latestRun.mode,
               mood: latestRun.mood,
+              outcome: latestRun.outcome ?? DEFAULT_OUTCOME_ID,
               rewrite: latestRun.rewrite,
               shareConsent: PUBLIC_REWRITE_SHARE_CONSENT,
               text: latestRun.source,
@@ -472,7 +489,7 @@ export function GhostwriterPage({
           };
 
           if (!shareResponse.ok || payload.error || !payload.shortId) {
-            throw new RewriteRequestError(
+            throw new GhostwriterRequestError(
               payload.error || "The public link could not be created.",
               requestIdFrom(shareResponse),
             );
@@ -489,7 +506,9 @@ export function GhostwriterPage({
               : "The public link could not be created.";
 
           if (attempt === 0 && isRecoverableSessionError(message)) {
-            csrfToken = await refreshShieldSession();
+            csrfToken = await refreshGhostwriterShieldSession({
+              signal: abortController.signal,
+            });
 
             if (csrfToken) {
               continue;
@@ -507,7 +526,13 @@ export function GhostwriterPage({
   }
 
   async function submitRewriteFeedback(submission: RewriteFeedbackSubmission): Promise<void> {
-    if (!latestRun.author || latestRun.mood === null || !latestRun.source || !latestRun.rewrite) {
+    if (
+      !latestRun.artifactToken ||
+      !latestRun.author ||
+      latestRun.mood === null ||
+      !latestRun.source ||
+      !latestRun.rewrite
+    ) {
       throw new Error("Run a rewrite before leaving feedback.");
     }
 
@@ -515,7 +540,7 @@ export function GhostwriterPage({
     const timeoutId = window.setTimeout(() => abortController.abort(), FEEDBACK_CLIENT_TIMEOUT_MS);
 
     try {
-      let csrfToken = readCookie(CSRF_COOKIE);
+      let csrfToken = readGhostwriterCsrfToken();
 
       for (let attempt = 0; attempt < 2; attempt += 1) {
         try {
@@ -523,24 +548,18 @@ export function GhostwriterPage({
             throw new Error("Protection cookies are missing. Refresh the page and try again.");
           }
 
-          const challenge = await fetchRewriteChallenge(csrfToken, abortController.signal);
-          const challengeNonce = await solveChallenge(challenge.challengeToken, challenge.difficulty);
-          const artifactProvenance =
-            latestRun.provenance?.source === "rewrite-lab"
-              ? {
-                  source: "rewrite_lab" as const,
-                  label: latestRun.provenance.label,
-                  overall: latestRun.provenance.overall,
-                  reason: latestRun.provenance.reason,
-                }
-              : { source: "single_rewrite" as const };
+          const challenge = await issueGhostwriterChallenge(csrfToken, {
+            signal: abortController.signal,
+          });
           const feedbackResponse = await fetch("/api/ghostwriter/feedback", {
             body: JSON.stringify({
               author: latestRun.author,
-              artifactProvenance,
-              challengeNonce,
+              artifactToken: latestRun.artifactToken,
+              challengeNonce: challenge.challengeNonce,
               challengeToken: challenge.challengeToken,
+              mode: latestRun.mode,
               mood: latestRun.mood,
+              outcome: latestRun.outcome ?? DEFAULT_OUTCOME_ID,
               rating: submission.rating,
               reason: submission.reason,
               rewrite: latestRun.rewrite,
@@ -557,7 +576,7 @@ export function GhostwriterPage({
           };
 
           if (!feedbackResponse.ok || payload.error) {
-            throw new RewriteRequestError(
+            throw new GhostwriterRequestError(
               payload.error || "Feedback could not be saved.",
               requestIdFrom(feedbackResponse),
             );
@@ -571,7 +590,9 @@ export function GhostwriterPage({
               : "Feedback could not be saved.";
 
           if (attempt === 0 && isRecoverableSessionError(message)) {
-            csrfToken = await refreshShieldSession();
+            csrfToken = await refreshGhostwriterShieldSession({
+              signal: abortController.signal,
+            });
 
             if (csrfToken) {
               continue;
@@ -593,11 +614,42 @@ export function GhostwriterPage({
       return;
     }
 
+    if (!features.rewriteEnabled) {
+      setError({
+        message: rewriteUnavailableMessage,
+        requestId: null,
+      });
+      scrollToRewriteStudio();
+      return;
+    }
+
     const userSource = input.trim();
     const presetsWithNewMood = DEMO_PRESETS.filter((preset) => preset.mood !== mood);
     const presetPool = presetsWithNewMood.length > 0 ? presetsWithNewMood : DEMO_PRESETS;
     const preset = presetPool[Math.floor(Math.random() * presetPool.length)];
     const source = userSource || preset.text;
+
+    if (rewriteMode === "outcome") {
+      const outcomes = OUTCOMES.filter((entry) => entry.id !== outcome);
+      const outcomePool = outcomes.length > 0 ? outcomes : OUTCOMES;
+      const nextOutcome = outcomePool[Math.floor(Math.random() * outcomePool.length)]?.id ?? DEFAULT_OUTCOME_ID;
+
+      setOutcome(nextOutcome);
+
+      if (!userSource) {
+        setInput(preset.text);
+      }
+
+      void handleRewrite({
+        author: active.id,
+        mode: "outcome",
+        mood,
+        outcome: nextOutcome,
+        text: source,
+      });
+      scrollToRewriteStudio();
+      return;
+    }
 
     setActiveId(preset.author);
     setMood(preset.mood);
@@ -608,14 +660,20 @@ export function GhostwriterPage({
 
     void handleRewrite({
       author: preset.author,
+      mode: "author",
       mood: preset.mood,
+      outcome,
       text: source,
     });
     scrollToRewriteStudio();
   }
 
   return (
-    <div className="ghostwriter gw-overflow-guard relative min-h-dvh overflow-x-clip" data-voice={active.id}>
+    <div
+      className="ghostwriter gw-overflow-guard relative min-h-dvh overflow-x-clip"
+      data-app-ready={preferencesReady ? "true" : "false"}
+      data-voice={active.id}
+    >
       <div className="gw-overflow-guard relative z-10 mx-auto w-full max-w-[1460px] px-4 pb-20 pt-10 sm:px-8 sm:pb-24 sm:pt-12 lg:px-10 xl:px-12">
         <section className="hero" data-headline-length={headlineNeedsAuthorWrap ? "long" : "short"}>
           <div className="hero-text">
@@ -648,7 +706,7 @@ export function GhostwriterPage({
                 type="button"
                 onClick={handleSurpriseMe}
                 className="gw-primary-cta gw-hero-primary-cta inline-flex items-center gap-2 disabled:cursor-not-allowed"
-                disabled={loading}
+                disabled={loading || !features.rewriteEnabled}
               >
                 {loading ? (
                   <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden />
@@ -658,6 +716,7 @@ export function GhostwriterPage({
                 {loading ? "Rewriting..." : "Surprise me"}
               </button>
               <button
+                ref={howItWorksTriggerRef}
                 type="button"
                 className="gw-hero-link gw-how-trigger inline-flex items-center gap-2 border bg-transparent font-medium transition-colors"
                 aria-haspopup="dialog"
@@ -683,26 +742,60 @@ export function GhostwriterPage({
         <section className="gw-voice-console" aria-labelledby="gw-voice-title">
           <header className="gw-voice-console-header">
             <div>
-              <p className="gw-voice-kicker">Voice controls</p>
+              <p className="gw-voice-kicker">Rewrite controls</p>
               <h2 id="gw-voice-title" className="gw-voice-title">
-                Choose a writer
+                {rewriteMode === "author" ? "Choose a writer" : "Choose an outcome"}
               </h2>
               <p className="gw-voice-instruction">
-                Pick one of the cards. Then tune the mood.
+                {rewriteMode === "author"
+                  ? "Pick one of the cards. Then tune the mood."
+                  : "Pick what the rewrite should accomplish."}
               </p>
+            </div>
+            <div className="gw-mode-toggle" role="group" aria-label="Rewrite mode">
+              <button
+                type="button"
+                aria-pressed={rewriteMode === "author"}
+                className="gw-mode-toggle-button"
+                data-selected={rewriteMode === "author"}
+                disabled={loading}
+                onClick={() => setRewriteMode("author")}
+              >
+                Authors
+              </button>
+              <button
+                type="button"
+                aria-pressed={rewriteMode === "outcome"}
+                className="gw-mode-toggle-button"
+                data-selected={rewriteMode === "outcome"}
+                disabled={loading}
+                onClick={() => setRewriteMode("outcome")}
+              >
+                Outcomes
+              </button>
             </div>
           </header>
 
-          <AuthorOrbital active={active.id} disabled={loading} onSelect={setActiveId} />
+          {rewriteMode === "author" ? (
+            <>
+              <AuthorOrbital active={active.id} disabled={loading} onSelect={setActiveId} />
 
-          <div className="gw-voice-divider" aria-hidden />
+              <div className="gw-voice-divider" aria-hidden />
 
-          <MoodDial
-            author={active.id}
-            disabled={loading}
-            value={mood}
-            onChange={setMood}
-          />
+              <MoodDial
+                author={active.id}
+                disabled={loading}
+                value={mood}
+                onChange={setMood}
+              />
+            </>
+          ) : (
+            <OutcomeOptions
+              disabled={loading}
+              onChange={setOutcome}
+              value={outcome}
+            />
+          )}
         </section>
 
         <section
@@ -767,13 +860,13 @@ export function GhostwriterPage({
                   className="gw-primary-cta gw-composer-primary-cta inline-flex items-center gap-2 disabled:cursor-not-allowed"
                 >
                   {loading && <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden />}
-                  {loading ? "Rewriting..." : `Rewrite as ${active.cardTitle}`}
+                  {loading ? "Rewriting..." : rewriteCta}
                 </button>
                 <button
                   type="button"
                   onClick={handleSurpriseMe}
                   className="gw-chip gw-surprise-cta"
-                  disabled={loading}
+                  disabled={loading || !features.rewriteEnabled}
                 >
                   {loading ? (
                     <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden />
@@ -784,6 +877,11 @@ export function GhostwriterPage({
                 </button>
               </div>
 
+              {!features.rewriteEnabled ? (
+                <p className="gw-composer-status" role="status">
+                  {rewriteUnavailableMessage}
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -792,13 +890,17 @@ export function GhostwriterPage({
             error={error?.message ?? null}
             errorRequestId={error?.requestId ?? null}
             loading={loading}
-            loadingLabel="Working with"
+            loadingLabel={displayedMode === "outcome" ? "Optimizing for" : "Working with"}
+            mode={displayedMode}
             mood={displayedMood}
             moodLabel={displayedMoodLabel}
-            onApplyRewrite={applyLabWinner}
-            onRetry={lastAttempt && !loading ? retryLastRewrite : undefined}
+            onApplyRewrite={
+              features.rewriteLabEnabled && displayedMode === "author" ? applyLabWinner : undefined
+            }
+            onRetry={lastAttempt && !loading && features.rewriteEnabled ? retryLastRewrite : undefined}
             onShareRewrite={features.publicSharingEnabled ? shareCurrentRewrite : undefined}
             onSubmitFeedback={features.feedbackEnabled ? submitRewriteFeedback : undefined}
+            outcomeLabel={displayedOutcomeLabel}
             provenance={latestRun.provenance}
             result={latestRun.rewrite}
             runId={latestRun.runId}
@@ -813,7 +915,11 @@ export function GhostwriterPage({
         </section>
       </div>
 
-      <HowItWorksDrawer open={howItWorksOpen} onClose={() => setHowItWorksOpen(false)} />
+      <HowItWorksDrawer
+        open={howItWorksOpen}
+        onClose={() => setHowItWorksOpen(false)}
+        returnFocusRef={howItWorksTriggerRef}
+      />
     </div>
   );
 }

@@ -9,32 +9,37 @@ import {
 import { logSecurityEvent } from "@/server/security-events";
 
 function isShieldedPagePath(pathname: string) {
-  return (
-    pathname === "/second-voice" ||
-    pathname.startsWith("/second-voice/") ||
-    pathname === "/ghostwriter" ||
-    pathname.startsWith("/ghostwriter/")
-  );
+  return pathname === "/second-voice" || pathname === "/second-voice/";
+}
+
+function isNonceCspPath(pathname: string) {
+  return isShieldedPagePath(pathname) || pathname === "/g" || pathname.startsWith("/g/");
 }
 
 export function proxy(request: NextRequest) {
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
-  const requestHeaders = new Headers(request.headers);
-  const contentSecurityPolicy = buildContentSecurityPolicy({
-    isDevelopment: process.env.NODE_ENV !== "production",
-    nonce,
-  });
+  const shouldApplyNonceCsp = isNonceCspPath(request.nextUrl.pathname);
+  let response: NextResponse;
 
-  requestHeaders.set("Content-Security-Policy", contentSecurityPolicy);
-  requestHeaders.set("x-nonce", nonce);
+  if (shouldApplyNonceCsp) {
+    const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+    const requestHeaders = new Headers(request.headers);
+    const contentSecurityPolicy = buildContentSecurityPolicy({
+      isDevelopment: process.env.NODE_ENV !== "production",
+      nonce,
+    });
 
-  const response = NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
+    requestHeaders.set("Content-Security-Policy", contentSecurityPolicy);
+    requestHeaders.set("x-nonce", nonce);
 
-  response.headers.set("Content-Security-Policy", contentSecurityPolicy);
+    response = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+    response.headers.set("Content-Security-Policy", contentSecurityPolicy);
+  } else {
+    response = NextResponse.next();
+  }
 
   if (request.method !== "GET") {
     return response;

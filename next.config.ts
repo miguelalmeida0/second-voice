@@ -5,6 +5,11 @@ const isDevelopment = process.env.NODE_ENV !== "production";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  poweredByHeader: false,
+  productionBrowserSourceMaps: false,
+  turbopack: {
+    root: process.cwd(),
+  },
   images: {
     formats: ["image/avif", "image/webp"],
   },

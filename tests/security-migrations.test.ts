@@ -30,6 +30,18 @@ const FEEDBACK_MIGRATION = readFileSync(
   "supabase/migrations/202604230005_ghostwriter_feedback.sql",
   "utf8",
 ).toLowerCase();
+const OUTCOME_REWRITES_MIGRATION = readFileSync(
+  "supabase/migrations/202605020001_ghostwriter_outcome_rewrites.sql",
+  "utf8",
+).toLowerCase();
+const PUBLIC_LOOKUP_RPC_MIGRATION = readFileSync(
+  "supabase/migrations/202605020002_ghostwriter_public_rewrite_lookup_rpc.sql",
+  "utf8",
+).toLowerCase();
+const AI_FINANCIAL_BOUNDARY_MIGRATION = readFileSync(
+  "supabase/migrations/202609070001_ghostwriter_ai_financial_boundary.sql",
+  "utf8",
+).toLowerCase();
 
 const ABUSE_RPC_SIGNATURES = [
   "public.ghostwriter_penalty_window_seconds(integer)",
@@ -41,6 +53,7 @@ const ABUSE_RPC_SIGNATURES = [
 const PUBLIC_ARTIFACT_MIGRATIONS = [
   PUBLIC_ARTIFACTS_MIGRATION,
   PUBLIC_ARTIFACTS_PRIVACY_CORRECTION_MIGRATION,
+  OUTCOME_REWRITES_MIGRATION,
 ];
 
 function escapeRegExp(value: string): string {
@@ -87,6 +100,20 @@ test("public artifact view remains the only anonymous rewrite read surface", () 
   assert.match(PUBLIC_ARTIFACTS_MIGRATION, /where is_public = true/);
   assert.match(PUBLIC_ARTIFACTS_MIGRATION, /grant select on table public\.ghostwriter_public_rewrites to anon;/);
   assert.doesNotMatch(PUBLIC_ARTIFACTS_MIGRATION, /grant select on table public\.ghostwriter_rewrites to anon/);
+});
+
+test("public artifact lookup revokes anonymous view scans and exposes only exact short-id rpc", () => {
+  assert.match(
+    PUBLIC_LOOKUP_RPC_MIGRATION,
+    /create or replace function public\.ghostwriter_public_rewrite_lookup\(p_short_id text\)/,
+  );
+  assert.match(PUBLIC_LOOKUP_RPC_MIGRATION, /security definer/);
+  assert.match(PUBLIC_LOOKUP_RPC_MIGRATION, /p_short_id ~ '\^\[abcdefghijkmnopqrstuvwxyz23456789\]\{8\}\$'/);
+  assert.match(PUBLIC_LOOKUP_RPC_MIGRATION, /and rewrites\.short_id = p_short_id/);
+  assert.match(PUBLIC_LOOKUP_RPC_MIGRATION, /and rewrites\.is_public = true/);
+  assert.match(PUBLIC_LOOKUP_RPC_MIGRATION, /grant execute on function public\.ghostwriter_public_rewrite_lookup\(text\) to anon;/);
+  assert.match(PUBLIC_LOOKUP_RPC_MIGRATION, /revoke select on table public\.ghostwriter_public_rewrites from anon;/);
+  assert.match(PUBLIC_LOOKUP_RPC_MIGRATION, /revoke select on table public\.ghostwriter_public_rewrites from authenticated;/);
 });
 
 test("public artifact migrations preserve base-table source text", () => {
@@ -202,4 +229,118 @@ test("rewrite feedback migration stores quality signals without text exposure", 
   assert.match(FEEDBACK_MIGRATION, /grant all on table public\.ghostwriter_feedback to service_role;/);
   assert.doesNotMatch(FEEDBACK_MIGRATION, /input_text/);
   assert.doesNotMatch(FEEDBACK_MIGRATION, /output_text/);
+});
+
+test("outcome rewrite migration preserves privacy and public-safe mode metadata", () => {
+  assert.match(OUTCOME_REWRITES_MIGRATION, /rewrite_mode text not null default 'author'/);
+  assert.match(OUTCOME_REWRITES_MIGRATION, /outcome text/);
+  assert.match(OUTCOME_REWRITES_MIGRATION, /rewrite_mode in \('author', 'outcome'\)/);
+  assert.match(
+    OUTCOME_REWRITES_MIGRATION,
+    /outcome is null or outcome in \('clarity', 'reply', 'confident', 'concise', 'persuasive'\)/,
+  );
+  assert.match(OUTCOME_REWRITES_MIGRATION, /ghostwriter_rewrites_mode_outcome_consistency_check/);
+  assert.match(OUTCOME_REWRITES_MIGRATION, /ghostwriter_feedback_mode_outcome_consistency_check/);
+  assert.match(OUTCOME_REWRITES_MIGRATION, /drop view if exists public\.ghostwriter_public_rewrites/);
+  assert.match(OUTCOME_REWRITES_MIGRATION, /with \(security_barrier = true\)/);
+  assert.match(OUTCOME_REWRITES_MIGRATION, /case when source_visible then input_text else '' end as input_text/);
+  assert.match(OUTCOME_REWRITES_MIGRATION, /where is_public = true/);
+  assert.match(OUTCOME_REWRITES_MIGRATION, /rewrite_mode/);
+  assert.match(
+    OUTCOME_REWRITES_MIGRATION,
+    /case when rewrite_mode = 'outcome' then outcome else null end as outcome/,
+  );
+  assert.doesNotMatch(OUTCOME_REWRITES_MIGRATION, /grant select on table public\.ghostwriter_rewrites to anon/);
+  assert.doesNotMatch(OUTCOME_REWRITES_MIGRATION, /set\s+input_text\s*=/);
+});
+
+test("AI financial admission is durable, atomic, integer-only, and service-role only", () => {
+  assert.match(
+    AI_FINANCIAL_BOUNDARY_MIGRATION,
+    /create table if not exists public\.ghostwriter_beta_entitlements/,
+  );
+  assert.match(AI_FINANCIAL_BOUNDARY_MIGRATION, /approved_slot between 1 and 25/);
+  assert.match(AI_FINANCIAL_BOUNDARY_MIGRATION, /p_max_approved_accounts not between 1 and 25/);
+  assert.match(
+    AI_FINANCIAL_BOUNDARY_MIGRATION,
+    /v_entitlement\.approved_slot > p_max_approved_accounts/,
+  );
+  assert.doesNotMatch(
+    AI_FINANCIAL_BOUNDARY_MIGRATION,
+    /references\s+auth\.users[\s\S]*on delete cascade/,
+  );
+  assert.match(
+    AI_FINANCIAL_BOUNDARY_MIGRATION,
+    /create table if not exists public\.ghostwriter_ai_operations/,
+  );
+  assert.match(
+    AI_FINANCIAL_BOUNDARY_MIGRATION,
+    /unique \(account_id, idempotency_key\)/,
+  );
+  assert.match(AI_FINANCIAL_BOUNDARY_MIGRATION, /reserved_micro_usd bigint not null/);
+  assert.match(AI_FINANCIAL_BOUNDARY_MIGRATION, /actual_micro_usd bigint/);
+  assert.doesNotMatch(AI_FINANCIAL_BOUNDARY_MIGRATION, /\b(real|double precision|numeric|decimal)\b/);
+  assert.match(
+    AI_FINANCIAL_BOUNDARY_MIGRATION,
+    /pg_advisory_xact_lock\(hashtextextended\('ghostwriter-ai-global-reservation-v1'/,
+  );
+  assert.match(
+    AI_FINANCIAL_BOUNDARY_MIGRATION,
+    /v_spend \+ p_reservation_micro_usd > p_hour_budget_micro_usd/,
+  );
+  assert.match(
+    AI_FINANCIAL_BOUNDARY_MIGRATION,
+    /v_spend \+ p_reservation_micro_usd > p_day_budget_micro_usd/,
+  );
+  assert.match(
+    AI_FINANCIAL_BOUNDARY_MIGRATION,
+    /v_spend \+ p_reservation_micro_usd > p_beta_lifetime_budget_micro_usd/,
+  );
+  assert.match(AI_FINANCIAL_BOUNDARY_MIGRATION, /p_account_lifetime_limit not between 1 and 10/);
+  assert.match(AI_FINANCIAL_BOUNDARY_MIGRATION, /p_account_concurrency_limit <> 1/);
+  assert.match(AI_FINANCIAL_BOUNDARY_MIGRATION, /p_global_concurrency_limit not between 1 and 2/);
+  assert.match(AI_FINANCIAL_BOUNDARY_MIGRATION, /p_hour_budget_micro_usd > 500000/);
+  assert.match(AI_FINANCIAL_BOUNDARY_MIGRATION, /p_day_budget_micro_usd > 2000000/);
+  assert.match(
+    AI_FINANCIAL_BOUNDARY_MIGRATION,
+    /p_beta_lifetime_budget_micro_usd > 10000000/,
+  );
+  assert.match(
+    AI_FINANCIAL_BOUNDARY_MIGRATION,
+    /state in \('reserved', 'dispatched', 'uncertain'\) then reserved_micro_usd/,
+  );
+  assert.match(AI_FINANCIAL_BOUNDARY_MIGRATION, /set search_path = pg_catalog/);
+
+  for (const table of ["ghostwriter_beta_entitlements", "ghostwriter_ai_operations"]) {
+    assert.match(
+      AI_FINANCIAL_BOUNDARY_MIGRATION,
+      new RegExp(`alter table public\\.${table} enable row level security`),
+    );
+    assert.match(
+      AI_FINANCIAL_BOUNDARY_MIGRATION,
+      new RegExp(`revoke all on table public\\.${table} from anon`),
+    );
+    assert.match(
+      AI_FINANCIAL_BOUNDARY_MIGRATION,
+      new RegExp(`revoke all on table public\\.${table} from authenticated`),
+    );
+  }
+
+  for (const functionName of [
+    "ghostwriter_ai_reserve",
+    "ghostwriter_ai_mark_dispatched",
+    "ghostwriter_ai_fail_before_dispatch",
+    "ghostwriter_ai_mark_uncertain",
+    "ghostwriter_ai_settle_success",
+    "ghostwriter_ai_reconcile_uncertain",
+  ]) {
+    assert.match(
+      AI_FINANCIAL_BOUNDARY_MIGRATION,
+      new RegExp(`revoke all on function public\\.${functionName}`),
+    );
+    assert.match(
+      AI_FINANCIAL_BOUNDARY_MIGRATION,
+      new RegExp(`grant execute on function public\\.${functionName}`),
+    );
+  }
 });

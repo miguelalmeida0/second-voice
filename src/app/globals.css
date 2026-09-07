@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "./ghostwriter-overflow-guard.css";
 
 @theme inline {
   --font-sans: var(--font-inter), system-ui, sans-serif;
@@ -242,7 +241,12 @@ a {
 }
 
 .ghostwriter .gw-voice-console-header {
-  max-width: min(100%, 58rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  width: 100%;
+  max-width: 100%;
   margin-bottom: clamp(1rem, 2vw, 1.35rem);
 }
 
@@ -287,11 +291,61 @@ a {
   background: color-mix(in oklch, var(--gw-voice-color) 36%, var(--gw-frame-border-strong));
 }
 
+.ghostwriter .gw-mode-toggle {
+  display: inline-grid;
+  grid-template-columns: repeat(2, max-content);
+  align-self: start;
+  justify-self: end;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0.24rem;
+  border: 1px solid var(--gw-control-border);
+  border-radius: 999px;
+  background: rgba(244, 237, 225, 0.035);
+  overflow-x: clip;
+}
+
+.ghostwriter .gw-mode-toggle-button {
+  min-width: 0;
+  min-height: 2.35rem;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  color: var(--mist);
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
+  touch-action: pan-y;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.ghostwriter .gw-mode-toggle-button[data-selected="true"] {
+  background: var(--gw-author-cta-color);
+  color: hsl(var(--author-ink));
+}
+
+.ghostwriter .gw-mode-toggle-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
 .ghostwriter .gw-author-grid {
   width: 100%;
   min-width: 0;
   max-width: 100%;
   gap: clamp(0.9rem, 1.9vw, 1.25rem);
+}
+
+.ghostwriter .gw-outcome-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(0.75rem, 1.25vw, 1rem);
+  overflow-x: clip;
 }
 
 .ghostwriter .gw-voice-divider {
@@ -523,6 +577,14 @@ a {
   gap: clamp(0.7rem, 1.4vw, 0.95rem);
 }
 
+.gw-composer-status {
+  margin-top: 0.95rem;
+  max-width: 36rem;
+  color: var(--mist);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
 .gw-composer-primary-cta {
   min-width: min(100%, 12.5rem);
 }
@@ -628,6 +690,74 @@ a {
   cursor: not-allowed;
   border-color: var(--gw-frame-border-strong);
   color: var(--gw-disabled-foreground);
+}
+
+.ghostwriter .gw-outcome-card {
+  display: flex;
+  min-width: 0;
+  min-height: 10.5rem;
+  flex-direction: column;
+  gap: 0.65rem;
+  border: 1px solid var(--gw-frame-border-strong);
+  border-radius: 12px;
+  background: hsl(var(--author-card));
+  padding: clamp(1rem, 1.6vw, 1.25rem);
+  text-align: left;
+  touch-action: pan-y;
+  transition:
+    background-color 0.22s ease,
+    border-color 0.22s ease,
+    color 0.22s ease;
+}
+
+.ghostwriter .gw-outcome-card:not([data-selected="true"]):hover {
+  border-color: var(--gw-control-border);
+}
+
+.ghostwriter .gw-outcome-card[data-selected="true"] {
+  border-color: transparent;
+  background: var(--gw-author-cta-color);
+  color: hsl(var(--author-ink));
+}
+
+.ghostwriter .gw-outcome-card:disabled {
+  cursor: not-allowed;
+  border-color: var(--gw-frame-border-strong);
+  background: var(--gw-disabled-bg);
+  color: var(--gw-disabled-foreground);
+  opacity: 1;
+}
+
+.ghostwriter .gw-outcome-status {
+  color: hsl(var(--author-muted-foreground));
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ghostwriter .gw-outcome-title {
+  color: var(--ghost);
+  font-family: var(--font-serif);
+  font-size: clamp(1.22rem, 1.7vw, 1.58rem);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.02;
+  overflow-wrap: anywhere;
+}
+
+.ghostwriter .gw-outcome-description {
+  margin-top: auto;
+  color: hsl(var(--author-muted-foreground));
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.ghostwriter .gw-outcome-card[data-selected="true"] .gw-outcome-status,
+.ghostwriter .gw-outcome-card[data-selected="true"] .gw-outcome-title,
+.ghostwriter .gw-outcome-card[data-selected="true"] .gw-outcome-description {
+  color: hsl(var(--author-ink));
 }
 
 .ghostwriter .gw-range-shell {
@@ -2296,6 +2426,21 @@ a {
     max-width: 100%;
     text-align: left;
   }
+
+  .ghostwriter .gw-voice-console-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .ghostwriter .gw-mode-toggle {
+    justify-self: start;
+    width: max-content;
+  }
+
+  .ghostwriter .gw-outcome-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 767px) {
@@ -2366,6 +2511,29 @@ a {
 
   .ghostwriter .gw-author-description {
     display: none;
+  }
+
+  .ghostwriter .gw-outcome-grid {
+    gap: clamp(0.65rem, 3vw, 0.9rem);
+  }
+
+  .ghostwriter .gw-mode-toggle {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .ghostwriter .gw-outcome-card {
+    min-height: clamp(8.4rem, 30vw, 10.5rem);
+    padding: clamp(0.78rem, 3.2vw, 1rem);
+    border-radius: 10px;
+  }
+
+  .ghostwriter .gw-outcome-title {
+    font-size: clamp(1.08rem, 5vw, 1.34rem);
+  }
+
+  .ghostwriter .gw-outcome-description {
+    font-size: clamp(0.76rem, 3vw, 0.84rem);
   }
 
   .gw-composer-action-row {

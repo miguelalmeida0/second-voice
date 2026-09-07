@@ -21,6 +21,7 @@ const checks=[
 if(portfolio){
  checks.find(c=>c[0]==="sql-integration")[2].push("--portfolio");
  checks.splice(checks.findIndex(c=>c[0]==="browser"),1); // Auth includes its own actual browser flow; the broad visual matrix remains in verify:release.
+ checks.splice(checks.findIndex(c=>c[0]==="build")+1,0,["portfolio-ui","node",["scripts/release/test-portfolio-browser.mjs"]]);
 }
 const synthetic="CANARY_ONLY_NOT_A_CREDENTIAL_7293c67a83bb4ce79d36";
 mkdirSync(".tmp/runtime",{recursive:true});
@@ -30,7 +31,7 @@ for(const [name,cmd,args] of checks){
  console.log("Checking "+name);
  const r=spawnSync(cmd,args,{env,encoding:"utf8",timeout:15*60*1000,killSignal:"SIGTERM",maxBuffer:16*1024*1024});
  const sandboxUnavailable=/BROWSER_BLOCKED|bootstrap_check_in.*Permission denied|MachPortRendezvous|operation not permitted/i.test((r.stderr??"")+(r.stdout??""));
- const status=r.error||(["authentication","browser"].includes(name)&&r.status===2)||sandboxUnavailable?"BLOCKED":r.status===0?"PASS":"FAIL";
+ const status=r.error||(["authentication","browser","portfolio-ui"].includes(name)&&r.status===2)||sandboxUnavailable?"BLOCKED":r.status===0?"PASS":"FAIL";
  // Tests use synthetic data. Redact synthetic secret markers too.
  const log=((r.stdout??"")+"\n"+(r.stderr??"")).replaceAll(synthetic,"[SYNTHETIC_REDACTED]");
  writeFileSync(".tmp/release/"+name+".log",log);

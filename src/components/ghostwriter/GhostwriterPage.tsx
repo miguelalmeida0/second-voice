@@ -6,6 +6,8 @@ import { BookOpen, LoaderCircle, Sparkles } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AUTHORS, AuthorOrbital } from "@/components/ghostwriter/AuthorOrbital";
 import { HeroArtwork } from "@/components/ghostwriter/HeroArtwork";
+import { openPortfolioSignIn, usePortfolioAccess } from "@/components/ghostwriter/PortfolioAccess";
+import { portfolioAccessView } from "@/lib/portfolio-access";
 import { MoodDial } from "@/components/ghostwriter/MoodDial";
 import { OutcomeOptions } from "@/components/ghostwriter/OutcomeOptions";
 import {
@@ -114,7 +116,7 @@ function toRewriteErrorState(error: unknown): RewriteErrorState {
 
   if (error instanceof DOMException && error.name === "AbortError") {
     return {
-      message: "The rewrite took too long to finish. Try again.",
+      message: "AI demo is temporarily unavailable. Your text stays here. The request may already have started; it will not be retried automatically.",
       requestId: null,
     };
   }
@@ -136,6 +138,7 @@ export function GhostwriterPage({
 }: {
   features?: GhostwriterFeatureAvailability;
 }) {
+  const portfolioAccess = usePortfolioAccess();
   const [activeId, setActiveId] = useState<AuthorId>(DEFAULT_AUTHOR_ID);
   const [rewriteMode, setRewriteMode] = useState<RewriteMode>(DEFAULT_REWRITE_MODE);
   const [outcome, setOutcome] = useState<OutcomeId>(DEFAULT_OUTCOME_ID);
@@ -223,9 +226,11 @@ export function GhostwriterPage({
     requestContext?.outcomeLabel || latestRun.outcomeLabel || outcomeLabelFor(outcome);
   const displayedMoodLabel =
     requestContext?.moodLabel || latestRun.moodLabel || moodLabelFor(active.id, mood);
+  const accessView = portfolioAccess ? portfolioAccessView(portfolioAccess.session, portfolioAccess.githubEnabled, features.rewriteEnabled) : null;
+  const generationEnabled = features.rewriteEnabled && (!accessView || accessView.canGenerate);
   const rewriteUnavailableMessage =
-    features.rewriteUnavailableReason ?? "Rewrite is temporarily unavailable.";
-  const canRewrite = features.rewriteEnabled && input.trim().length > 0 && !loading;
+    accessView?.message ?? features.rewriteUnavailableReason ?? "AI demo is temporarily unavailable. Your text stays here.";
+  const canRewrite = !loading && (accessView?.signIn || (generationEnabled && input.trim().length > 0));
   const rewriteCta =
     rewriteMode === "outcome"
       ? `Rewrite to ${activeOutcome.label.toLowerCase()}`
@@ -269,7 +274,11 @@ export function GhostwriterPage({
       return;
     }
 
-    if (!features.rewriteEnabled) {
+    if (accessView?.signIn) {
+      openPortfolioSignIn();
+      return;
+    }
+    if (!generationEnabled) {
       setError({
         message: rewriteUnavailableMessage,
         requestId: null,
@@ -346,7 +355,9 @@ export function GhostwriterPage({
 
           if (!rewriteResponse.ok || payload.error || !payload.rewrite || !payload.artifactToken) {
             throw new GhostwriterRequestError(
-              payload.error || "The rewrite came back empty. Try again.",
+              portfolioAccess && (rewriteResponse.status === 429 || rewriteResponse.status >= 500)
+                ? "AI demo is temporarily unavailable. Your text stays here. No automatic retry was made."
+                : payload.error || "The rewrite could not be completed. Your text stays here.",
               requestIdFrom(rewriteResponse),
             );
           }
@@ -388,7 +399,9 @@ export function GhostwriterPage({
         }
       }
     } catch (caughtError) {
-      setError(toRewriteErrorState(caughtError));
+      setError(portfolioAccess && !(caughtError instanceof GhostwriterRequestError)
+        ? { message: "AI demo is temporarily unavailable. Your text stays here. The request may already have started; no automatic retry was made.", requestId: null }
+        : toRewriteErrorState(caughtError));
     } finally {
       window.clearTimeout(timeoutId);
       setLoading(false);
@@ -397,7 +410,7 @@ export function GhostwriterPage({
   }
 
   function retryLastRewrite() {
-    if (!lastAttempt || loading || !features.rewriteEnabled) {
+    if (!lastAttempt || loading || !generationEnabled) {
       return;
     }
 
@@ -615,7 +628,7 @@ export function GhostwriterPage({
       return;
     }
 
-    if (!features.rewriteEnabled) {
+    if (!generationEnabled) {
       setError({
         message: rewriteUnavailableMessage,
         requestId: null,
@@ -707,7 +720,7 @@ export function GhostwriterPage({
                 type="button"
                 onClick={handleSurpriseMe}
                 className="gw-primary-cta gw-hero-primary-cta inline-flex items-center gap-2 disabled:cursor-not-allowed"
-                disabled={loading || !features.rewriteEnabled}
+                disabled={loading || !generationEnabled}
               >
                 {loading ? (
                   <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden />
@@ -857,17 +870,17 @@ export function GhostwriterPage({
                 <button
                   type="button"
                   disabled={!canRewrite}
-                  onClick={() => void handleRewrite()}
+                  onClick={() => accessView?.signIn ? openPortfolioSignIn() : void handleRewrite()}
                   className="gw-primary-cta gw-composer-primary-cta inline-flex items-center gap-2 disabled:cursor-not-allowed"
                 >
                   {loading && <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden />}
-                  {loading ? "Rewriting..." : rewriteCta}
+                  {loading ? "Rewriting..." : accessView?.signIn ? "Sign in with GitHub" : rewriteCta}
                 </button>
                 <button
                   type="button"
                   onClick={handleSurpriseMe}
                   className="gw-chip gw-surprise-cta"
-                  disabled={loading || !features.rewriteEnabled}
+                  disabled={loading || !generationEnabled}
                 >
                   {loading ? (
                     <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden />
@@ -878,7 +891,7 @@ export function GhostwriterPage({
                 </button>
               </div>
 
-              {!features.rewriteEnabled ? (
+              {accessView || !features.rewriteEnabled ? (
                 <p className="gw-composer-status" role="status">
                   {rewriteUnavailableMessage}
                 </p>
@@ -898,7 +911,7 @@ export function GhostwriterPage({
             onApplyRewrite={
               features.rewriteLabEnabled && displayedMode === "author" ? applyLabWinner : undefined
             }
-            onRetry={lastAttempt && !loading && features.rewriteEnabled ? retryLastRewrite : undefined}
+            onRetry={lastAttempt && !loading && generationEnabled && !portfolioAccess ? retryLastRewrite : undefined}
             onShareRewrite={features.publicSharingEnabled ? shareCurrentRewrite : undefined}
             onSubmitFeedback={features.feedbackEnabled ? submitRewriteFeedback : undefined}
             outcomeLabel={displayedOutcomeLabel}

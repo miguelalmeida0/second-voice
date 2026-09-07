@@ -3,6 +3,9 @@ export async function runPortfolioProof({sql,startWorker,workerPort,localFetch,n
  const id=n=>"00000000-0000-0000-0000-"+String(n).padStart(12,"0");
  sql("truncate public.ghostwriter_beta_entitlements; update public.ghostwriter_ai_control set release_profile='portfolio-free',free_organization_id='org-isolated',free_project_id='project-isolated',free_verified_until=now()+interval '1 day',free_evidence_reference='synthetic-plan-fixture';");
  for(let n=1;n<=25;n++)assert.equal(sql(`select public.ghostwriter_free_entitle('${id(n)}','${id(n)}');`),"entitled");
+ const firstClaim=sql(`select free_claimed_at||':'||approved_slot from public.ghostwriter_beta_entitlements where account_id='${id(1)}';`);
+ assert.equal(sql(`select public.ghostwriter_free_entitle('${id(1)}','${id(1)}');`),"entitled");
+ assert.equal(sql(`select free_claimed_at||':'||approved_slot from public.ghostwriter_beta_entitlements where account_id='${id(1)}';`),firstClaim);
  assert.equal(sql("select count(*)||':'||count(*) filter(where paid_approved) from public.ghostwriter_beta_entitlements;"),"25:0");
  sql(`insert into auth.users values('${id(26)}',now(),null,'new@isolated.test');insert into auth.sessions values('${id(26)}','${id(26)}',null);`);
  assert.equal(sql(`select public.ghostwriter_free_entitle('${id(26)}','${id(26)}');`),"trial_capacity");
@@ -14,9 +17,13 @@ export async function runPortfolioProof({sql,startWorker,workerPort,localFetch,n
   const get=async(i,path)=>{const r=await localFetch("http://127.0.0.1:"+ports[i]+path);assert.equal(r.status,200);return r.json();};
   let completed=0;
   const pending=Array.from({length:25},(_,i)=>get(i%2,"/"+(i+1)).then(r=>{completed++;return r;}));
-  for(let n=0;n<600&&completed<24;n++)await new Promise(r=>setTimeout(r,100));
+  let stats=[];
+  for(let n=0;n<600;n++){
+   stats=await Promise.all([get(0,"/stats"),get(1,"/stats")]);
+   if(completed===24 && stats.reduce((total,s)=>total+s.calls,0)===1)break;
+   await new Promise(r=>setTimeout(r,100));
+  }
   assert.equal(completed,24);
-  const stats=await Promise.all([get(0,"/stats"),get(1,"/stats")]);
   assert.equal(stats.reduce((n,s)=>n+s.calls,0),1);assert.equal(stats.reduce((n,s)=>n+s.active,0),1);
   assert.equal(sql("select count(*) from public.ghostwriter_ai_operations where dispatched_at is not null;"),"1");
   await Promise.all([get(0,"/release"),get(1,"/release")]);
@@ -24,6 +31,19 @@ export async function runPortfolioProof({sql,startWorker,workerPort,localFetch,n
   assert.equal(results.filter(r=>r.status===200).length,1);
   assert.equal(results.filter(r=>r.reason==="global_concurrency_limit").length,24);
   assert.equal((await get(1,"/"+winner)).status,200);
+  const winnerAccount=id(winner%25+1); // Same request-number mapping as the gateway worker.
+  const originalAllowance=JSON.parse(sql(`select public.ghostwriter_free_allowance('${winnerAccount}','${winnerAccount}');`));
+  assert.equal(originalAllowance.remaining,9);assert.equal(originalAllowance.todayRemaining,2);
+  // New normal session after durable logout cannot recycle either the slot or starts.
+  assert.equal(sql(`select public.ghostwriter_ai_revoke_session('${winnerAccount}','${winnerAccount}');`),"t");
+  const nextSession=id(100+winner);
+  sql(`insert into auth.sessions values('${nextSession}','${winnerAccount}',null);`);
+  assert.equal(sql(`select public.ghostwriter_free_entitle('${winnerAccount}','${nextSession}');`),"entitled");
+  assert.deepEqual(JSON.parse(sql(`select public.ghostwriter_free_allowance('${winnerAccount}','${nextSession}');`)),originalAllowance);
+  // Workers use the original synthetic session. Restore only this isolated fixture.
+  sql(`delete from public.ghostwriter_revoked_sessions where session_id='${winnerAccount}';`);
+  assert.equal(sql("select count(*) from public.ghostwriter_beta_entitlements;"),"25");
+  console.log(JSON.stringify({scenario:"portfolio-entitlement-session-continuity",status:"PASS",proof:["repeat-claim-same-slot-and-timestamp","replay-keeps-allowance","logout-new-session-does-not-replenish"],remaining:9,todayRemaining:2,scope:"Production SQL in isolated PostgreSQL; synthetic verified identities"}));
   const second=winner===1?2:1;assert.equal((await get(0,"/"+second)).status,200);
   const third=[1,2,3].find(n=>n!==winner&&n!==second);
   assert.equal((await get(1,"/"+third)).reason,"global_minute_limit");

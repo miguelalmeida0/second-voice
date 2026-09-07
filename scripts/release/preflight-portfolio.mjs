@@ -1,9 +1,12 @@
 // Read-only target checks. Console plan evidence remains an OWNER ATTESTATION,
 // not an automatically established billing guarantee.
-import {readFileSync} from "node:fs";
+import {existsSync,readFileSync} from "node:fs";
 import {spawnSync} from "node:child_process";
 import {sourceIdentity,evidenceIdentityErrors} from "./source-identity.mjs";
 const blockers=[];
+// Match local app configuration without shell sourcing or logging values.
+// Explicit process settings (including production target settings) take priority.
+if(existsSync(".env.local"))process.loadEnvFile(".env.local");
 let attestation;
 try{
  const local=JSON.parse(readFileSync(".tmp/release/portfolio-evidence.json","utf8"));

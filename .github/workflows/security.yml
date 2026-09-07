@@ -15,24 +15,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - name: Scan repository and history for secrets
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: npm
 
       - run: npm ci
 
+      - run: npm run test:e2e:install
+
       - run: npm run test:release:gate
 
       - run: npm run security:check
         env:
+          AI_ENABLED: false
           GHOSTWRITER_PROVIDER: groq
           GHOSTWRITER_ABUSE_STORE_MODE: supabase
-          GHOSTWRITER_SECURITY_SECRET: 0123456789abcdef0123456789abcdef
-          GHOSTWRITER_TRUST_PROXY: false
-          GROQ_API_KEY: ci-placeholder-key
+          GHOSTWRITER_CLIENT_IP_HEADER: x-forwarded-for
+          GHOSTWRITER_SECURITY_SECRET: ${{ github.sha }}
+          GHOSTWRITER_TRUST_PROXY: true
           NEXT_PUBLIC_SITE_URL: https://ghostwriter.example
           NODE_ENV: production
           SUPABASE_PUBLISHABLE_KEY: ci-publishable-key
@@ -41,11 +49,12 @@ jobs:
 
       - run: npm run build -- --webpack
         env:
+          AI_ENABLED: false
           GHOSTWRITER_PROVIDER: groq
           GHOSTWRITER_ABUSE_STORE_MODE: supabase
-          GHOSTWRITER_SECURITY_SECRET: 0123456789abcdef0123456789abcdef
-          GHOSTWRITER_TRUST_PROXY: false
-          GROQ_API_KEY: ci-placeholder-key
+          GHOSTWRITER_CLIENT_IP_HEADER: x-forwarded-for
+          GHOSTWRITER_SECURITY_SECRET: ${{ github.sha }}
+          GHOSTWRITER_TRUST_PROXY: true
           NEXT_PUBLIC_SITE_URL: https://ghostwriter.example
           NODE_ENV: production
           SUPABASE_PUBLISHABLE_KEY: ci-publishable-key

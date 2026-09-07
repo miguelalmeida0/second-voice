@@ -3,34 +3,53 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "capture:film": "node scripts/capture-portfolio-film.mjs",
+    "dev": "next dev -H 127.0.0.1 -p 4003",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "security:check": "node scripts/security-check.mjs",
-    "test:release:gate": "npm run lint && npx tsc --noEmit && npm run test:security && npm run test:scroll",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps",
+    "test:e2e:ui": "playwright test --ui",
+    "test:concurrency": "node --experimental-strip-types --experimental-specifier-resolution=node --test tests/ai-financial-boundary.test.ts",
+    "test:integration": "bash scripts/test-ai-ledger-postgres.sh",
+    "test:release:gate": "npm run lint && npx tsc --noEmit && npm run test:security && npm run test:scroll && npm run test:integration && npm run test:e2e",
     "test:scroll": "node --experimental-strip-types --experimental-specifier-resolution=node --test tests/ui-layout-guard.test.ts",
-    "test:security": "node --experimental-strip-types --experimental-specifier-resolution=node --test tests/*.test.ts"
+    "test:security": "node --experimental-strip-types --experimental-specifier-resolution=node --test tests/*.test.ts",
+    "test:unit": "node --experimental-strip-types --experimental-specifier-resolution=node --test tests/ghostwriter-portfolio-film.test.ts tests/ghostwriter-quality-contract.test.ts tests/observability.test.ts tests/provider-http.test.ts tests/rewrite-lab.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.8.0",
-    "next": "16.2.4",
+    "next": "16.2.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "zod": "^4.3.6"
   },
   "overrides": {
-    "postcss": "8.5.10"
+    "browserslist": "4.28.9",
+    "js-yaml": "4.3.1",
+    "minimatch@3.1.5": {
+      "brace-expansion": "1.1.18"
+    },
+    "minimatch@10.2.5": {
+      "brace-expansion": "5.0.9"
+    },
+    "nanoid": "3.3.18",
+    "postcss": "8.5.28",
+    "sharp": "0.35.4"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.61.1",
+    "@tailwindcss/postcss": "4.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.4",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.2.11",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

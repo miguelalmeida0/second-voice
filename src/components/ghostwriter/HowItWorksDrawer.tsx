@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { AnimatePresence, motion, type Transition, useReducedMotion } from "framer-motion";
 import { BookOpen, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 type HowItWorksStep = {
   body: string;
@@ -14,6 +14,7 @@ type HowItWorksStep = {
 type HowItWorksDrawerProps = {
   open: boolean;
   onClose: () => void;
+  returnFocusRef?: RefObject<HTMLElement | null>;
 };
 
 const HOW_TO_USE_STEPS: HowItWorksStep[] = [
@@ -75,7 +76,7 @@ function useMediaQuery(query: string) {
   return matches;
 }
 
-export function HowItWorksDrawer({ open, onClose }: HowItWorksDrawerProps) {
+export function HowItWorksDrawer({ open, onClose, returnFocusRef }: HowItWorksDrawerProps) {
   const drawerRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -93,7 +94,8 @@ export function HowItWorksDrawer({ open, onClose }: HowItWorksDrawerProps) {
     }
 
     previousFocusRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      returnFocusRef?.current ??
+      (document.activeElement instanceof HTMLElement ? document.activeElement : null);
 
     const previousOverflow = document.body.style.overflow;
     const previousPaddingRight = document.body.style.paddingRight;
@@ -130,16 +132,19 @@ export function HowItWorksDrawer({ open, onClose }: HowItWorksDrawerProps) {
         return;
       }
 
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus({ preventScroll: true });
-        return;
-      }
+      const activeIndex = focusable.findIndex(
+        (element) => element === document.activeElement,
+      );
+      const nextIndex =
+        activeIndex === -1
+          ? event.shiftKey
+            ? focusable.length - 1
+            : 0
+          : (activeIndex + (event.shiftKey ? -1 : 1) + focusable.length) %
+            focusable.length;
 
-      if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus({ preventScroll: true });
-      }
+      event.preventDefault();
+      focusable[nextIndex]?.focus({ preventScroll: true });
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -154,15 +159,25 @@ export function HowItWorksDrawer({ open, onClose }: HowItWorksDrawerProps) {
         previousFocusRef.current.focus({ preventScroll: true });
       }
     };
-  }, [open, prefersReducedMotion]);
+  }, [open, prefersReducedMotion, returnFocusRef]);
 
   const transition: Transition = prefersReducedMotion
     ? { duration: 0.01 }
     : { duration: 0.28, ease: [0.22, 1, 0.36, 1] };
   const drawerOffset = isMobileSheet ? { x: 0, y: 28 } : { x: 28, y: 0 };
 
+  function restorePreviousFocus() {
+    const target = returnFocusRef?.current ?? previousFocusRef.current;
+
+    window.requestAnimationFrame(() => {
+      if (target?.isConnected) {
+        target.focus({ preventScroll: true });
+      }
+    });
+  }
+
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={restorePreviousFocus}>
       {open ? (
         <>
           <motion.button

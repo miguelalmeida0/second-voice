@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 const RequestSchema = RewriteLabInputSchema.extend({
   challengeNonce: z.string().min(1).max(10),
   challengeToken: z.string().min(16).max(1024),
-});
+}).strict();
 
 function labResponse(error: string, status: number, requestId: string, headers?: HeadersInit) {
   return Response.json(
@@ -114,6 +114,7 @@ export async function POST(request: Request) {
     request,
     parsed.data.challengeToken,
     parsed.data.challengeNonce,
+    headerGuard,
   );
 
   if ("status" in guard) {

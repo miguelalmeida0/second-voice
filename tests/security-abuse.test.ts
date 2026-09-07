@@ -10,12 +10,14 @@ import {
   validateGhostwriterHeaders,
   validateGhostwriterLabPost,
   validateGhostwriterPost,
+  validateGhostwriterSharePost,
 } from "../src/server/abuse-protection.ts";
 
 const ORIGINAL_ENV = { ...process.env };
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 Chrome/136.0.0.0 Safari/537.36";
 const MUTABLE_ENV = process.env as Record<string, string | undefined>;
+const TEST_SIGNING_VALUE = "ghostwriter-fixture-".repeat(2);
 
 function restoreEnv() {
   for (const key of Object.keys(process.env)) {
@@ -36,7 +38,7 @@ function restoreEnv() {
 function configureSecurityEnv(overrides: Record<string, string | undefined> = {}) {
   restoreEnv();
   MUTABLE_ENV.NODE_ENV = "development";
-  MUTABLE_ENV.GHOSTWRITER_SECURITY_SECRET = "0123456789abcdef0123456789abcdef";
+  MUTABLE_ENV.GHOSTWRITER_SECURITY_SECRET = TEST_SIGNING_VALUE;
   MUTABLE_ENV.GHOSTWRITER_TRUST_PROXY = "true";
   MUTABLE_ENV.GHOSTWRITER_ABUSE_STORE_MODE = "memory";
   MUTABLE_ENV.GHOSTWRITER_POW_DIFFICULTY = "3";
@@ -129,10 +131,36 @@ function buildLabRequest(sessionToken: string, csrfToken: string, ip = "203.0.11
   });
 }
 
+function buildShareRequest(sessionToken: string, csrfToken: string, ip = "203.0.113.8") {
+  return new Request("http://127.0.0.1:3000/api/ghostwriter/share", {
+    body: JSON.stringify({
+      author: "tolkien",
+      challengeNonce: "0",
+      challengeToken: "placeholder",
+      mood: 55,
+      rewrite: "The road went on under old stars.",
+      shareConsent: "rewrite_output_public",
+      text: "The road goes ever on.",
+    }),
+    headers: new Headers({
+      "content-type": "application/json",
+      cookie: `gw_session=${encodeURIComponent(sessionToken)}; gw_csrf=${encodeURIComponent(csrfToken)}`,
+      origin: "http://127.0.0.1:3000",
+      referer: "http://127.0.0.1:3000/second-voice",
+      "sec-fetch-site": "same-origin",
+      "user-agent": USER_AGENT,
+      "x-ghostwriter-csrf": csrfToken,
+      "x-real-ip": ip,
+    }),
+    method: "POST",
+  });
+}
+
 function buildHeaderCheckRequest(
   sessionToken: string,
   csrfToken: string,
   options: {
+    contentEncoding?: string;
     contentLength?: string;
     contentType?: string;
     origin?: string;
@@ -162,6 +190,10 @@ function buildHeaderCheckRequest(
     headers.set("content-length", options.contentLength);
   }
 
+  if (options.contentEncoding) {
+    headers.set("content-encoding", options.contentEncoding);
+  }
+
   return new Request(options.url ?? "http://127.0.0.1:3000/api/ghostwriter", {
     body: "{}",
     headers,
@@ -172,6 +204,14 @@ function buildHeaderCheckRequest(
 test.after(() => {
   restoreEnv();
   __resetAbuseProtectionForTests();
+});
+
+test("challenge difficulty stays within the browser proof budget", () => {
+  configureSecurityEnv({ GHOSTWRITER_POW_DIFFICULTY: "5" });
+  assert.equal(challengeDifficulty(), 4);
+
+  configureSecurityEnv({ GHOSTWRITER_POW_DIFFICULTY: "2" });
+  assert.equal(challengeDifficulty(), 3);
 });
 
 test("challenge tokens are one-time use across validations", async () => {
@@ -247,6 +287,33 @@ test("rewrite limits trigger a cooldown after repeated submissions", async () =>
   assert.match(blocked.error, /cooldown/i);
 });
 
+test("post ingress limiter blocks repeated pre-body checks", async () => {
+  configureSecurityEnv();
+  const shield = __issueShieldCookiesForTests(USER_AGENT);
+  let blocked: Awaited<ReturnType<typeof validateGhostwriterHeaders>> | null = null;
+
+  for (let attempt = 0; attempt < 13; attempt += 1) {
+    const result = await validateGhostwriterHeaders(
+      buildHeaderCheckRequest(shield.sessionToken, shield.csrfToken, {
+        origin: "http://127.0.0.1:3000",
+        referer: "http://127.0.0.1:3000/second-voice",
+      }),
+    );
+
+    if ("status" in result) {
+      blocked = result;
+      break;
+    }
+  }
+
+  assert.ok(blocked, "expected repeated POST header checks to consume an ingress limiter");
+  if (!blocked || !("status" in blocked)) {
+    throw new Error("expected the ingress limiter to produce a guard failure");
+  }
+  assert.equal(blocked.status, 429);
+  assert.match(blocked.error, /cooldown/i);
+});
+
 test("rewrite lab has a stricter explicit-run limiter", async () => {
   configureSecurityEnv();
   const shield = __issueShieldCookiesForTests(USER_AGENT);
@@ -283,14 +350,57 @@ test("rewrite lab has a stricter explicit-run limiter", async () => {
   assert.match(blocked.error, /cooldown/i);
 });
 
+test("public share creation has its own strict limiter", async () => {
+  configureSecurityEnv();
+  const shield = __issueShieldCookiesForTests(USER_AGENT);
+  let blocked: Awaited<ReturnType<typeof validateGhostwriterSharePost>> | null = null;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const challenge = await issueChallengeToken(
+      buildChallengeRequest(shield.sessionToken, shield.csrfToken),
+    );
+
+    assert.equal("status" in challenge, false);
+    if ("status" in challenge) {
+      throw new Error(`unexpected challenge failure: ${challenge.error}`);
+    }
+
+    const nonce = solveChallenge(challenge.challengeToken, challengeDifficulty());
+    const result = await validateGhostwriterSharePost(
+      buildShareRequest(shield.sessionToken, shield.csrfToken),
+      challenge.challengeToken,
+      nonce,
+    );
+
+    if ("status" in result) {
+      blocked = result;
+      break;
+    }
+  }
+
+  assert.ok(blocked, "expected the share-specific limiter to block repeated public links");
+  if (!blocked || !("status" in blocked)) {
+    throw new Error("expected the share limiter to produce a guard failure");
+  }
+  assert.equal(blocked.status, 429);
+  assert.match(blocked.error, /cooldown/i);
+});
+
 test("proxy IP handling ignores spoofed headers unless trust is enabled", () => {
   const headers = new Headers({
     "cf-connecting-ip": "198.51.100.7",
     "x-forwarded-for": "198.51.100.8, 10.0.0.1",
+    "x-real-ip": "198.51.100.9",
   });
 
   assert.equal(resolveClientIp(headers, false), "unknown");
   assert.equal(resolveClientIp(headers, true), "198.51.100.7");
+  assert.equal(resolveClientIp(headers, true, undefined, "production"), "unknown");
+  assert.equal(
+    resolveClientIp(headers, true, "x-forwarded-for", "production"),
+    "198.51.100.8",
+  );
+  assert.equal(resolveClientIp(headers, true, "x-real-ip", "production"), "198.51.100.9");
 });
 
 test("malformed shield cookies fail closed instead of throwing", async () => {
@@ -328,6 +438,24 @@ test("json requests require an exact application/json media type", async () => {
   assert.equal("status" in result, true);
   if (!("status" in result)) {
     throw new Error("expected smuggled content-type to be rejected");
+  }
+  assert.equal(result.status, 415);
+});
+
+test("compressed request bodies are rejected before parsing", async () => {
+  configureSecurityEnv();
+  const shield = __issueShieldCookiesForTests(USER_AGENT);
+  const request = buildHeaderCheckRequest(shield.sessionToken, shield.csrfToken, {
+    contentEncoding: "gzip",
+    origin: "http://127.0.0.1:3000",
+    referer: "http://127.0.0.1:3000/second-voice",
+  });
+
+  const result = await validateGhostwriterHeaders(request);
+
+  assert.equal("status" in result, true);
+  if (!("status" in result)) {
+    throw new Error("expected compressed body to be rejected");
   }
   assert.equal(result.status, 415);
 });
@@ -395,7 +523,12 @@ test("mutating requests trust configured site origin instead of the request host
 
   const canonicalOriginResult = await validateGhostwriterHeaders(canonicalOriginRequest);
 
-  assert.equal("status" in canonicalOriginResult, false);
+  assert.equal("status" in canonicalOriginResult, true);
+  if (!("status" in canonicalOriginResult)) {
+    throw new Error("expected production abuse store configuration to fail closed");
+  }
+  assert.equal(canonicalOriginResult.status, 503);
+  assert.doesNotMatch(canonicalOriginResult.error, /origin/i);
 });
 
 test("development also trusts the live local request origin alongside NEXT_PUBLIC_SITE_URL", async () => {

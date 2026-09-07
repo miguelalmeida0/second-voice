@@ -10,6 +10,7 @@ import {
   type AbuseRateRule,
 } from "./abuse-store.ts";
 import {
+  normalizeTrustedClientIpHeader,
   normalizeIpAddress,
   normalizeSiteOrigin,
   resolveSecuritySecret,
@@ -74,7 +75,7 @@ function clampDifficulty(raw: string | undefined): number {
     return 4;
   }
 
-  return Math.max(3, Math.min(5, parsed));
+  return Math.max(3, Math.min(4, parsed));
 }
 
 function now(): number {
@@ -334,30 +335,56 @@ function buildChallengeRateRules(ip: string, sessionId: string, userAgent: strin
     ip === "unknown" ? null : hashAbuseKey("challenge-ip", ip),
   ]).map((keyHash, index) => ({
     keyHash,
-    limit: index === 0 ? 10 : index === 1 ? 14 : 18,
+    limit: index === 0 ? 6 : index === 1 ? 9 : 12,
     windowMs: 5 * 60 * 1000,
   }));
 }
 
+function buildPostIngressRateRules(ip: string, sessionId: string, userAgent: string): AbuseRateRule[] {
+  const rules: AbuseRateRule[] = [
+    { keyHash: hashAbuseKey("post-session-burst", sessionId), limit: 12, windowMs: 60 * 1000 },
+    {
+      keyHash: hashAbuseKey("post-session-five-minute", sessionId),
+      limit: 30,
+      windowMs: 5 * 60 * 1000,
+    },
+    {
+      keyHash: hashAbuseKey("post-fingerprint-five-minute", fingerprintSeed(ip, sessionId, userAgent)),
+      limit: 36,
+      windowMs: 5 * 60 * 1000,
+    },
+  ];
+
+  if (ip !== "unknown") {
+    rules.push({
+      keyHash: hashAbuseKey("post-ip-five-minute", ip),
+      limit: 60,
+      windowMs: 5 * 60 * 1000,
+    });
+  }
+
+  return rules;
+}
+
 function buildRewriteRateRules(ip: string, sessionId: string, userAgent: string): AbuseRateRule[] {
   const rules: AbuseRateRule[] = [
-    { keyHash: hashAbuseKey("rewrite-session-burst", sessionId), limit: 5, windowMs: 60 * 1000 },
+    { keyHash: hashAbuseKey("rewrite-session-burst", sessionId), limit: 3, windowMs: 60 * 1000 },
     {
       keyHash: hashAbuseKey("rewrite-session-ten-minute", sessionId),
-      limit: 12,
+      limit: 8,
       windowMs: 10 * 60 * 1000,
     },
     {
       keyHash: hashAbuseKey("rewrite-fingerprint", fingerprintSeed(ip, sessionId, userAgent)),
-      limit: 10,
+      limit: 8,
       windowMs: 10 * 60 * 1000,
     },
   ];
 
   if (ip !== "unknown") {
     rules.push(
-      { keyHash: hashAbuseKey("rewrite-ip-burst", ip), limit: 6, windowMs: 60 * 1000 },
-      { keyHash: hashAbuseKey("rewrite-ip-ten-minute", ip), limit: 20, windowMs: 10 * 60 * 1000 },
+      { keyHash: hashAbuseKey("rewrite-ip-burst", ip), limit: 4, windowMs: 60 * 1000 },
+      { keyHash: hashAbuseKey("rewrite-ip-ten-minute", ip), limit: 12, windowMs: 10 * 60 * 1000 },
     );
   }
 
@@ -368,12 +395,12 @@ function buildLabRateRules(ip: string, sessionId: string, userAgent: string): Ab
   const rules: AbuseRateRule[] = [
     {
       keyHash: hashAbuseKey("lab-session-ten-minute", sessionId),
-      limit: 3,
+      limit: 2,
       windowMs: 10 * 60 * 1000,
     },
     {
       keyHash: hashAbuseKey("lab-fingerprint-ten-minute", fingerprintSeed(ip, sessionId, userAgent)),
-      limit: 4,
+      limit: 3,
       windowMs: 10 * 60 * 1000,
     },
   ];
@@ -381,7 +408,33 @@ function buildLabRateRules(ip: string, sessionId: string, userAgent: string): Ab
   if (ip !== "unknown") {
     rules.push({
       keyHash: hashAbuseKey("lab-ip-hour", ip),
+      limit: 6,
+      windowMs: 60 * 60 * 1000,
+    });
+  }
+
+  return rules;
+}
+
+function buildShareRateRules(ip: string, sessionId: string, userAgent: string): AbuseRateRule[] {
+  const rules: AbuseRateRule[] = [
+    { keyHash: hashAbuseKey("share-session-burst", sessionId), limit: 2, windowMs: 60 * 1000 },
+    {
+      keyHash: hashAbuseKey("share-session-hour", sessionId),
+      limit: 8,
+      windowMs: 60 * 60 * 1000,
+    },
+    {
+      keyHash: hashAbuseKey("share-fingerprint-hour", fingerprintSeed(ip, sessionId, userAgent)),
       limit: 10,
+      windowMs: 60 * 60 * 1000,
+    },
+  ];
+
+  if (ip !== "unknown") {
+    rules.push({
+      keyHash: hashAbuseKey("share-ip-hour", ip),
+      limit: 18,
       windowMs: 60 * 60 * 1000,
     });
   }
@@ -393,12 +446,12 @@ function buildFeedbackRateRules(ip: string, sessionId: string, userAgent: string
   const rules: AbuseRateRule[] = [
     {
       keyHash: hashAbuseKey("feedback-session-ten-minute", sessionId),
-      limit: 10,
+      limit: 6,
       windowMs: 10 * 60 * 1000,
     },
     {
       keyHash: hashAbuseKey("feedback-fingerprint-hour", fingerprintSeed(ip, sessionId, userAgent)),
-      limit: 24,
+      limit: 12,
       windowMs: 60 * 60 * 1000,
     },
   ];
@@ -406,7 +459,7 @@ function buildFeedbackRateRules(ip: string, sessionId: string, userAgent: string
   if (ip !== "unknown") {
     rules.push({
       keyHash: hashAbuseKey("feedback-ip-hour", ip),
-      limit: 36,
+      limit: 18,
       windowMs: 60 * 60 * 1000,
     });
   }
@@ -435,8 +488,27 @@ function readCookie(headers: Headers, name: string): string | undefined {
   return undefined;
 }
 
-export function resolveClientIp(headers: Headers, trustProxy = shouldTrustProxy(process.env.GHOSTWRITER_TRUST_PROXY)): string {
+export function resolveClientIp(
+  headers: Headers,
+  trustProxy = shouldTrustProxy(process.env.GHOSTWRITER_TRUST_PROXY),
+  trustedHeader = process.env.GHOSTWRITER_CLIENT_IP_HEADER,
+  nodeEnv = process.env.NODE_ENV ?? "development",
+): string {
   if (!trustProxy) {
+    return "unknown";
+  }
+
+  const configuredHeader = normalizeTrustedClientIpHeader(trustedHeader);
+
+  if (configuredHeader) {
+    const rawValue = headers.get(configuredHeader);
+    const candidate =
+      configuredHeader === "x-forwarded-for" ? rawValue?.split(",")[0] : rawValue;
+
+    return normalizeIpAddress(candidate ?? "unknown");
+  }
+
+  if (nodeEnv === "production") {
     return "unknown";
   }
 
@@ -536,7 +608,7 @@ async function reject(
 async function enforceRateLimits(
   rules: AbuseRateRule[],
   guard: GuardSuccess,
-  location: "challenge" | "feedback" | "lab" | "rewrite",
+  location: "challenge" | "feedback" | "ingress" | "lab" | "rewrite" | "share",
 ): Promise<GuardFailure | null> {
   try {
     const result = await consumeAbuseRateLimits(rules, guard.penaltyKeyHashes, now());
@@ -549,7 +621,7 @@ async function enforceRateLimits(
       "Too many requests. Cooldown in progress.",
       429,
       guard,
-      location === "rewrite" || location === "lab" ? 2 : 1,
+      location === "rewrite" || location === "lab" || location === "share" ? 2 : 1,
       result.retryAfterSeconds,
     );
   } catch (error) {
@@ -618,6 +690,10 @@ export async function validateBrowserGuard(request: Request): Promise<GuardSucce
     return reject("Request verification failed.", 403, guard, 2);
   }
 
+  if ((process.env.NODE_ENV ?? "development") === "production" && guard.ip === "unknown") {
+    return reject("Client identity unavailable.", 503, guard, 1);
+  }
+
   return guard;
 }
 
@@ -684,11 +760,28 @@ export async function validateGhostwriterHeaders(request: Request): Promise<Guar
     return guard;
   }
 
+  if (request.method !== "GET") {
+    const ingressRateFailure = await enforceRateLimits(
+      buildPostIngressRateRules(guard.ip, guard.sessionId, guard.userAgent),
+      guard,
+      "ingress",
+    );
+
+    if (ingressRateFailure) {
+      return ingressRateFailure;
+    }
+  }
+
   const contentType = request.headers.get("content-type") ?? "";
   const mediaType = contentType.split(";")[0]?.trim().toLowerCase();
+  const contentEncoding = request.headers.get("content-encoding")?.trim().toLowerCase();
 
   if (mediaType !== "application/json") {
     return reject("Unsupported request format.", 415, guard, 1);
+  }
+
+  if (contentEncoding && contentEncoding !== "identity") {
+    return reject("Compressed request bodies are not supported.", 415, guard, 1);
   }
 
   const length = contentLength(request.headers);
@@ -740,8 +833,9 @@ export async function validateGhostwriterPost(
   request: Request,
   challengeToken: string,
   challengeNonce: string,
+  prevalidatedGuard?: GuardSuccess,
 ): Promise<GuardSuccess | GuardFailure> {
-  const guard = await validateGhostwriterHeaders(request);
+  const guard = prevalidatedGuard ?? (await validateGhostwriterHeaders(request));
 
   if ("status" in guard) {
     return guard;
@@ -770,8 +864,9 @@ export async function validateGhostwriterLabPost(
   request: Request,
   challengeToken: string,
   challengeNonce: string,
+  prevalidatedGuard?: GuardSuccess,
 ): Promise<GuardSuccess | GuardFailure> {
-  const guard = await validateGhostwriterHeaders(request);
+  const guard = prevalidatedGuard ?? (await validateGhostwriterHeaders(request));
 
   if ("status" in guard) {
     return guard;
@@ -796,12 +891,44 @@ export async function validateGhostwriterLabPost(
   return guard;
 }
 
+export async function validateGhostwriterSharePost(
+  request: Request,
+  challengeToken: string,
+  challengeNonce: string,
+  prevalidatedGuard?: GuardSuccess,
+): Promise<GuardSuccess | GuardFailure> {
+  const guard = prevalidatedGuard ?? (await validateGhostwriterHeaders(request));
+
+  if ("status" in guard) {
+    return guard;
+  }
+
+  const shareRateFailure = await enforceRateLimits(
+    buildShareRateRules(guard.ip, guard.sessionId, guard.userAgent),
+    guard,
+    "share",
+  );
+
+  if (shareRateFailure) {
+    return shareRateFailure;
+  }
+
+  const challengeFailure = await validateChallengeProof(guard, challengeToken, challengeNonce);
+
+  if (challengeFailure) {
+    return challengeFailure;
+  }
+
+  return guard;
+}
+
 export async function validateGhostwriterFeedbackPost(
   request: Request,
   challengeToken: string,
   challengeNonce: string,
+  prevalidatedGuard?: GuardSuccess,
 ): Promise<GuardSuccess | GuardFailure> {
-  const guard = await validateGhostwriterHeaders(request);
+  const guard = prevalidatedGuard ?? (await validateGhostwriterHeaders(request));
 
   if ("status" in guard) {
     return guard;

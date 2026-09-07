@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertCircle,
@@ -15,13 +16,20 @@ import {
 import { useEffect, useRef, useState } from "react";
 import type { Author } from "@/components/ghostwriter/AuthorOrbital";
 import { diffWords, type DiffOp } from "@/components/ghostwriter/diff";
-import { RewriteLabPanel } from "@/components/ghostwriter/RewriteLabPanel";
 import {
   RewriteFeedbackPanel,
   type RewriteFeedbackSubmission,
 } from "@/components/ghostwriter/RewriteFeedbackPanel";
 import type { RewriteLabWinnerSelection } from "@/lib/ghostwriter-lab-shared";
-import { MOOD_NAME } from "@/lib/ghostwriter-shared";
+import { MOOD_NAME, type RewriteMode } from "@/lib/ghostwriter-shared";
+
+const RewriteLabPanel = dynamic(
+  () =>
+    import("@/components/ghostwriter/RewriteLabPanel").then(
+      (module) => module.RewriteLabPanel,
+    ),
+  { loading: () => null },
+);
 
 export type RewritePlaybackPhase =
   | "idle"
@@ -67,7 +75,11 @@ type PlaybackTimeline = {
   stepMs: number;
 };
 
-function reviewedLine(author: Author) {
+function reviewedLine(author: Author, mode: RewriteMode, outcomeLabel: string) {
+  if (mode === "outcome") {
+    return `Second Voice optimized the draft for ${outcomeLabel.toLowerCase()}.`;
+  }
+
   return `${author.name} reviewed your draft and handed back this version.`;
 }
 
@@ -124,7 +136,11 @@ function chunkText(text: string): string[] {
   return chunks.filter(Boolean);
 }
 
-function buildPlaybackTimeline(source: string, result: string): PlaybackTimeline {
+function buildPlaybackTimeline(
+  source: string,
+  result: string,
+  playbackRate = 1,
+): PlaybackTimeline {
   const ops = diffWords(source, result);
   const initialUnits: PlaybackUnit[] = [];
   const events: PlaybackEvent[] = [];
@@ -156,7 +172,10 @@ function buildPlaybackTimeline(source: string, result: string): PlaybackTimeline
     }
   }
 
-  const targetDuration = Math.min(5000, Math.max(1800, 1000 + events.length * 110));
+  const safePlaybackRate = Math.max(0.5, Math.min(3, playbackRate));
+  const targetDuration =
+    Math.min(5000, Math.max(1800, 1000 + events.length * 110)) /
+    safePlaybackRate;
   const stepMs = Math.max(80, Math.min(180, Math.floor(targetDuration / Math.max(events.length, 1))));
 
   return { events, initialUnits, stepMs };
@@ -193,24 +212,39 @@ async function writeClipboardText(text: string) {
   }
 }
 
-function playbackMessage(phase: RewritePlaybackPhase, author: Author | null) {
-  if (!author) {
+function playbackMessage(
+  phase: RewritePlaybackPhase,
+  author: Author | null,
+  mode: RewriteMode,
+  outcomeLabel: string,
+) {
+  if (!author && mode === "author") {
     return "Choose an author, then run a rewrite and the edit will happen here.";
   }
 
   switch (phase) {
     case "requesting":
-      return `Locking the draft and reading for ${author.first.toLowerCase()} rhythm.`;
+      if (mode === "outcome") {
+        return `Reading for ${outcomeLabel.toLowerCase()} while preserving your meaning.`;
+      }
+      return `Locking the draft and reading for ${author?.first.toLowerCase() ?? "the selected voice"} rhythm.`;
     case "prelude":
-      return `${author.first} is taking a pass at the line.`;
+      if (mode === "outcome") {
+        return "Second Voice is tightening the line around the goal.";
+      }
+      return `${author?.first ?? "The selected voice"} is taking a pass at the line.`;
     case "animating":
       return `The rewrite is happening in front of you, cut by cut.`;
     case "complete":
-      return reviewedLine(author);
+      return author
+        ? reviewedLine(author, mode, outcomeLabel)
+        : `Second Voice optimized the draft for ${outcomeLabel.toLowerCase()}.`;
     case "error":
       return "The edit could not be completed.";
     default:
-      return "Run a rewrite and the edit will happen here, line by line, like it's being worked on in front of you.";
+      return mode === "outcome"
+        ? "Choose an outcome, run a rewrite, and the edit will happen here."
+        : "Run a rewrite and the edit will happen here, line by line, like it's being worked on in front of you.";
   }
 }
 
@@ -220,13 +254,16 @@ export function RewritePlayback({
   errorRequestId,
   loading,
   loadingLabel,
+  mode = "author",
   mood,
   moodLabel,
   onApplyRewrite,
   onPhaseChange,
+  playbackRate = 1,
   onRetry,
   onShareRewrite,
   onSubmitFeedback,
+  outcomeLabel = "Improve clarity",
   provenance,
   result,
   runId,
@@ -237,13 +274,16 @@ export function RewritePlayback({
   errorRequestId?: string | null;
   loading: boolean;
   loadingLabel: string;
+  mode?: RewriteMode;
   mood: number;
   moodLabel: string;
   onApplyRewrite?: (selection: RewriteLabWinnerSelection) => void;
   onPhaseChange?: (phase: RewritePlaybackPhase) => void;
+  playbackRate?: number;
   onRetry?: () => void;
   onShareRewrite?: () => Promise<RewriteShareLink>;
   onSubmitFeedback?: (submission: RewriteFeedbackSubmission) => Promise<void>;
+  outcomeLabel?: string;
   provenance?: RewritePlaybackProvenance | null;
   result: string;
   runId: number;
@@ -262,7 +302,12 @@ export function RewritePlayback({
   const copyTimerRef = useRef<number | null>(null);
   const shareStatus: RewriteShareStatus =
     shareState.runId === runId ? shareState.status : { kind: "idle" };
-  const moodStatus = author ? `${mood}% ${MOOD_NAME[author.id]} · ${moodLabel}` : "Pick an author first";
+  const moodStatus =
+    mode === "outcome"
+      ? `Outcome · ${outcomeLabel}`
+      : author
+        ? `${mood}% ${MOOD_NAME[author.id]} · ${moodLabel}`
+        : "Pick an author first";
   const canCopy = result.trim().length > 0;
   const visiblePhase: RewritePlaybackPhase = error ? "error" : loading ? "requesting" : phase;
   const canShare = visiblePhase === "complete" && Boolean(onShareRewrite) && canCopy && Boolean(source);
@@ -302,7 +347,7 @@ export function RewritePlayback({
       return;
     }
 
-    const timeline = buildPlaybackTimeline(source, result);
+    const timeline = buildPlaybackTimeline(source, result, playbackRate);
 
     if (reducedMotion || timeline.events.length === 0) {
       schedule(() => {
@@ -337,7 +382,7 @@ export function RewritePlayback({
       }
       timerRef.current = [];
     };
-  }, [error, loading, reducedMotion, result, runId, source]);
+  }, [error, loading, playbackRate, reducedMotion, result, runId, source]);
 
   useEffect(() => {
     onPhaseChange?.(phase);
@@ -352,7 +397,8 @@ export function RewritePlayback({
   }, []);
 
   const showSkip = visiblePhase === "prelude" || visiblePhase === "animating";
-  const canOpenLab = visiblePhase === "complete" && Boolean(author) && canCopy && Boolean(source);
+  const canOpenLab =
+    mode === "author" && visiblePhase === "complete" && Boolean(author) && canCopy && Boolean(source);
   const labOpen = canOpenLab && labRunId === runId;
 
   async function copyResult() {
@@ -400,7 +446,7 @@ export function RewritePlayback({
     }
     timerRef.current = [];
     setUnits(
-      buildPlaybackTimeline(source, result).initialUnits.map((unit) => ({
+      buildPlaybackTimeline(source, result, playbackRate).initialUnits.map((unit) => ({
         ...unit,
         cut: true,
         visible: true,
@@ -415,11 +461,15 @@ export function RewritePlayback({
   }
 
   return (
-    <div className="gw-card-strong p-6 sm:p-7 lg:p-8" data-voice={author?.id}>
+    <div className="gw-card-strong p-6 sm:p-7 lg:p-8" data-mode={mode} data-voice={author?.id}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="gw-voice-text font-playfair text-[1.08rem] font-medium tracking-[-0.015em] sm:text-[1.14rem]">
-            {visiblePhase === "complete" && author ? `${author.first}'s edit` : "Live rewrite"}
+            {visiblePhase === "complete" && mode === "outcome"
+              ? "Outcome edit"
+              : visiblePhase === "complete" && author
+                ? `${author.first}'s edit`
+                : "Live rewrite"}
           </h3>
           <p className="mt-1 text-[12px] leading-relaxed text-[var(--mist)] sm:text-[13px]">
             The rewrite appears here after you run it.
@@ -480,10 +530,14 @@ export function RewritePlayback({
               <LoaderCircle className="gw-loading-spinner h-5 w-5 animate-spin" aria-hidden />
               <div className="min-w-0">
                 <p className="gw-loading-title">
-                  {author ? `Rewriting with ${author.first}...` : `${loadingLabel} an author...`}
+                  {mode === "outcome"
+                    ? `Optimizing for ${outcomeLabel.toLowerCase()}...`
+                    : author
+                      ? `Rewriting with ${author.first}...`
+                      : `${loadingLabel} an author...`}
                 </p>
                 <p className="gw-loading-note">
-                  {playbackMessage("requesting", author)}
+                  {playbackMessage("requesting", author, mode, outcomeLabel)}
                 </p>
               </div>
             </div>
@@ -493,11 +547,14 @@ export function RewritePlayback({
               <span />
             </div>
             <div className="gw-loading-source whitespace-pre-wrap text-[var(--ghost)]/88">
-              {source || `${loadingLabel} ${author?.first ?? "an author"}...`}
+              {source ||
+                `${loadingLabel} ${
+                  mode === "outcome" ? outcomeLabel.toLowerCase() : (author?.first ?? "an author")
+                }...`}
             </div>
           </div>
         ) : (
-          <AnimatePresence mode="wait">
+          <AnimatePresence initial={false} mode="wait">
             {error && (
               <motion.div
                 key="error"
@@ -525,14 +582,11 @@ export function RewritePlayback({
             )}
 
             {!error && visiblePhase === "idle" && (
-              <motion.div
-                key="idle"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <p className="text-[var(--whisper)]">{playbackMessage("idle", author)}</p>
-              </motion.div>
+              <div key="idle">
+                <p className="text-[var(--whisper)]">
+                  {playbackMessage("idle", author, mode, outcomeLabel)}
+                </p>
+              </div>
             )}
 
             {!error && (visiblePhase === "prelude" || visiblePhase === "animating") && (
@@ -567,7 +621,7 @@ export function RewritePlayback({
                   />
                 )}
                 <p className="mb-4 text-[12px] leading-relaxed text-[var(--mist)] sm:text-[13px]">
-                  {playbackMessage(visiblePhase, author)}
+                  {playbackMessage(visiblePhase, author, mode, outcomeLabel)}
                 </p>
                 <div className="whitespace-pre-wrap text-[18px] leading-relaxed text-[var(--ghost)]">
                   {units.map((unit) => {
@@ -607,13 +661,17 @@ export function RewritePlayback({
             {!error && visiblePhase === "complete" && (
               <motion.div
                 key={result}
-                initial={{ opacity: 0, y: 6 }}
+                initial={reducedMotion ? false : { opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                transition={
+                  reducedMotion
+                    ? { duration: 0 }
+                    : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }
+                }
               >
                 <p className="mb-4 text-[12px] leading-relaxed text-[var(--mist)] sm:text-[13px]">
-                  {playbackMessage("complete", author)}
+                  {playbackMessage("complete", author, mode, outcomeLabel)}
                 </p>
                 {provenance?.source === "rewrite-lab" ? (
                   <div
@@ -716,7 +774,7 @@ export function RewritePlayback({
         )}
       </div>
 
-      {author ? (
+      {author && mode === "author" ? (
         <RewriteLabPanel
           author={author.id}
           baselineRewrite={result}

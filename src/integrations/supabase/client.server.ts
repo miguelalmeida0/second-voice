@@ -14,6 +14,8 @@ type GhostwriterAuthorId =
   | "naval";
 
 type GhostwriterGenerationSource = "single_rewrite" | "rewrite_lab";
+type GhostwriterOutcomeId = "clarity" | "reply" | "confident" | "concise" | "persuasive";
+type GhostwriterRewriteMode = "author" | "outcome";
 
 export type Database = {
   public: {
@@ -75,7 +77,9 @@ export type Database = {
           lab_winner_label: string | null;
           lab_winner_score: number | null;
           mood: number;
+          outcome: GhostwriterOutcomeId | null;
           output_text: string;
+          rewrite_mode: GhostwriterRewriteMode;
           short_id: string;
           source_visible: boolean;
         };
@@ -90,7 +94,9 @@ export type Database = {
           lab_winner_label?: string | null;
           lab_winner_score?: number | null;
           mood: number;
+          outcome?: GhostwriterOutcomeId | null;
           output_text: string;
+          rewrite_mode?: GhostwriterRewriteMode;
           short_id: string;
           source_visible?: boolean;
         };
@@ -105,7 +111,9 @@ export type Database = {
           lab_winner_label: string | null;
           lab_winner_score: number | null;
           mood: number;
+          outcome: GhostwriterOutcomeId | null;
           output_text: string;
+          rewrite_mode: GhostwriterRewriteMode;
           short_id: string;
           source_visible: boolean;
         }>;
@@ -121,6 +129,7 @@ export type Database = {
           lab_winner_label: string | null;
           lab_winner_score: number | null;
           mood: number;
+          outcome: GhostwriterOutcomeId | null;
           rating: "positive" | "negative";
           reason:
             | "useful"
@@ -131,6 +140,7 @@ export type Database = {
             | "wrong_voice"
             | null;
           request_id: string | null;
+          rewrite_mode: GhostwriterRewriteMode;
           rewrite_hash: string;
           rewrite_short_id: string | null;
         };
@@ -143,6 +153,7 @@ export type Database = {
           lab_winner_label?: string | null;
           lab_winner_score?: number | null;
           mood: number;
+          outcome?: GhostwriterOutcomeId | null;
           rating: "positive" | "negative";
           reason?:
             | "useful"
@@ -153,6 +164,7 @@ export type Database = {
             | "wrong_voice"
             | null;
           request_id?: string | null;
+          rewrite_mode?: GhostwriterRewriteMode;
           rewrite_hash: string;
           rewrite_short_id?: string | null;
         };
@@ -165,6 +177,7 @@ export type Database = {
           lab_winner_label: string | null;
           lab_winner_score: number | null;
           mood: number;
+          outcome: GhostwriterOutcomeId | null;
           rating: "positive" | "negative";
           reason:
             | "useful"
@@ -175,6 +188,7 @@ export type Database = {
             | "wrong_voice"
             | null;
           request_id: string | null;
+          rewrite_mode: GhostwriterRewriteMode;
           rewrite_hash: string;
           rewrite_short_id: string | null;
         }>;
@@ -210,7 +224,9 @@ export type Database = {
           lab_winner_label: string | null;
           lab_winner_score: number | null;
           mood: number;
+          outcome: GhostwriterOutcomeId | null;
           output_text: string;
+          rewrite_mode: GhostwriterRewriteMode;
           short_id: string;
           source_visible: boolean;
         };
@@ -246,6 +262,26 @@ export type Database = {
           p_now?: string | null;
         };
         Returns: boolean;
+      };
+      ghostwriter_public_rewrite_lookup: {
+        Args: {
+          p_short_id: string;
+        };
+        Returns: Array<{
+          author: GhostwriterAuthorId;
+          created_at: string;
+          generation_source: GhostwriterGenerationSource;
+          input_text: string;
+          lab_selection_reason: string | null;
+          lab_winner_label: string | null;
+          lab_winner_score: number | null;
+          mood: number;
+          outcome: GhostwriterOutcomeId | null;
+          output_text: string;
+          rewrite_mode: GhostwriterRewriteMode;
+          short_id: string;
+          source_visible: boolean;
+        }>;
       };
     };
     Enums: Record<string, never>;

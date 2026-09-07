@@ -41,6 +41,13 @@ const GHOSTWRITER_CHALLENGE_ROUTE = readFileSync(
 
 test("rewrite input schema trims before enforcing non-empty text", () => {
   assert.match(GHOSTWRITER_SERVER, /text:\s*z\.string\(\)\.trim\(\)\.min\(1\)\.max\(2000\)/);
+  assert.match(GHOSTWRITER_SERVER, /mode:\s*z\.enum\(\["author", "outcome"\]\)\.default\(DEFAULT_REWRITE_MODE\)/);
+  assert.match(
+    GHOSTWRITER_SERVER,
+    /outcome:\s*z\.enum\(\["clarity", "reply", "confident", "concise", "persuasive"\]\)\.default\(DEFAULT_OUTCOME_ID\)/,
+  );
+  assert.match(GHOSTWRITER_ROUTE, /mode:\s*parsed\.data\.mode/);
+  assert.match(GHOSTWRITER_ROUTE, /outcome:\s*parsed\.data\.outcome/);
 });
 
 test("rewrite artifact provenance schema accepts only bounded public metadata", () => {
@@ -50,14 +57,18 @@ test("rewrite artifact provenance schema accepts only bounded public metadata", 
   assert.match(GHOSTWRITER_SERVER, /label: z\.string\(\)\.trim\(\)\.min\(1\)\.max\(80\)/);
   assert.match(GHOSTWRITER_SERVER, /overall: z\.number\(\)\.int\(\)\.min\(0\)\.max\(100\)/);
   assert.match(GHOSTWRITER_SERVER, /reason: z\.string\(\)\.trim\(\)\.min\(1\)\.max\(280\)/);
-  assert.match(GHOSTWRITER_ROUTE, /artifactProvenance: RewriteArtifactProvenanceSchema\.optional\(\)/);
-  assert.match(GHOSTWRITER_SHARE_ROUTE, /artifactProvenance: RewriteArtifactProvenanceSchema\.optional\(\)/);
+  assert.doesNotMatch(GHOSTWRITER_ROUTE, /artifactProvenance: RewriteArtifactProvenanceSchema\.optional\(\)/);
+  assert.match(GHOSTWRITER_ROUTE, /artifactToken: result\.artifactToken/);
+  assert.match(GHOSTWRITER_SHARE_ROUTE, /artifactToken: z\.string\(\)\.min\(32\)\.max\(4096\)/);
+  assert.doesNotMatch(GHOSTWRITER_SHARE_ROUTE, /artifactProvenance/);
   assert.match(GHOSTWRITER_SHARE_ROUTE, /rewrite: z\.string\(\)\.trim\(\)\.min\(1\)\.max\(REWRITE_OUTPUT_MAX_CHARS\)/);
   assert.match(GHOSTWRITER_FEEDBACK_SERVER, /RewriteFeedbackSubjectSchema = InputSchema\.pick/);
+  assert.match(GHOSTWRITER_FEEDBACK_SERVER, /artifactToken: z\.string\(\)\.min\(32\)\.max\(4096\)/);
   assert.match(GHOSTWRITER_FEEDBACK_SERVER, /rating: z\.enum\(REWRITE_FEEDBACK_RATINGS\)/);
   assert.match(GHOSTWRITER_FEEDBACK_SERVER, /reason: z\.enum\(REWRITE_FEEDBACK_REASONS\)\.optional\(\)/);
   assert.match(GHOSTWRITER_FEEDBACK_SERVER, /Feedback reason does not match rating\./);
   assert.match(GHOSTWRITER_FEEDBACK_SERVER, /rewrite: z\.string\(\)\.trim\(\)\.min\(1\)\.max\(REWRITE_OUTPUT_MAX_CHARS\)/);
+  assert.match(GHOSTWRITER_FEEDBACK_SERVER, /verifyRewriteArtifactToken\(/);
   assert.match(GHOSTWRITER_FEEDBACK_SERVER, /rewriteHash\(rewrite\)/);
   assert.doesNotMatch(GHOSTWRITER_FEEDBACK_SERVER, /input_text|output_text/);
   assert.match(GHOSTWRITER_FEEDBACK_ROUTE, /RewriteFeedbackSchema\.safeParse\(body\.data\)/);
@@ -69,7 +80,7 @@ test("rewrite artifact provenance schema accepts only bounded public metadata", 
 test("rewrite lab input schema trims source fields before enforcing non-empty text", () => {
   assert.match(
     REWRITE_LAB_SERVER,
-    /baselineRewrite:\s*z\.string\(\)\.trim\(\)\.min\(1\)\.max\(3000\)/,
+    /baselineRewrite:\s*z\.string\(\)\.trim\(\)\.min\(1\)\.max\(3_000\)/,
   );
   assert.match(
     REWRITE_LAB_SERVER,

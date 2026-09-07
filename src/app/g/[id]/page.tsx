@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { ArrowLeft, ArrowUpRight, FlaskConical } from "lucide-react";
 import { BlurOrbs } from "@/components/ghostwriter/BlurOrbs";
 import { diffWords } from "@/components/ghostwriter/diff";
 import { fetchRewriteById } from "@/server/ghostwriter-fetch";
-import { AUTHORS, MOOD_NAME, moodLabelFor, siteOrigin } from "@/lib/ghostwriter-shared";
+import {
+  AUTHORS,
+  MOOD_NAME,
+  moodLabelFor,
+  outcomeLabelFor,
+  siteOrigin,
+} from "@/lib/ghostwriter-shared";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -13,9 +20,23 @@ type PageProps = {
 
 export const dynamic = "force-dynamic";
 
+const getRewriteById = cache(fetchRewriteById);
+const PUBLIC_PERMALINK_DIFF_MAX_TOKENS = 600;
+
+function publicDiffTokenCount(value: string): number {
+  return value.match(/\s+|[\w'']+|[^\s\w]/g)?.length ?? 0;
+}
+
+function canRenderPublicDiff(inputText: string, outputText: string): boolean {
+  return (
+    publicDiffTokenCount(inputText) <= PUBLIC_PERMALINK_DIFF_MAX_TOKENS &&
+    publicDiffTokenCount(outputText) <= PUBLIC_PERMALINK_DIFF_MAX_TOKENS
+  );
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const row = await fetchRewriteById(id);
+  const row = await getRewriteById(id);
 
   if (!row) {
     return {
@@ -32,7 +53,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const author = row.author;
   const first = AUTHORS.find((entry) => entry.id === author)?.first ?? "Ernest";
   const moodLabel = moodLabelFor(author, row.mood);
-  const title = `${first}'s rewrite — ${row.mood}% ${MOOD_NAME[author]} (${moodLabel})`;
+  const isOutcomeRewrite = row.rewrite_mode === "outcome" && row.outcome !== null;
+  const outcomeLabel = row.outcome ? outcomeLabelFor(row.outcome) : "Improve clarity";
+  const title = isOutcomeRewrite
+    ? `${outcomeLabel} rewrite`
+    : `${first}'s rewrite — ${row.mood}% ${MOOD_NAME[author]} (${moodLabel})`;
   const description = row.output_text.slice(0, 180);
   const ogImage = new URL(`/api/og/${id}`, siteOrigin()).toString();
 
@@ -62,7 +87,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function GhostwriterPermalinkPage({ params }: PageProps) {
   const { id } = await params;
-  const row = await fetchRewriteById(id);
+  const row = await getRewriteById(id);
 
   if (!row) {
     notFound();
@@ -70,15 +95,19 @@ export default async function GhostwriterPermalinkPage({ params }: PageProps) {
 
   const author = row.author;
   const moodLabel = moodLabelFor(author, row.mood);
+  const isOutcomeRewrite = row.rewrite_mode === "outcome" && row.outcome !== null;
+  const outcomeLabel = row.outcome ? outcomeLabelFor(row.outcome) : "Improve clarity";
   const hasSourceText = row.source_visible && row.input_text.trim().length > 0;
-  const ops = hasSourceText ? diffWords(row.input_text, row.output_text) : [];
+  const shouldRenderDiff =
+    hasSourceText && canRenderPublicDiff(row.input_text, row.output_text);
+  const ops = shouldRenderDiff ? diffWords(row.input_text, row.output_text) : [];
   const createdAt = new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(
     new Date(row.created_at),
   );
   const authorMeta = AUTHORS.find((entry) => entry.id === author);
   const first = authorMeta?.first ?? "Ernest";
-  const deleteCount = hasSourceText ? ops.filter((op) => op.kind === "delete").length : 0;
-  const insertCount = hasSourceText ? ops.filter((op) => op.kind === "insert").length : 0;
+  const deleteCount = shouldRenderDiff ? ops.filter((op) => op.kind === "delete").length : 0;
+  const insertCount = shouldRenderDiff ? ops.filter((op) => op.kind === "insert").length : 0;
   const hasLabProvenance =
     row.generation_source === "rewrite_lab" &&
     Boolean(row.lab_winner_label) &&
@@ -108,13 +137,26 @@ export default async function GhostwriterPermalinkPage({ params }: PageProps) {
             Permalink
           </p>
           <h1 className="mt-4 text-[42px] font-medium leading-[1.03] tracking-tight text-[var(--ghost)] sm:text-[62px]">
-            <span className="gw-voice-text font-playfair italic">
-              {first}
-            </span>{" "}
-            took a pass at this line.
+            {isOutcomeRewrite ? (
+              <>
+                <span className="gw-voice-text font-playfair italic">
+                  Second Voice
+                </span>{" "}
+                optimized this line.
+              </>
+            ) : (
+              <>
+                <span className="gw-voice-text font-playfair italic">
+                  {first}
+                </span>{" "}
+                took a pass at this line.
+              </>
+            )}
           </h1>
           <p className="mt-4 max-w-2xl text-[16px] leading-relaxed text-[var(--mist)] sm:text-[18px]">
-            {row.mood}% {MOOD_NAME[author]} · {moodLabel} · Created {createdAt}
+            {isOutcomeRewrite
+              ? `${outcomeLabel} · Created ${createdAt}`
+              : `${row.mood}% ${MOOD_NAME[author]} · ${moodLabel} · Created ${createdAt}`}
           </p>
         </section>
 
@@ -124,24 +166,32 @@ export default async function GhostwriterPermalinkPage({ params }: PageProps) {
               Edit profile
             </p>
             <p className="mt-3 text-[15px] text-[var(--ghost)]">
-              {hasLabProvenance
+              {isOutcomeRewrite
+                ? "Outcome optimization"
+                : hasLabProvenance
                 ? "Rewrite Lab winner"
-                : hasSourceText
+                : shouldRenderDiff
                   ? `${deleteCount} cuts · ${insertCount} additions`
+                  : hasSourceText
+                    ? "Source visible"
                   : "Rewrite only"}
             </p>
           </div>
           <div className="gw-card p-5">
             <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--whisper)]">
-              Author
+              {isOutcomeRewrite ? "Outcome" : "Author"}
             </p>
-            <p className="mt-3 text-[15px] text-[var(--ghost)]">{authorMeta?.name ?? first}</p>
+            <p className="mt-3 text-[15px] text-[var(--ghost)]">
+              {isOutcomeRewrite ? outcomeLabel : authorMeta?.name ?? first}
+            </p>
           </div>
           <div className="gw-card p-5">
             <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--whisper)]">
-              Mood band
+              {isOutcomeRewrite ? "Mode" : "Mood band"}
             </p>
-            <p className="mt-3 text-[15px] text-[var(--ghost)]">{moodLabel}</p>
+            <p className="mt-3 text-[15px] text-[var(--ghost)]">
+              {isOutcomeRewrite ? "Outcome" : moodLabel}
+            </p>
           </div>
         </section>
 
@@ -187,7 +237,7 @@ export default async function GhostwriterPermalinkPage({ params }: PageProps) {
           <div className="gw-card-strong p-6 sm:p-8">
             <div className="flex items-center justify-between gap-4">
               <h2 className="gw-voice-text font-playfair text-xl italic">
-                {`${first}'s rewrite`}
+                {isOutcomeRewrite ? "Outcome rewrite" : `${first}'s rewrite`}
               </h2>
               <span className="text-[11px] text-[var(--whisper)]">
                 final passage
@@ -206,7 +256,7 @@ export default async function GhostwriterPermalinkPage({ params }: PageProps) {
           <div className="gw-card p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-[14px] leading-relaxed text-[var(--mist)]">
-                Open the main app to try a different author, mood, or sentence.
+                Open the main app to try a different author, outcome, mood, or sentence.
               </p>
               <Link href="/second-voice" className="gw-chip">
                 Open Second Voice AI

@@ -57,6 +57,7 @@ export async function POST(request: Request) {
     request,
     parsedChallenge.data.challengeToken,
     parsedChallenge.data.challengeNonce,
+    headerGuard,
   );
 
   if ("status" in guard) {
@@ -72,12 +73,13 @@ export async function POST(request: Request) {
   const result = await recordRewriteFeedback(
     {
       author: parsedFeedback.data.author,
-      artifactProvenance: parsedFeedback.data.artifactProvenance,
+      artifactToken: parsedFeedback.data.artifactToken,
+      mode: parsedFeedback.data.mode,
       mood: parsedFeedback.data.mood,
+      outcome: parsedFeedback.data.outcome,
       rating: parsedFeedback.data.rating,
       reason: parsedFeedback.data.reason,
       rewrite: parsedFeedback.data.rewrite,
-      shortId: parsedFeedback.data.shortId,
     },
     { requestId },
   );

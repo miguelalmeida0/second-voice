@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { GhostwriterPage } from "@/components/ghostwriter/GhostwriterPage";
 import { getGhostwriterFeatureAvailability } from "@/server/ghostwriter-feature-flags";
 
@@ -12,6 +13,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function SecondVoiceRoute() {
+export default async function SecondVoiceRoute() {
+  await headers();
+
   return <GhostwriterPage features={getGhostwriterFeatureAvailability()} />;
 }

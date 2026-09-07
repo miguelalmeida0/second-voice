@@ -1,36 +1,56 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   hasStrongSecuritySecret,
   normalizeSiteOrigin,
   normalizeIpAddress,
+  normalizeTrustedClientIpHeader,
   publicSharingEnabled,
   resolveAbuseStoreConfig,
   resolveSecuritySecret,
-  selectAiProvider,
   shouldTrustProxy,
 } from "../src/lib/security-env.ts";
 
 const SECURITY_CHECK_SCRIPT = fileURLToPath(new URL("../scripts/security-check.mjs", import.meta.url));
 const README_PATH = new URL("../README.md", import.meta.url);
+const TEST_SIGNING_VALUE = "ghostwriter-fixture-".repeat(2);
 const GITHUB_SECURITY_WORKFLOW_PATH = new URL(
   "../.github/workflows/security.yml",
   import.meta.url,
 );
 
 const SECURITY_CHECK_ENV_KEYS = [
+  "AI_ENABLED",
   "GEMINI_API_KEY",
   "GHOSTWRITER_ABUSE_STORE_MODE",
   "GHOSTWRITER_ALLOW_PUBLIC_SHARING",
   "GHOSTWRITER_PROVIDER",
   "GHOSTWRITER_SECURITY_SECRET",
+  "GHOSTWRITER_CLIENT_IP_HEADER",
+  "GHOSTWRITER_E2E_FIXTURE_MODE",
   "GHOSTWRITER_TRUST_PROXY",
   "GROQ_API_KEY",
+  "GROQ_MODEL",
+  "GHOSTWRITER_AI_PRICING_VERSION",
+  "GHOSTWRITER_BETA_MAX_APPROVED_ACCOUNTS",
+  "GHOSTWRITER_AI_LIFETIME_GENERATIONS_PER_ACCOUNT",
+  "GHOSTWRITER_AI_ACCOUNT_GENERATIONS_PER_24H",
+  "GHOSTWRITER_AI_ACCOUNT_GENERATIONS_PER_MINUTE",
+  "GHOSTWRITER_AI_ACCOUNT_CONCURRENCY",
+  "GHOSTWRITER_AI_GLOBAL_GENERATIONS_PER_MINUTE",
+  "GHOSTWRITER_AI_GLOBAL_CONCURRENCY",
+  "GHOSTWRITER_AI_MAX_INPUT_TOKENS",
+  "GHOSTWRITER_AI_MAX_OUTPUT_TOKENS",
+  "GHOSTWRITER_AI_MAX_OPERATION_MICRO_USD",
+  "GHOSTWRITER_AI_HOURLY_BUDGET_MICRO_USD",
+  "GHOSTWRITER_AI_24H_BUDGET_MICRO_USD",
+  "GHOSTWRITER_AI_BETA_LIFETIME_BUDGET_MICRO_USD",
+  "GHOSTWRITER_AI_REQUEST_BODY_BYTES",
+  "GHOSTWRITER_AI_REQUEST_TIMEOUT_MS",
   "NEXT_PUBLIC_SITE_URL",
   "SUPABASE_PUBLISHABLE_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
@@ -48,6 +68,13 @@ function securityCheckEnv(overrides: Record<string, string>): NodeJS.ProcessEnv 
     ...env,
     ...overrides,
   };
+}
+
+function workspaceTempDir(prefix: string): string {
+  const tmpRoot = join(process.cwd(), ".tmp");
+
+  mkdirSync(tmpRoot, { recursive: true });
+  return mkdtempSync(join(tmpRoot, prefix));
 }
 
 test("rejects placeholder secrets", () => {
@@ -105,43 +132,17 @@ test("requires supabase credentials for the durable abuse store", () => {
   assert.match(resolved.reason ?? "", /requires both SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY/i);
 });
 
-test("does not silently fall back to gemini when groq is selected", () => {
-  const selected = selectAiProvider({
-    geminiApiKey: "gemini-key",
-    geminiModel: "gemini-model",
-    geminiUrl: "https://gemini.example",
-    groqApiKey: "",
-    groqModel: "groq-model",
-    groqUrl: "https://groq.example",
-    preferredProvider: "groq",
-  });
-
-  assert.equal(selected, null);
-});
-
-test("uses explicit gemini selection when configured", () => {
-  const selected = selectAiProvider({
-    geminiApiKey: "gemini-key",
-    geminiModel: "gemini-model",
-    geminiUrl: "https://gemini.example",
-    groqApiKey: "groq-key",
-    groqModel: "groq-model",
-    groqUrl: "https://groq.example",
-    preferredProvider: "gemini",
-  });
-
-  assert.deepEqual(selected, {
-    apiKey: "gemini-key",
-    model: "gemini-model",
-    name: "gemini",
-    url: "https://gemini.example",
-  });
-});
-
 test("does not trust proxy headers by default", () => {
   assert.equal(shouldTrustProxy(undefined), false);
   assert.equal(shouldTrustProxy("false"), false);
   assert.equal(shouldTrustProxy("true"), true);
+});
+
+test("normalizes only explicitly supported trusted client IP headers", () => {
+  assert.equal(normalizeTrustedClientIpHeader("X-Forwarded-For"), "x-forwarded-for");
+  assert.equal(normalizeTrustedClientIpHeader("cf-connecting-ip"), "cf-connecting-ip");
+  assert.equal(normalizeTrustedClientIpHeader("x-client-ip"), null);
+  assert.equal(normalizeTrustedClientIpHeader(""), null);
 });
 
 test("normalizes only valid IP addresses", () => {
@@ -165,7 +166,7 @@ test("treats public sharing as explicit opt-in", () => {
 });
 
 test("local security check loads .env.local without printing secrets", () => {
-  const cwd = mkdtempSync(join(tmpdir(), "ghostwriter-security-check-"));
+  const cwd = workspaceTempDir("ghostwriter-security-check-");
   const secret = "local-groq-secret-value";
 
   writeFileSync(join(cwd, ".env.local"), `GROQ_API_KEY=${secret}\n`);
@@ -181,7 +182,7 @@ test("local security check loads .env.local without printing secrets", () => {
 });
 
 test("production security check ignores .env.local and stays explicit", () => {
-  const cwd = mkdtempSync(join(tmpdir(), "ghostwriter-security-check-"));
+  const cwd = workspaceTempDir("ghostwriter-security-check-");
   const secret = "local-groq-secret-value";
 
   writeFileSync(join(cwd, ".env.local"), `GROQ_API_KEY=${secret}\n`);
@@ -191,7 +192,7 @@ test("production security check ignores .env.local and stays explicit", () => {
       execFileSync("node", [SECURITY_CHECK_SCRIPT], {
         cwd,
         encoding: "utf8",
-        env: securityCheckEnv({ NODE_ENV: "production" }),
+        env: securityCheckEnv({ AI_ENABLED: "true", NODE_ENV: "production" }),
         stdio: "pipe",
       }),
     (error: unknown) => {
@@ -200,8 +201,54 @@ test("production security check ignores .env.local and stays explicit", () => {
 
       const stderr = String((error as { stderr?: Buffer | string }).stderr ?? "");
 
-      assert.match(stderr, /GROQ_API_KEY is required when GHOSTWRITER_PROVIDER=groq/);
+      assert.match(stderr, /AI_ENABLED=true requires a non-placeholder GROQ_API_KEY/);
       assert.doesNotMatch(stderr, new RegExp(secret));
+      return true;
+    },
+  );
+});
+
+test("production explicitly disabled AI does not require a provider credential", () => {
+  const output = execFileSync("node", [SECURITY_CHECK_SCRIPT], {
+    encoding: "utf8",
+    env: securityCheckEnv({
+      AI_ENABLED: "false",
+      GHOSTWRITER_ABUSE_STORE_MODE: "supabase",
+      GHOSTWRITER_CLIENT_IP_HEADER: "x-forwarded-for",
+      GHOSTWRITER_SECURITY_SECRET: TEST_SIGNING_VALUE,
+      GHOSTWRITER_TRUST_PROXY: "true",
+      NEXT_PUBLIC_SITE_URL: "https://ghostwriter.example",
+      NODE_ENV: "production",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SUPABASE_URL: "https://supabase.example",
+    }),
+  });
+
+  assert.match(output, /security-check: passed/);
+});
+
+test("production rejects the non-billable E2E fixture mode", () => {
+  assert.throws(
+    () =>
+      execFileSync("node", [SECURITY_CHECK_SCRIPT], {
+        encoding: "utf8",
+        env: securityCheckEnv({
+          AI_ENABLED: "false",
+          GHOSTWRITER_ABUSE_STORE_MODE: "supabase",
+          GHOSTWRITER_CLIENT_IP_HEADER: "x-forwarded-for",
+          GHOSTWRITER_E2E_FIXTURE_MODE: "true",
+          GHOSTWRITER_SECURITY_SECRET: TEST_SIGNING_VALUE,
+          GHOSTWRITER_TRUST_PROXY: "true",
+          NEXT_PUBLIC_SITE_URL: "https://ghostwriter.example",
+          NODE_ENV: "production",
+          SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+          SUPABASE_URL: "https://supabase.example",
+        }),
+        stdio: "pipe",
+      }),
+    (error: unknown) => {
+      const stderr = String((error as { stderr?: Buffer | string }).stderr ?? "");
+      assert.match(stderr, /GHOSTWRITER_E2E_FIXTURE_MODE must never be enabled in production/);
       return true;
     },
   );
@@ -217,4 +264,8 @@ test("security check docs match local and CI command behavior", () => {
   assert.match(workflow, /npm run security:check/);
   assert.match(workflow, /NODE_ENV: production/);
   assert.match(workflow, /GHOSTWRITER_ABUSE_STORE_MODE: supabase/);
+  assert.match(workflow, /GHOSTWRITER_TRUST_PROXY: true/);
+  assert.match(workflow, /GHOSTWRITER_CLIENT_IP_HEADER: x-forwarded-for/);
+  assert.match(workflow, /AI_ENABLED: false/);
+  assert.match(workflow, /gitleaks\/gitleaks-action@[a-f0-9]{40}/);
 });

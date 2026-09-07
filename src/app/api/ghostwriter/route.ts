@@ -4,7 +4,8 @@ import {
   validateGhostwriterHeaders,
   validateGhostwriterPost,
 } from "@/server/abuse-protection";
-import { InputSchema, RewriteArtifactProvenanceSchema, rewriteText } from "@/server/ghostwriter";
+import { executeGovernedRewrite } from "@/server/ai-gateway";
+import { InputSchema } from "@/server/ghostwriter";
 import { readGhostwriterJsonBody } from "@/server/ghostwriter-request";
 import { PUBLIC_REWRITE_SHARE_CONSENT } from "@/lib/ghostwriter-share";
 import { createRequestId, withRequestId } from "@/server/request-id";
@@ -14,10 +15,9 @@ export const runtime = "nodejs";
 const RequestSchema = InputSchema.extend({
   challengeNonce: z.string().min(1).max(10),
   challengeToken: z.string().min(16).max(1024),
-  artifactProvenance: RewriteArtifactProvenanceSchema.optional(),
   share: z.boolean().optional().default(false),
   shareConsent: z.literal(PUBLIC_REWRITE_SHARE_CONSENT).optional(),
-});
+}).strict();
 
 export async function POST(request: Request) {
   const requestId = createRequestId();
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
   if ("status" in headerGuard) {
     return Response.json(
-      { rewrite: "", shortId: null, moodLabel: null, error: headerGuard.error },
+      { rewrite: "", shortId: null, moodLabel: null, operationId: null, error: headerGuard.error },
       {
         headers: noStoreHeaders(headerGuard.headers),
         status: headerGuard.status,
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
   if (!body.ok) {
     return Response.json(
-      { rewrite: "", shortId: null, moodLabel: null, error: body.error },
+      { rewrite: "", shortId: null, moodLabel: null, operationId: null, error: body.error },
       {
         headers: noStoreHeaders(),
         status: body.status,
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return Response.json(
-      { rewrite: "", shortId: null, moodLabel: null, error: "Invalid request." },
+      { rewrite: "", shortId: null, moodLabel: null, operationId: null, error: "Invalid request." },
       {
         headers: noStoreHeaders(),
         status: 400,
@@ -63,11 +63,12 @@ export async function POST(request: Request) {
     request,
     parsed.data.challengeToken,
     parsed.data.challengeNonce,
+    headerGuard,
   );
 
   if ("status" in guard) {
     return Response.json(
-      { rewrite: "", shortId: null, moodLabel: null, error: guard.error },
+      { rewrite: "", shortId: null, moodLabel: null, operationId: null, error: guard.error },
       {
         headers: noStoreHeaders(guard.headers),
         status: guard.status,
@@ -75,11 +76,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await rewriteText(
+  const result = await executeGovernedRewrite(
+    request,
     {
       author: parsed.data.author,
-      artifactProvenance: parsed.data.artifactProvenance,
       mood: parsed.data.mood,
+      mode: parsed.data.mode,
+      outcome: parsed.data.outcome,
       sharePublicly: parsed.data.share && parsed.data.shareConsent === PUBLIC_REWRITE_SHARE_CONSENT,
       text: parsed.data.text,
     },
@@ -89,9 +92,11 @@ export async function POST(request: Request) {
 
   return Response.json(
     {
+      artifactToken: result.artifactToken,
       rewrite: result.rewrite,
       shortId: result.shortId,
       moodLabel: result.moodLabel,
+      operationId: result.operationId,
       error: result.error,
     },
     {

@@ -1,0 +1,10 @@
+Second Voice AI — V9 release-gate lint repair
+2026-09-16
+
+Fixes the only release-gate blockers in the uploaded run:
+- ESLint now ignores generated Vercel output (.vercel/**), which accounted for 22/23 lint errors.
+- ESLint now ignores vendored Impeccable skill sources (.github/skills/**), removing non-product lint noise.
+- BetaSignIn no longer mutates sessionStatusRef during render; the ref is synchronized in an effect.
+
+No quota, provider, database, or product behavior is weakened or bypassed.
+Database migration 202609160002 was already applied before this patch.

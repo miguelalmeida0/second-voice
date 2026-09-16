@@ -14,7 +14,14 @@ test.describe("accessibility and keyboard integrity", () => {
   });
 
   test("case study has no automatically detectable accessibility violations", async ({ page }) => {
-    await page.goto("/second-voice/case-study");
+    await page.goto("/second-voice/case-study", { waitUntil: "commit" });
+    // The dev server compiles this route on first request, and Turbopack's
+    // Fast Refresh can still touch the document a moment after real content
+    // is visible; wait for network activity (the HMR client's post-compile
+    // fetch) to settle so axe never starts mid-navigation (WebKit surfaces
+    // that race as "Execution context was destroyed").
+    await expect(page.locator(".gw-case-study h1")).toBeVisible();
+    await page.waitForLoadState("networkidle");
 
     const results = await new AxeBuilder({ page }).include(".gw-case-study").analyze();
 
@@ -30,14 +37,15 @@ test.describe("accessibility and keyboard integrity", () => {
       page.getByRole("button", { name: "Close How it works", exact: true }),
     ).toBeFocused();
 
-    await page.keyboard.press("Tab");
-    await expect(dialog.getByRole("link", { name: "Read the case study" })).toBeFocused();
-    await page.keyboard.press("Tab");
-    await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeFocused();
-    await page.keyboard.press("Tab");
-    await expect(
-      page.getByRole("button", { name: "Close How it works", exact: true }),
-    ).toBeFocused();
+    // The drawer now contains account/privacy/credits links before the case-study CTA.
+    // Test the actual focus-trap contract instead of hard-coding a stale tab order.
+    for (let index = 0; index < 7; index += 1) {
+      await page.keyboard.press("Tab");
+      expect(
+        await dialog.evaluate((node) => node.contains(document.activeElement)),
+        `tab ${index + 1} should keep focus inside the dialog`,
+      ).toBe(true);
+    }
 
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
@@ -48,7 +56,7 @@ test.describe("accessibility and keyboard integrity", () => {
 
     await expect(page.getByRole("button", { name: "Authors" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByLabel(/mythic mood dial/i)).toHaveAttribute("aria-valuetext", /starlit/i);
-    await expect(page.getByRole("button", { name: "Copy rewrite" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Copy rewrite" })).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
 
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));

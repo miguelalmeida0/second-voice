@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
   if ("status" in headerGuard) {
     return Response.json(
-      { rewrite: "", shortId: null, moodLabel: null, operationId: null, error: headerGuard.error },
+      { rewrite: "", shortId: null, moodLabel: null, operationId: null, error: headerGuard.error, reasonCode: headerGuard.code ?? null },
       {
         headers: noStoreHeaders(headerGuard.headers),
         status: headerGuard.status,
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
   if (!body.ok) {
     return Response.json(
-      { rewrite: "", shortId: null, moodLabel: null, operationId: null, error: body.error },
+      { rewrite: "", shortId: null, moodLabel: null, operationId: null, error: body.error, reasonCode: "INVALID_REQUEST" },
       {
         headers: noStoreHeaders(),
         status: body.status,
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return Response.json(
-      { rewrite: "", shortId: null, moodLabel: null, operationId: null, error: "Invalid request." },
+      { rewrite: "", shortId: null, moodLabel: null, operationId: null, error: "Invalid request.", reasonCode: "INVALID_REQUEST" },
       {
         headers: noStoreHeaders(),
         status: 400,
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
 
   if ("status" in guard) {
     return Response.json(
-      { rewrite: "", shortId: null, moodLabel: null, operationId: null, error: guard.error },
+      { rewrite: "", shortId: null, moodLabel: null, operationId: null, error: guard.error, reasonCode: guard.code ?? null },
       {
         headers: noStoreHeaders(guard.headers),
         status: guard.status,
@@ -98,9 +98,10 @@ export async function POST(request: Request) {
       moodLabel: result.moodLabel,
       operationId: result.operationId,
       error: result.error,
+      reasonCode: result.reasonCode ?? null,
     },
     {
-      headers: noStoreHeaders(),
+      headers: noStoreHeaders(result.retryAfterSeconds ? {"Retry-After": String(result.retryAfterSeconds)} : undefined),
       status,
     },
   );

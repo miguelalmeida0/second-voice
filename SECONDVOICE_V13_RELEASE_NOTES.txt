@@ -1,0 +1,18 @@
+Second Voice AI — V13 Playwright server isolation hotfix
+
+Root cause addressed:
+- local Playwright was allowed to reuse any process already answering on port 3210
+- an interrupted/stale Next dev server could therefore be silently adopted
+- the first browser navigation then hung for 30s before any product assertion ran
+- the suite also forced the legacy webpack dev path although Next 16/Turbopack is the project default
+
+Changes:
+- allocate a fresh OS-selected loopback port for each local Playwright run
+- never reuse an existing local web server
+- use Next 16 default dev server instead of forcing webpack
+- allow 180s only for server boot/first compilation, not individual assertions
+- navigation waits for response commit, then the existing semantic app-ready contract
+- remove redundant DOMContentLoaded wait from app-ready helper
+- external PLAYWRIGHT_BASE_URL remains supported and skips local webServer startup
+
+No production application, database, quota, provider, auth, or security policy changed.

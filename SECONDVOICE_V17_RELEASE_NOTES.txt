@@ -1,0 +1,22 @@
+SECOND VOICE V17 — TAILWIND / PLAYWRIGHT FEEDBACK-LOOP FIX
+
+Root cause fixed:
+- Tailwind CSS v4 automatic source detection was allowed to scan the repo root.
+- V14/V15 placed Playwright's custom Next distDir at .next-playwright-3211, which
+  was NOT covered by the existing /.next/ gitignore rule.
+- A completed browser run therefore left generated Tailwind CSS inside a path
+  that a later Tailwind run could treat as source text. Escaped generated
+  selectors were reinterpreted as arbitrary-value utility candidates, producing
+  invalid rules such as color: var(--@), color: var(--), and control-character
+  escapes. That is why Chromium could pass 34/34 and the immediately following
+  full E2E command could fail before tests started.
+
+Fix:
+1. globals.css now disables Tailwind's repo-wide auto detection and explicitly
+   scans only ../ (the src tree).
+2. Playwright Next output moves under .tmp/next-playwright-<port>, already ignored.
+3. Every managed Playwright server starts by deleting its own isolated distDir.
+4. Legacy .next-playwright-* directories are cleaned before server startup and
+   are now gitignored as a defense-in-depth measure.
+
+No production auth, AI, quota, provider, Supabase, or database logic changed.

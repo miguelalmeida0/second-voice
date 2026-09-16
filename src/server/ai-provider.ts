@@ -25,13 +25,37 @@ export type AiProviderResult = {
 };
 
 export class AiProviderDispatchError extends Error {
-  readonly code: "malformed_response" | "provider_error" | "timeout_or_disconnect";
+  readonly code:
+    | "malformed_response"
+    | "provider_rate_limited"
+    | "provider_rejected"
+    | "provider_unavailable"
+    | "timeout_or_disconnect";
+  readonly retryAfterSeconds: number | null;
+  readonly status: number | null;
 
-  constructor(code: AiProviderDispatchError["code"]) {
+  constructor(
+    code: AiProviderDispatchError["code"],
+    options: { retryAfterSeconds?: number | null; status?: number | null } = {},
+  ) {
     super(code);
     this.name = "AiProviderDispatchError";
     this.code = code;
+    this.retryAfterSeconds = options.retryAfterSeconds ?? null;
+    this.status = options.status ?? null;
   }
+}
+
+function retryAfterSeconds(response: Response): number | null {
+  const raw = response.headers.get("retry-after");
+  if (!raw) return null;
+
+  const seconds = Number.parseInt(raw, 10);
+  if (Number.isFinite(seconds) && seconds > 0) return Math.min(300, seconds);
+
+  const date = Date.parse(raw);
+  if (!Number.isFinite(date)) return null;
+  return Math.max(1, Math.min(300, Math.ceil((date - Date.now()) / 1000)));
 }
 export async function dispatchRewriteToProvider(options: {
   policy: AiPolicyConfig;
@@ -67,7 +91,20 @@ export async function dispatchRewriteToProvider(options: {
     });
 
     if (!response.ok) {
-      throw new AiProviderDispatchError("provider_error");
+      const retryAfter = retryAfterSeconds(response);
+      if (response.status === 429) {
+        throw new AiProviderDispatchError("provider_rate_limited", {
+          retryAfterSeconds: retryAfter,
+          status: response.status,
+        });
+      }
+      if (response.status >= 500) {
+        throw new AiProviderDispatchError("provider_unavailable", {
+          retryAfterSeconds: retryAfter,
+          status: response.status,
+        });
+      }
+      throw new AiProviderDispatchError("provider_rejected", { status: response.status });
     }
 
     const json = await readLimitedJsonResponse(response, PROVIDER_RESPONSE_MAX_BYTES, {

@@ -296,11 +296,19 @@ let cachedAdmin: SupabaseAdminClient | null | undefined;
 let cachedPublic: SupabasePublicClient | null | undefined;
 
 function buildClient(key: string): ReturnType<typeof createClient<Database>> {
+  const allowedOrigin = new URL(process.env.SUPABASE_URL!).origin;
   return createClient<Database>(process.env.SUPABASE_URL!, key, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
     },
+    global: { fetch: (input, options) => {
+      const target = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+      if (target.origin !== allowedOrigin) throw new Error("Unexpected datastore destination");
+      const deadline = AbortSignal.timeout(10_000);
+      return fetch(input, {...options, redirect:"error", cache:"no-store",
+        signal: options?.signal ? AbortSignal.any([options.signal, deadline]) : deadline});
+    } },
   });
 }
 

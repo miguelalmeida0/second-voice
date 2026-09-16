@@ -11,7 +11,7 @@ test.describe("local user preferences", () => {
     await page.reload();
 
     await expectPressed(app.outcomeModeButton(), true);
-    await expect(page.getByRole("heading", { name: "Choose an outcome" })).toBeVisible();
+    await expect(page.getByRole("group", { name: "Outcome options" })).toBeVisible();
     await expectPressed(page.getByRole("button", { name: /Be persuasive/ }), true);
     await expect(page.getByRole("button", { name: "Rewrite to be persuasive" })).toBeVisible();
   });
@@ -25,7 +25,7 @@ test.describe("local user preferences", () => {
     await page.goto("/second-voice");
 
     await expectPressed(page.getByRole("button", { name: "Authors" }), true);
-    await expect(page.getByRole("heading", { name: "Choose a writer" })).toBeVisible();
+    await expect(page.getByRole("group", { name: "Choose an author" })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Rewrite as Tolkien$/ })).toBeVisible();
   });
 });

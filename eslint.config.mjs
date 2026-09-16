@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     ".tmp/**",
     "out/**",
     "build/**",
+    ".vercel/**",
+    ".github/skills/**",
     "next-env.d.ts",
     "playwright-report/**",
     "test-results/**",

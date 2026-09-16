@@ -200,6 +200,19 @@ test("anonymous, expired, unverified, and forged identities make zero provider c
   }
 });
 
+test("minute quota returns a recoverable cooldown without dispatching", async () => {
+  for (const reason of ["account_minute_limit", "global_minute_limit"]) {
+    const ledger = new TestAiLedger();
+    const provider = new MockAiProvider();
+    ledger.reserve = async () => ({kind: "denied", reason});
+    const result = await executeGovernedRewrite(request("cooldown-denied-0001"), INPUT, {}, dependencies({ledger, provider}));
+    assert.equal(result.status, 429);
+    assert.equal(result.retryAfterSeconds, 60);
+    assert.match(result.error ?? "", /wait 60 seconds/);
+    assert.equal(provider.calls, 0);
+  }
+});
+
 test("unapproved and recreated account IDs receive no owner-funded inference", async () => {
   const ledger = new TestAiLedger();
   const provider = new MockAiProvider();

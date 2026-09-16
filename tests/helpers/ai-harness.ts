@@ -42,6 +42,10 @@ export class TestAiLedger implements AiLedger {
       : operation.actualMicroUsd ?? 0;
   }
 
+  private countsTowardUserQuota(operation: TestOperation): boolean {
+    return operation.state !== "failed";
+  }
+
   private count(predicate: (operation: TestOperation) => boolean): number {
     return this.operations.filter(predicate).length;
   }
@@ -84,15 +88,15 @@ export class TestAiLedger implements AiLedger {
     const dayAgo = this.now - 24 * 60 * 60_000;
     const forAccount = (operation: TestOperation) => operation.accountId === request.accountId;
 
-    if (this.count(forAccount) >= policy.lifetimeGenerationsPerAccount) {
+    if (this.count((operation) => forAccount(operation) && this.countsTowardUserQuota(operation)) >= policy.lifetimeGenerationsPerAccount) {
       return { kind: "denied", reason: "account_lifetime_limit" };
     }
 
-    if (this.count((operation) => forAccount(operation) && operation.createdAt >= dayAgo) >= policy.accountGenerationsPer24Hours) {
+    if (this.count((operation) => forAccount(operation) && this.countsTowardUserQuota(operation) && operation.createdAt >= dayAgo) >= policy.accountGenerationsPer24Hours) {
       return { kind: "denied", reason: "account_day_limit" };
     }
 
-    if (this.count((operation) => forAccount(operation) && operation.createdAt >= minuteAgo) >= policy.accountGenerationsPerMinute) {
+    if (this.count((operation) => forAccount(operation) && this.countsTowardUserQuota(operation) && operation.createdAt >= minuteAgo) >= policy.accountGenerationsPerMinute) {
       return { kind: "denied", reason: "account_minute_limit" };
     }
 
@@ -106,7 +110,7 @@ export class TestAiLedger implements AiLedger {
       return { kind: "denied", reason: "account_concurrency_limit" };
     }
 
-    if (this.count((operation) => operation.createdAt >= minuteAgo) >= policy.globalGenerationsPerMinute) {
+    if (this.count((operation) => this.countsTowardUserQuota(operation) && operation.createdAt >= minuteAgo) >= policy.globalGenerationsPerMinute) {
       return { kind: "denied", reason: "global_minute_limit" };
     }
 
@@ -186,6 +190,21 @@ export class TestAiLedger implements AiLedger {
     }
 
     operation.state = "uncertain";
+    return true;
+  }
+
+  async settleKnownFailure(operationId: string, accountId: string): Promise<boolean> {
+    const operation = this.operations.find(
+      (candidate) => candidate.id === operationId && candidate.accountId === accountId,
+    );
+
+    if (!operation || operation.state !== "dispatched") {
+      return false;
+    }
+
+    operation.actualMicroUsd = 0;
+    operation.outcome = "failed";
+    operation.state = "failed";
     return true;
   }
 

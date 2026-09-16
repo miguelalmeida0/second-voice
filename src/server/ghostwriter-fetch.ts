@@ -8,6 +8,7 @@ import {
   type RewriteMode,
 } from "../lib/ghostwriter-shared.ts";
 import { logSecurityEvent } from "./security-events.ts";
+import { publicSharingEnabled } from "../lib/security-env.ts";
 
 const FetchSchema = z.object({
   id: z.string().regex(/^[abcdefghijkmnopqrstuvwxyz23456789]{8}$/),
@@ -77,6 +78,10 @@ export function sanitizePublicRewriteRow(row: PublicRewriteViewRow): RewriteRow 
 }
 
 export async function fetchRewriteById(id: string): Promise<RewriteRow | null> {
+  // The publication kill switch covers reads, not just creation. Free release
+  // does not expose legacy, account-unbound public artifacts.
+  if (process.env.GHOSTWRITER_RELEASE_PROFILE === "portfolio-free" ||
+      !publicSharingEnabled(process.env.GHOSTWRITER_ALLOW_PUBLIC_SHARING)) return null;
   const parsed = FetchSchema.safeParse({ id });
 
   if (!parsed.success) {

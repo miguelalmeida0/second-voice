@@ -61,6 +61,7 @@ type GuardSuccess = {
 };
 
 type GuardFailure = {
+  code?: "ABUSE_COOLDOWN" | "PROTECTION_UNAVAILABLE";
   error: string;
   headers?: HeadersInit;
   status: number;
@@ -322,23 +323,29 @@ function sameOrigin(value: string | null, origins: Set<string>): boolean {
 }
 
 function buildPenaltyKeyHashes(ip: string, sessionId: string, userAgent: string): string[] {
-  const fingerprint = hashAbuseKey("fingerprint", fingerprintSeed(ip, sessionId, userAgent));
+  // v2 intentionally invalidates penalty keys produced by the previous limiter,
+  // where an ordinary rate-bucket hit incorrectly escalated into a cross-endpoint
+  // penalty. This clears those false lockouts without deleting durable abuse data.
+  const fingerprint = hashAbuseKey("penalty-v2-fingerprint", fingerprintSeed(ip, sessionId, userAgent));
 
   return uniqueKeyHashes([
-    hashAbuseKey("session", sessionId),
+    hashAbuseKey("penalty-v2-session", sessionId),
     fingerprint,
-    ip === "unknown" ? null : hashAbuseKey("ip", ip),
+    ip === "unknown" ? null : hashAbuseKey("penalty-v2-ip", ip),
   ]);
 }
 
 function buildChallengeRateRules(ip: string, sessionId: string, userAgent: string): AbuseRateRule[] {
+  // Challenge requests are cheap and precede the authoritative 3-rewrite quota.
+  // Keep abuse protection, but leave enough recovery headroom that a transient
+  // failure cannot strand a visitor who still has rewrites available.
   return uniqueKeyHashes([
     hashAbuseKey("challenge-session", sessionId),
     hashAbuseKey("challenge-fingerprint", fingerprintSeed(ip, sessionId, userAgent)),
     ip === "unknown" ? null : hashAbuseKey("challenge-ip", ip),
   ]).map((keyHash, index) => ({
     keyHash,
-    limit: index === 0 ? 6 : index === 1 ? 9 : 12,
+    limit: index === 0 ? 12 : index === 1 ? 18 : 30,
     windowMs: 5 * 60 * 1000,
   }));
 }
@@ -371,23 +378,28 @@ function buildPostIngressRateRules(ip: string, sessionId: string, userAgent: str
 
 function buildRewriteRateRules(ip: string, sessionId: string, userAgent: string): AbuseRateRule[] {
   const rules: AbuseRateRule[] = [
-    { keyHash: hashAbuseKey("rewrite-session-burst", sessionId), limit: 3, windowMs: 60 * 1000 },
+    // The durable ledger is the actual generation quota. These are only
+    // anti-hammering limits, so they must not be tighter than the UX contract.
+    { keyHash: hashAbuseKey("rewrite-session-burst", sessionId), limit: 6, windowMs: 60 * 1000 },
     {
       keyHash: hashAbuseKey("rewrite-session-ten-minute", sessionId),
-      limit: 8,
+      limit: 12,
       windowMs: 10 * 60 * 1000,
     },
     {
       keyHash: hashAbuseKey("rewrite-fingerprint", fingerprintSeed(ip, sessionId, userAgent)),
-      limit: 8,
+      limit: 12,
       windowMs: 10 * 60 * 1000,
     },
   ];
 
   if (ip !== "unknown") {
+    // Shared/NAT IPs (and incognito acceptance testing) must not inherit a
+    // four-attempt lockout from another browser session. Provider admission is
+    // still bounded by the database quota and the fleet-wide dispatch cap.
     rules.push(
-      { keyHash: hashAbuseKey("rewrite-ip-burst", ip), limit: 4, windowMs: 60 * 1000 },
-      { keyHash: hashAbuseKey("rewrite-ip-ten-minute", ip), limit: 12, windowMs: 10 * 60 * 1000 },
+      { keyHash: hashAbuseKey("rewrite-ip-burst", ip), limit: 12, windowMs: 60 * 1000 },
+      { keyHash: hashAbuseKey("rewrite-ip-ten-minute", ip), limit: 30, windowMs: 10 * 60 * 1000 },
     );
   }
 
@@ -621,17 +633,34 @@ async function enforceRateLimits(
       return null;
     }
 
-    return reject(
-      "Too many requests. Cooldown in progress.",
-      429,
-      guard,
-      location === "rewrite" || location === "lab" || location === "share" ? 2 : 1,
-      result.retryAfterSeconds,
-    );
+    const retryAfterSeconds = Math.max(1, result.retryAfterSeconds);
+
+    // Hitting a normal rate bucket is not itself malicious behaviour. Do not
+    // escalate it into the cross-endpoint penalty store: that used to turn a
+    // single busy minute into a multi-minute lockout and made a fresh incognito
+    // session show available quota while every rewrite was still rejected.
+    logSecurityEvent("request_blocked", {
+      reason: "abuse_cooldown",
+      ip: guard.ip,
+      retryAfter: retryAfterSeconds,
+      sessionId: guard.sessionId,
+      severity: 1,
+      status: 429,
+    });
+
+    return {
+      code: "ABUSE_COOLDOWN",
+      error: location === "rewrite" || location === "challenge"
+        ? "Please wait a moment before trying another rewrite."
+        : "Please wait a moment and try again.",
+      headers: { "Retry-After": String(retryAfterSeconds) },
+      status: 429,
+    };
   } catch (error) {
     logAbuseStoreFailure(`rate_limit_${location}`, error);
 
     return {
+      code: "PROTECTION_UNAVAILABLE",
       error: "Protection temporarily unavailable.",
       status: 503,
     };
@@ -749,6 +778,7 @@ async function validateChallengeProof(
     logAbuseStoreFailure("challenge_consume", error);
 
     return {
+      code: "PROTECTION_UNAVAILABLE",
       error: "Protection temporarily unavailable.",
       status: 503,
     };
@@ -764,10 +794,14 @@ export async function validateGhostwriterHeaders(request: Request, purpose: "rew
     return guard;
   }
 
+  // Account safety operations have their own ingress limits. A rewrite penalty
+  // must not prevent a valid same-origin/CSRF-authenticated logout or deletion.
+  if (purpose === "auth") guard.penaltyKeyHashes = [];
+
   if (request.method !== "GET") {
     const ingressRateFailure = await enforceRateLimits(
       purpose === "auth"
-        ? [{ keyHash: hashAbuseKey("auth-ingress", guard.sessionId), limit: 30, windowMs: 60_000 }]
+        ? [{ keyHash: hashAbuseKey("auth-ingress", guard.sessionId), limit: 60, windowMs: 60_000 }]
         : buildPostIngressRateRules(guard.ip, guard.sessionId, guard.userAgent),
       guard,
       "ingress",
@@ -872,10 +906,12 @@ export async function validateGhostwriterAuthPost(
   challengeToken?: string,
   challengeNonce?: string,
 ): Promise<GuardSuccess | GuardFailure> {
-  const limit = action === "send-code" ? 2 : 10;
+  const limit = action === "send-code" ? 2 : action === "status" ? 60 : 10;
   const windowMs = action === "send-code" ? 600_000 : 60_000;
   const rules = [{keyHash: hashAbuseKey(`auth-${action}-session`, guard.sessionId),limit,windowMs}];
-  if (guard.ip) rules.push({keyHash:hashAbuseKey(`auth-${action}-ip`,guard.ip),limit:limit * 3,windowMs});
+  // In local/dev environments client IP may intentionally resolve to "unknown".
+  // Never collapse every browser on that sentinel into one shared rate bucket.
+  if (guard.ip !== "unknown") rules.push({keyHash:hashAbuseKey(`auth-${action}-ip`,guard.ip),limit:limit * 3,windowMs});
   const failure = await enforceRateLimits(rules, guard, action==="github"?"auth-verify":`auth-${action}`);
   if (failure) return failure;
   // Revocation/status retain same-origin, CSRF, session and independent rate

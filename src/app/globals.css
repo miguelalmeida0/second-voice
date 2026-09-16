@@ -1,4 +1,12 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+@import "./second-voice-studio.css";
+
+/*
+ * Tailwind v4 scans plain text for class candidates. Keep scanning strictly
+ * inside application source so generated Next/Playwright artifacts can never
+ * be re-ingested as Tailwind input on a later test run.
+ */
+@source "../";
 
 @theme inline {
   --font-sans: var(--font-inter), system-ui, sans-serif;
@@ -15,7 +23,7 @@
 }
 
 :root {
-  --background: oklch(0.08 0.002 30);
+  --background: #050505;
   --foreground: oklch(0.97 0.01 80);
   --card: oklch(0.18 0.006 30);
   --card-foreground: oklch(0.97 0.01 80);
@@ -41,6 +49,18 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+button:not(:disabled):not([aria-disabled="true"]),
+[role="button"]:not([aria-disabled="true"]),
+a[href],
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
 }
 
 .ghostwriter button,
@@ -173,6 +193,31 @@ a {
   outline-offset: 3px;
 }
 
+/* Keep keyboard focus on the complete rounded field, not clipped textarea edges. */
+.ghostwriter .gw-composer-field {
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.ghostwriter .gw-composer-field:focus-within {
+  border-color: #9bcaff;
+  box-shadow: 0 0 0 3px rgb(155 202 255 / 12%);
+}
+
+.ghostwriter .gw-composer-field textarea:focus-visible {
+  outline: none;
+}
+
+.ghostwriter .gw-composer-field textarea::selection {
+  background: rgb(155 202 255 / 25%);
+  color: #f4f0e8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ghostwriter .gw-composer-field {
+    transition: none;
+  }
+}
+
 .ghostwriter[data-voice="tolkien"],
 .ghostwriter [data-voice="tolkien"] {
   --gw-voice-color: hsl(var(--voice-tolkien));
@@ -288,7 +333,11 @@ a {
   width: clamp(1.4rem, 2.2vw, 2.2rem);
   height: 1px;
   flex: 0 0 auto;
-  background: color-mix(in oklch, var(--gw-voice-color) 36%, var(--gw-frame-border-strong));
+  background: color-mix(
+    in oklch,
+    var(--gw-voice-color) 36%,
+    var(--gw-frame-border-strong)
+  );
 }
 
 .ghostwriter .gw-mode-toggle {
@@ -354,7 +403,11 @@ a {
   margin: clamp(0.8rem, 1.7vw, 1.2rem) auto clamp(0.72rem, 1.35vw, 1rem) 0;
   background: linear-gradient(
     90deg,
-    color-mix(in oklch, var(--gw-voice-color) 24%, var(--gw-frame-border-strong)),
+    color-mix(
+      in oklch,
+      var(--gw-voice-color) 24%,
+      var(--gw-frame-border-strong)
+    ),
     var(--gw-frame-border) 58%,
     transparent
   );
@@ -388,7 +441,11 @@ a {
 .gw-input-panel:focus-within {
   border-color: var(--gw-focus-ring);
   background:
-    linear-gradient(180deg, rgba(244, 237, 225, 0.062), rgba(244, 237, 225, 0.024) 42%),
+    linear-gradient(
+      180deg,
+      rgba(244, 237, 225, 0.062),
+      rgba(244, 237, 225, 0.024) 42%
+    ),
     rgba(22, 22, 22, 0.88);
   box-shadow:
     inset 0 1px 0 rgba(255, 246, 232, 0.078),
@@ -500,10 +557,15 @@ a {
   justify-content: center;
   min-height: var(--gw-button-height);
   padding: 0 var(--gw-button-px);
-  border: 1px solid color-mix(in oklch, var(--gw-voice-color) 28%, var(--gw-control-border) 72%);
+  border: 1px solid
+    color-mix(in oklch, var(--gw-voice-color) 28%, var(--gw-control-border) 72%);
   border-radius: var(--gw-button-radius);
   background:
-    linear-gradient(180deg, rgba(244, 237, 225, 0.04), rgba(244, 237, 225, 0.014)),
+    linear-gradient(
+      180deg,
+      rgba(244, 237, 225, 0.04),
+      rgba(244, 237, 225, 0.014)
+    ),
     rgba(244, 237, 225, 0.02);
   color: color-mix(in oklch, var(--ghost) 82%, var(--gw-voice-color) 18%);
   font-size: clamp(0.86rem, 0.95vw, 0.92rem);
@@ -517,7 +579,11 @@ a {
 }
 
 .gw-lab-open-button:hover {
-  border-color: color-mix(in oklch, var(--gw-voice-color) 44%, var(--gw-control-border-hover) 56%);
+  border-color: color-mix(
+    in oklch,
+    var(--gw-voice-color) 44%,
+    var(--gw-control-border-hover) 56%
+  );
   background: rgba(244, 237, 225, 0.06);
   color: var(--ghost);
 }
@@ -567,7 +633,11 @@ a {
   margin-top: clamp(2rem, 4vw, 3rem);
   padding-top: clamp(1.45rem, 2.6vw, 2rem);
   border-top: 1px solid var(--gw-frame-border);
-  background: linear-gradient(180deg, rgba(244, 237, 225, 0.018), transparent 46%);
+  background: linear-gradient(
+    180deg,
+    rgba(244, 237, 225, 0.018),
+    transparent 46%
+  );
 }
 
 .gw-composer-action-row {
@@ -853,15 +923,30 @@ a {
 }
 
 .ghostwriter .gw-rewrite-scan {
-  background: linear-gradient(180deg, transparent 0%, var(--gw-voice-color) 50%, transparent 100%);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    var(--gw-voice-color) 50%,
+    transparent 100%
+  );
 }
 
 .ghostwriter .gw-rewrite-glow {
-  background: linear-gradient(90deg, transparent 0%, var(--gw-voice-color) 50%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--gw-voice-color) 50%,
+    transparent 100%
+  );
 }
 
 .ghostwriter .gw-rewrite-line {
-  background: linear-gradient(90deg, transparent 0%, var(--gw-voice-color) 50%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--gw-voice-color) 50%,
+    transparent 100%
+  );
 }
 
 .ghostwriter .gw-loading-panel {
@@ -877,7 +962,8 @@ a {
   align-items: flex-start;
   gap: 0.85rem;
   padding: 0.85rem 0.95rem;
-  border: 1px solid color-mix(in oklch, var(--gw-voice-color) 34%, var(--gw-frame-border) 66%);
+  border: 1px solid
+    color-mix(in oklch, var(--gw-voice-color) 34%, var(--gw-frame-border) 66%);
   border-radius: 10px;
   background:
     linear-gradient(135deg, rgb(var(--gw-voice-rgb) / 0.14), transparent 72%),
@@ -918,7 +1004,12 @@ a {
 .ghostwriter .gw-loading-bars span {
   height: 0.46rem;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgb(var(--gw-voice-rgb) / 0.4), rgba(255, 255, 255, 0.08), rgb(var(--gw-voice-rgb) / 0.34));
+  background: linear-gradient(
+    90deg,
+    rgb(var(--gw-voice-rgb) / 0.4),
+    rgba(255, 255, 255, 0.08),
+    rgb(var(--gw-voice-rgb) / 0.34)
+  );
   background-size: 220% 100%;
   animation: gw-loading-bar 1.25s ease-in-out infinite;
 }
@@ -943,7 +1034,8 @@ a {
   gap: 0.85rem;
   max-width: min(100%, 34rem);
   padding: 1rem;
-  border: 1px solid color-mix(in oklch, oklch(0.72 0.16 28) 42%, var(--gw-frame-border) 58%);
+  border: 1px solid
+    color-mix(in oklch, oklch(0.72 0.16 28) 42%, var(--gw-frame-border) 58%);
   border-radius: 10px;
   background:
     linear-gradient(135deg, rgba(184, 73, 58, 0.16), transparent 74%),
@@ -991,7 +1083,8 @@ a {
   gap: 0.5rem;
   min-height: var(--gw-button-height);
   padding: 0 var(--gw-button-px);
-  border: 1px solid color-mix(in oklch, var(--gw-voice-color) 30%, var(--gw-control-border) 70%);
+  border: 1px solid
+    color-mix(in oklch, var(--gw-voice-color) 30%, var(--gw-control-border) 70%);
   border-radius: var(--gw-button-radius);
   background: rgba(244, 237, 225, 0.045);
   color: color-mix(in oklch, var(--ghost) 84%, var(--gw-voice-color) 16%);
@@ -1005,7 +1098,11 @@ a {
 }
 
 .ghostwriter .gw-error-retry:hover {
-  border-color: color-mix(in oklch, var(--gw-voice-color) 45%, var(--gw-control-border-hover) 55%);
+  border-color: color-mix(
+    in oklch,
+    var(--gw-voice-color) 45%,
+    var(--gw-control-border-hover) 55%
+  );
   background: rgba(244, 237, 225, 0.075);
   color: var(--ghost);
 }
@@ -1077,7 +1174,11 @@ a {
 
 .ghostwriter .gw-how-trigger {
   background:
-    linear-gradient(180deg, rgba(244, 237, 225, 0.045), rgba(244, 237, 225, 0.018)),
+    linear-gradient(
+      180deg,
+      rgba(244, 237, 225, 0.045),
+      rgba(244, 237, 225, 0.018)
+    ),
     rgba(244, 237, 225, 0.018);
 }
 
@@ -1123,7 +1224,12 @@ a {
   border: 1px solid var(--gw-frame-border-strong);
   border-radius: calc(var(--gw-button-radius) + 6px);
   background:
-    linear-gradient(180deg, rgba(244, 237, 225, 0.07), rgba(244, 237, 225, 0.026) 34%, rgba(244, 237, 225, 0.014)),
+    linear-gradient(
+      180deg,
+      rgba(244, 237, 225, 0.07),
+      rgba(244, 237, 225, 0.026) 34%,
+      rgba(244, 237, 225, 0.014)
+    ),
     rgba(15, 15, 14, 0.95);
   box-shadow:
     inset 0 1px 0 rgba(255, 246, 232, 0.08),
@@ -1217,7 +1323,11 @@ a {
   width: 1.65rem;
   height: 1.65rem;
   border-radius: 999px;
-  background: color-mix(in oklch, var(--gw-voice-color) 32%, rgba(244, 237, 225, 0.04) 68%);
+  background: color-mix(
+    in oklch,
+    var(--gw-voice-color) 32%,
+    rgba(244, 237, 225, 0.04) 68%
+  );
   color: hsl(var(--author-ink));
   font-family: var(--font-sans);
   font-size: 0.78rem;
@@ -1269,8 +1379,17 @@ a {
 }
 
 .ghostwriter .gw-how-case-link {
-  border: 1px solid color-mix(in oklch, var(--gw-voice-color) 38%, var(--gw-control-border-hover) 62%);
-  background: color-mix(in oklch, var(--gw-voice-color) 18%, rgba(244, 237, 225, 0.04) 82%);
+  border: 1px solid
+    color-mix(
+      in oklch,
+      var(--gw-voice-color) 38%,
+      var(--gw-control-border-hover) 62%
+    );
+  background: color-mix(
+    in oklch,
+    var(--gw-voice-color) 18%,
+    rgba(244, 237, 225, 0.04) 82%
+  );
   color: var(--ghost);
 }
 
@@ -1301,7 +1420,8 @@ a {
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
-    border-radius: calc(var(--gw-button-radius) + 8px) calc(var(--gw-button-radius) + 8px) 0 0;
+    border-radius: calc(var(--gw-button-radius) + 8px)
+      calc(var(--gw-button-radius) + 8px) 0 0;
     padding: 1.05rem 1.05rem calc(1.05rem + env(safe-area-inset-bottom));
   }
 
@@ -1364,7 +1484,12 @@ a {
   align-items: center;
   gap: 0.42rem;
   margin: 0 0 0.6rem;
-  border: 1px solid color-mix(in oklch, var(--gw-voice-color) 34%, var(--gw-frame-border-strong) 66%);
+  border: 1px solid
+    color-mix(
+      in oklch,
+      var(--gw-voice-color) 34%,
+      var(--gw-frame-border-strong) 66%
+    );
   border-radius: 999px;
   background:
     linear-gradient(180deg, rgb(var(--gw-voice-rgb) / 0.1), transparent 78%),
@@ -1472,7 +1597,11 @@ a {
 .ghostwriter .gw-feedback-rating[data-selected="true"],
 .ghostwriter .gw-feedback-reason:hover,
 .ghostwriter .gw-feedback-rating:hover {
-  border-color: color-mix(in oklch, var(--gw-voice-color) 36%, var(--gw-frame-border-strong) 64%);
+  border-color: color-mix(
+    in oklch,
+    var(--gw-voice-color) 36%,
+    var(--gw-frame-border-strong) 64%
+  );
   background: rgba(244, 237, 225, 0.055);
   color: var(--ghost);
 }
@@ -1504,7 +1633,12 @@ a {
   display: grid;
   gap: 0.74rem;
   margin-top: 0.88rem;
-  border: 1px solid color-mix(in oklch, var(--gw-voice-color) 20%, var(--gw-frame-border-strong) 80%);
+  border: 1px solid
+    color-mix(
+      in oklch,
+      var(--gw-voice-color) 20%,
+      var(--gw-frame-border-strong) 80%
+    );
   border-radius: var(--gw-button-radius);
   background:
     linear-gradient(135deg, rgb(var(--gw-voice-rgb) / 0.075), transparent 62%),
@@ -1578,7 +1712,11 @@ a {
 
 .ghostwriter .gw-share-primary {
   width: fit-content;
-  border-color: color-mix(in oklch, var(--gw-voice-color) 50%, var(--gw-frame-border-strong) 50%);
+  border-color: color-mix(
+    in oklch,
+    var(--gw-voice-color) 50%,
+    var(--gw-frame-border-strong) 50%
+  );
   background: color-mix(in oklch, var(--gw-voice-color) 76%, black 24%);
   color: var(--background);
 }
@@ -1598,13 +1736,21 @@ a {
 }
 
 .ghostwriter .gw-share-primary:not(:disabled):hover {
-  border-color: color-mix(in oklch, var(--gw-voice-color) 68%, var(--ghost) 32%);
+  border-color: color-mix(
+    in oklch,
+    var(--gw-voice-color) 68%,
+    var(--ghost) 32%
+  );
   background: color-mix(in oklch, var(--gw-voice-color) 84%, black 16%);
 }
 
 .ghostwriter .gw-share-secondary:hover,
 .ghostwriter .gw-share-open:hover {
-  border-color: color-mix(in oklch, var(--gw-voice-color) 32%, var(--gw-frame-border-strong) 68%);
+  border-color: color-mix(
+    in oklch,
+    var(--gw-voice-color) 32%,
+    var(--gw-frame-border-strong) 68%
+  );
   background: rgba(244, 237, 225, 0.06);
   color: var(--ghost);
 }
@@ -1631,7 +1777,12 @@ a {
   border: 1px solid var(--gw-frame-border-strong);
   border-radius: calc(var(--gw-button-radius) + 2px);
   background:
-    linear-gradient(145deg, rgba(244, 237, 225, 0.052), rgba(244, 237, 225, 0.018) 46%, rgba(244, 237, 225, 0.01)),
+    linear-gradient(
+      145deg,
+      rgba(244, 237, 225, 0.052),
+      rgba(244, 237, 225, 0.018) 46%,
+      rgba(244, 237, 225, 0.01)
+    ),
     rgba(18, 18, 17, 0.96);
   box-shadow:
     inset 0 1px 0 rgba(255, 246, 232, 0.06),
@@ -1678,7 +1829,8 @@ a {
 .ghostwriter .gw-lab-progress {
   display: grid;
   gap: 0.46rem;
-  border: 1px solid color-mix(in oklch, var(--gw-voice-color) 24%, var(--gw-frame-border) 76%);
+  border: 1px solid
+    color-mix(in oklch, var(--gw-voice-color) 24%, var(--gw-frame-border) 76%);
   border-radius: var(--gw-button-radius);
   background: rgba(244, 237, 225, 0.026);
   padding: 0.78rem 0.82rem;
@@ -1714,7 +1866,11 @@ a {
   width: 25%;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--gw-voice-color), color-mix(in oklch, var(--gw-voice-color) 46%, var(--ghost) 54%));
+  background: linear-gradient(
+    90deg,
+    var(--gw-voice-color),
+    color-mix(in oklch, var(--gw-voice-color) 46%, var(--ghost) 54%)
+  );
   box-shadow: 0 0 18px rgb(var(--gw-voice-rgb) / 0.22);
   transition: width 280ms ease;
 }
@@ -1735,7 +1891,12 @@ a {
   display: flex;
   gap: 0.72rem;
   align-items: flex-start;
-  border: 1px solid color-mix(in oklch, var(--gw-voice-color) 28%, var(--gw-frame-border-strong) 72%);
+  border: 1px solid
+    color-mix(
+      in oklch,
+      var(--gw-voice-color) 28%,
+      var(--gw-frame-border-strong) 72%
+    );
   border-radius: var(--gw-button-radius);
   background:
     linear-gradient(135deg, rgb(var(--gw-voice-rgb) / 0.11), transparent 68%),
@@ -1878,7 +2039,12 @@ a {
 }
 
 .ghostwriter .gw-lab-winner {
-  border: 1px solid color-mix(in oklch, var(--gw-voice-color) 24%, var(--gw-frame-border-strong) 76%);
+  border: 1px solid
+    color-mix(
+      in oklch,
+      var(--gw-voice-color) 24%,
+      var(--gw-frame-border-strong) 76%
+    );
   border-radius: var(--gw-button-radius);
   background:
     linear-gradient(180deg, rgb(var(--gw-voice-rgb) / 0.095), transparent 58%),
@@ -1951,7 +2117,11 @@ a {
 }
 
 .ghostwriter .gw-lab-action-primary {
-  border-color: color-mix(in oklch, var(--gw-voice-color) 52%, var(--gw-frame-border-strong) 48%);
+  border-color: color-mix(
+    in oklch,
+    var(--gw-voice-color) 52%,
+    var(--gw-frame-border-strong) 48%
+  );
   background: color-mix(in oklch, var(--gw-voice-color) 78%, black 22%);
   color: var(--background);
 }
@@ -1963,12 +2133,20 @@ a {
 }
 
 .ghostwriter .gw-lab-action-primary:hover {
-  border-color: color-mix(in oklch, var(--gw-voice-color) 70%, var(--ghost) 30%);
+  border-color: color-mix(
+    in oklch,
+    var(--gw-voice-color) 70%,
+    var(--ghost) 30%
+  );
   background: color-mix(in oklch, var(--gw-voice-color) 86%, black 14%);
 }
 
 .ghostwriter .gw-lab-action-secondary:hover {
-  border-color: color-mix(in oklch, var(--gw-voice-color) 32%, var(--gw-frame-border-strong) 68%);
+  border-color: color-mix(
+    in oklch,
+    var(--gw-voice-color) 32%,
+    var(--gw-frame-border-strong) 68%
+  );
   background: rgba(244, 237, 225, 0.06);
   color: var(--ghost);
 }
@@ -1991,7 +2169,11 @@ a {
 }
 
 .ghostwriter .gw-lab-score-card[data-selected="true"] {
-  border-color: color-mix(in oklch, var(--gw-voice-color) 38%, var(--gw-frame-border-strong) 62%);
+  border-color: color-mix(
+    in oklch,
+    var(--gw-voice-color) 38%,
+    var(--gw-frame-border-strong) 62%
+  );
   background: rgba(244, 237, 225, 0.04);
 }
 
@@ -2026,7 +2208,8 @@ a {
 }
 
 .ghostwriter .gw-lab-score-title-row span {
-  border: 1px solid color-mix(in oklch, var(--gw-voice-color) 42%, var(--gw-frame-border) 58%);
+  border: 1px solid
+    color-mix(in oklch, var(--gw-voice-color) 42%, var(--gw-frame-border) 58%);
   border-radius: 999px;
   padding: 0.16rem 0.42rem;
   color: color-mix(in oklch, var(--gw-voice-color) 72%, var(--ghost) 28%);
@@ -2178,7 +2361,11 @@ a {
 }
 
 .ghostwriter .gw-share-provenance {
-  border-color: color-mix(in oklch, var(--gw-voice-color) 24%, var(--gw-frame-border-strong) 76%);
+  border-color: color-mix(
+    in oklch,
+    var(--gw-voice-color) 24%,
+    var(--gw-frame-border-strong) 76%
+  );
   background:
     linear-gradient(135deg, rgb(var(--gw-voice-rgb) / 0.08), transparent 66%),
     var(--card-bg);
@@ -2642,11 +2829,14 @@ a {
   --cs-hairline: 36 8% 38%;
   --cs-focus-ring: 40 18% 92%;
   --cs-radius: 1rem;
-  --cs-gradient-text: linear-gradient(180deg, hsl(40 18% 96%) 0%, hsl(40 18% 70%) 100%);
+  --cs-gradient-text: linear-gradient(
+    180deg,
+    hsl(40 18% 96%) 0%,
+    hsl(40 18% 70%) 100%
+  );
   --cs-shadow-glow: 0 0 80px -20px hsl(220 9% 48% / 0.18);
   --cs-shadow-card:
-    0 1px 0 hsl(40 18% 92% / 0.04) inset,
-    0 30px 60px -30px hsl(0 0% 0% / 0.6);
+    0 1px 0 hsl(40 18% 92% / 0.04) inset, 0 30px 60px -30px hsl(0 0% 0% / 0.6);
   background: hsl(var(--cs-background));
   color: hsl(var(--cs-foreground));
   font-family: var(--font-serif);
@@ -2808,7 +2998,11 @@ a {
   border: 1px solid hsl(var(--cs-hairline));
   border-radius: 1.75rem;
   background:
-    linear-gradient(145deg, hsl(var(--cs-surface-elevated) / 0.78), hsl(var(--cs-surface) / 0.52)),
+    linear-gradient(
+      145deg,
+      hsl(var(--cs-surface-elevated) / 0.78),
+      hsl(var(--cs-surface) / 0.52)
+    ),
     hsl(var(--cs-surface));
   box-shadow: var(--cs-shadow-card);
   padding: clamp(1.25rem, 3vw, 1.75rem);

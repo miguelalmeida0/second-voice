@@ -1,0 +1,15 @@
+Second Voice AI production reliability fix v7
+
+v7 is v6 plus the final security-test contract correction discovered on the real Mac test run.
+The implementation intentionally returns structured ABUSE_COOLDOWN + Retry-After with natural user-facing copy; three legacy tests still asserted that the literal word "cooldown" appeared in the message. Those tests now assert the actual API contract instead of copy wording.
+
+IMPORTANT: the previous Mac run did NOT apply migration 202609160002 because a global `supabase` executable was not installed. Before deployment, use the project-local/on-demand CLI:
+
+  npx --yes supabase@latest db push
+
+Then run:
+  npx tsc --noEmit
+  npm run test:security
+  npm run build
+
+Do not deploy the app until the database push and all three gates pass.

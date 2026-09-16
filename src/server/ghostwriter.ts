@@ -432,7 +432,7 @@ async function persistRewrite(
   rewrite: string,
   context: RewriteRequestContext,
 ): Promise<string | null> {
-  if (!input.sharePublicly || !publicSharingEnabled(process.env.GHOSTWRITER_ALLOW_PUBLIC_SHARING)) {
+  if (process.env.GHOSTWRITER_RELEASE_PROFILE === "portfolio-free" || !input.sharePublicly || !publicSharingEnabled(process.env.GHOSTWRITER_ALLOW_PUBLIC_SHARING)) {
     return null;
   }
 
@@ -443,7 +443,7 @@ export async function createPublicRewriteArtifact(
   input: PublicRewriteArtifactInput,
   context: RewriteRequestContext = {},
 ): Promise<PublicRewriteArtifactResult> {
-  if (!publicSharingEnabled(process.env.GHOSTWRITER_ALLOW_PUBLIC_SHARING)) {
+  if (process.env.GHOSTWRITER_RELEASE_PROFILE === "portfolio-free" || !publicSharingEnabled(process.env.GHOSTWRITER_ALLOW_PUBLIC_SHARING)) {
     return {
       error: "Public sharing is not available.",
       shortId: null,

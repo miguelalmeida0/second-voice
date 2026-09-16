@@ -1,0 +1,13 @@
+# Author portrait credits
+
+Photographic source assets downloaded from Wikimedia Commons on 2026-09-08. Original JPEG files are preserved. The interface uses natural-color photographs where available and an AI-colorized derivative of Tolkien's historical photograph, as noted below. Display crops and image optimization may be applied.
+
+- **tolkien-color.png** — AI-assisted colorization of `tolkien.jpg`, created with the built-in image-generation editor on 2026-09-08. Colors are interpretive, not verified historical colors. Edit instruction: “Colorize this public-domain historical photograph of J. R. R. Tolkien for an author selector. Change only monochrome tones into natural photographic colors. Preserve the exact person, facial features, pose, clothing and composition. No added text or borders.” Original source and public-domain attribution below.
+- **tolstoy-color.jpg** — Leo Tolstoy, 23 May 1908, color photograph by **Sergei Prokudin-Gorskii**. [Source and public-domain declaration](https://commons.wikimedia.org/wiki/File:Leo_Tolstoy_1908_Portrait_(3x4_cropped).jpg). Source crop by Wabbuh. This is a historical color photograph, not an AI colorization.
+
+- **tolkien.jpg** — J. R. R. Tolkien, circa 1925/1926. Unknown studio commissioned by his students. [Source](https://commons.wikimedia.org/wiki/File:J._R._R._Tolkien,_ca._1925_(cropped).jpg). Commons marks this public domain (PD-UK anonymous photograph and PD-US-expired). Source crop by JB Hoang Tam.
+- **stephenking.jpg** — Stephen King, 2011, photograph by **Stephanie Lawton**. [Source](https://commons.wikimedia.org/wiki/File:Stephen_King_-_2011_(cropped).jpg), [original Flickr photograph](https://www.flickr.com/photos/steph_lawton/7634622516/). Licensed [Creative Commons Attribution 2.0](https://creativecommons.org/licenses/by/2.0/). Source crop by Xabier. Interface display may crop and render in grayscale. No endorsement is implied.
+- **tolstoy.jpg** — Leo Tolstoy, July 1908, photograph by Vladimir Chertkov. [Source](https://commons.wikimedia.org/wiki/File:Tolstoy_portrait_tolstoy.ru.jpg). Commons marks this public domain under the author's-life-plus-70-years rule and [Public Domain Mark 1.0](https://creativecommons.org/publicdomain/mark/1.0/).
+- **hemingway.jpg** — Ernest Hemingway, 1950, photographer unspecified; John F. Kennedy Presidential Library and Museum / Ernest Hemingway Photograph Collection. [Source](https://commons.wikimedia.org/wiki/File:Ernest_Hemingway_1950_cropped.jpg). Released worldwide into the public domain by the copyright holder, with Commons VRT permission ticket 2011070410000468.
+
+Include a visible or readily discoverable portrait-credit link in the application, especially for the CC BY Stephen King photograph.

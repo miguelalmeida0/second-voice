@@ -1,0 +1,9 @@
+Second Voice AI V14 — Playwright distDir isolation
+
+Root cause of V13 failure:
+Next.js 16 prevents two dev servers from sharing the same distDir by holding a lock at <distDir>/dev/lock. V13 isolated the TCP port but still used the default .next directory, so an existing local Next dev process in the same checkout caused the Playwright webServer to abort before any test ran.
+
+Changes:
+- next.config.ts: distDir is configurable only when GHOSTWRITER_NEXT_DIST_DIR is set; normal dev/build behavior remains .next.
+- playwright.config.ts: each browser-test run sets GHOSTWRITER_NEXT_DIST_DIR=.next-playwright-<random-port> in addition to a random port.
+- No production app logic, quotas, database behavior, provider behavior, or security policy changed.

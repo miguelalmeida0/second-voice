@@ -1,7 +1,7 @@
 import "../lib/server-only.ts";
 import { hkdfSync } from "node:crypto";
 export function signingKey(root: string, purpose: string): Buffer {
-  if (!/^(gw\.session|gw\.csrf|gw\.challenge|gw\.artifact)$/.test(purpose)) throw new Error("Unknown signing purpose");
+  if (!/^(gw\.session|gw\.csrf|gw\.challenge|gw\.artifact|gw\.oauth|gw\.anonymous)$/.test(purpose)) throw new Error("Unknown signing purpose");
   return Buffer.from(hkdfSync("sha256",root,"ghostwriter-signing-v2",purpose,32));
 }
 export function rejectAmbiguousSecrets(environment: Record<string, string | undefined> = process.env) {

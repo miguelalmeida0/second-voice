@@ -242,9 +242,7 @@ function playbackMessage(
     case "error":
       return "The edit could not be completed.";
     default:
-      return mode === "outcome"
-        ? "Choose an outcome, run a rewrite, and the edit will happen here."
-        : "Run a rewrite and the edit will happen here, line by line, like it's being worked on in front of you.";
+      return "Your rewrite will appear here.";
   }
 }
 
@@ -461,7 +459,7 @@ export function RewritePlayback({
   }
 
   return (
-    <div className="gw-card-strong p-6 sm:p-7 lg:p-8" data-mode={mode} data-voice={author?.id}>
+    <div className="gw-card-strong p-6 sm:p-7 lg:p-8" data-mode={mode} data-voice={author?.id} data-phase={visiblePhase}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="gw-voice-text font-playfair text-[1.08rem] font-medium tracking-[-0.015em] sm:text-[1.14rem]">
@@ -471,9 +469,6 @@ export function RewritePlayback({
                 ? `${author.first}'s edit`
                 : "Live rewrite"}
           </h3>
-          <p className="mt-1 text-[12px] leading-relaxed text-[var(--mist)] sm:text-[13px]">
-            The rewrite appears here after you run it.
-          </p>
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
           <p className="gw-rewrite-mood" aria-label={moodStatus}>
@@ -502,19 +497,20 @@ export function RewritePlayback({
         aria-busy={loading}
         aria-live="polite"
       >
-        <button
-          type="button"
-          onClick={() => void copyResult()}
-          disabled={!canCopy}
-          aria-label={copied ? "Rewrite copied" : "Copy rewrite"}
-          className="gw-copy-result"
-        >
-          {copied ? (
-            <Check className="h-4 w-4" aria-hidden />
-          ) : (
-            <Copy className="h-4 w-4" aria-hidden />
-          )}
-        </button>
+        {!error && visiblePhase === "complete" && canCopy ? (
+          <button
+            type="button"
+            onClick={() => void copyResult()}
+            aria-label={copied ? "Rewrite copied" : "Copy rewrite"}
+            className="gw-copy-result"
+          >
+            {copied ? (
+              <Check className="h-4 w-4" aria-hidden />
+            ) : (
+              <Copy className="h-4 w-4" aria-hidden />
+            )}
+          </button>
+        ) : null}
         {!error && visiblePhase === "requesting" ? (
           <div
             className="gw-playback-panel gw-loading-panel relative overflow-hidden rounded-[10px] border p-4 sm:p-5"
@@ -570,7 +566,10 @@ export function RewritePlayback({
                 </div>
                 <p className="gw-error-message">{error}</p>
                 {errorRequestId ? (
-                  <p className="gw-error-request">Request ID {errorRequestId}</p>
+                  <details className="gw-error-request">
+                    <summary>Technical details</summary>
+                    <p>Request ID {errorRequestId}</p>
+                  </details>
                 ) : null}
                 {onRetry ? (
                   <button type="button" className="gw-error-retry" onClick={onRetry}>

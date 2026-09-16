@@ -1,0 +1,28 @@
+name: Portfolio Health Watch
+permissions:
+  contents: read
+on:
+  schedule:
+    - cron: "13 */6 * * *"
+  workflow_dispatch:
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check live Second Voice and Supabase heartbeat
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${#CRON_SECRET}" -ge 32 || { echo "CRON_SECRET is missing" >&2; exit 1; }
+          body="$(mktemp)"
+          code="$(curl --fail-with-body --silent --show-error \
+            --connect-timeout 10 --max-time 45 \
+            -o "$body" -w '%{http_code}' \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://secondvoice-ai.vercel.app/api/internal/portfolio-maintenance)"
+          cat "$body"
+          test "$code" = "200"
+          grep -q '"ok":true' "$body"

@@ -33,6 +33,8 @@ test.describe("error, retry, and empty states", () => {
     await expect(
       page.getByRole("alert").filter({ hasText: "The model is resting. Try again." }),
     ).toContainText("The model is resting. Try again.");
+    await expect(page.getByText("Request ID req-rewrite-fail")).toBeHidden();
+    await page.getByText("Technical details").click();
     await expect(page.getByText("Request ID req-rewrite-fail")).toBeVisible();
     await page.getByRole("button", { name: "Try again" }).click();
     await app.expectRewriteVisible(apiResponses.rewrite);

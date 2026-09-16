@@ -9,16 +9,16 @@ test.describe("filters, tabs, and segmented controls", () => {
 
     await app.switchToOutcomes();
     await expectPressed(app.outcomeModeButton(), true);
-    await expect(app.page.getByRole("heading", { name: "Choose an outcome" })).toBeVisible();
+    await expect(app.page.getByRole("group", { name: "Outcome options" })).toBeVisible();
     await expect(app.draftInput()).toHaveValue("Keep this sentence while I change controls.");
 
     await app.switchToAuthors();
     await expectPressed(app.authorModeButton(), true);
-    await expect(app.page.getByRole("heading", { name: "Choose a writer" })).toBeVisible();
+    await expect(app.page.getByRole("group", { name: "Choose an author" })).toBeVisible();
     await expect(app.draftInput()).toHaveValue("Keep this sentence while I change controls.");
   });
 
-  test("outcome filter buttons update selected state and helper copy", async ({ app, page }) => {
+  test("outcome filter buttons update selected state and helper copy", async ({ app, page }, testInfo) => {
     await app.goto();
     await app.switchToOutcomes();
     await app.chooseOutcome("Get a reply");
@@ -26,7 +26,13 @@ test.describe("filters, tabs, and segmented controls", () => {
     await expectPressed(page.getByRole("button", { name: /Get a reply/ }), true);
     await expectPressed(page.getByRole("button", { name: /Improve clarity/ }), false);
     await expect(page.getByRole("button", { name: "Rewrite to get a reply" })).toBeVisible();
-    await expect(page.getByText("Warm, direct, easy to answer.", { exact: true })).toBeVisible();
+
+    // Outcome helper copy is decorative desktop/tablet explanatory text
+    // (display:none under 1000px, see .gw-outcome-choice-description); the
+    // outcome title alone carries the selected state on narrow viewports.
+    if (testInfo.project.name !== "mobile-chrome") {
+      await expect(page.getByText("Warm, direct, easy to answer.", { exact: true })).toBeVisible();
+    }
   });
 
   test("case-study treatment tabs update live example text and pressed state", async ({ page }) => {

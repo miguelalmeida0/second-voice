@@ -18,6 +18,7 @@ test.describe("navigation and route coverage", () => {
 
   test("navigates between app, case study, and invalid public permalink recovery paths", async ({ app, page }) => {
     await app.goto();
+    await app.openHowItWorks();
     await app.caseStudyLink().click();
 
     await expect(page).toHaveURL(/\/second-voice\/case-study$/);
@@ -37,9 +38,11 @@ test.describe("navigation and route coverage", () => {
   test("exposes all primary app links with stable accessible names", async ({ app, page }) => {
     await app.goto();
 
-    await expect(app.caseStudyLink()).toHaveAttribute("href", "/second-voice/case-study");
     await expect(page.getByRole("button", { name: "How it works" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Surprise me" })).toHaveCount(2);
+    await expect(page.getByRole("button", { name: "Surprise me" })).toHaveCount(1);
     await expect(page.getByRole("button", { name: /^Rewrite as Tolkien$/ })).toBeVisible();
+
+    await app.openHowItWorks();
+    await expect(app.caseStudyLink()).toHaveAttribute("href", "/second-voice/case-study");
   });
 });

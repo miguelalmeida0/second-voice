@@ -1,0 +1,20 @@
+SECOND VOICE AI — V8 TYPECHECK RELEASE CANDIDATE
+
+State verified from user's 2026-09-16 run:
+- Supabase migration 202609160002_secondvoice_provider_failure_accounting.sql applied successfully.
+- Security suite: 207 tests, 207 pass, 0 fail.
+- Next.js production compilation succeeded before TypeScript checked tests.
+- Remaining release blocker was TS7053 in tests/security-abuse.test.ts when indexing HeadersInit with ["Retry-After"].
+
+V8 fix:
+- Replaces direct HeadersInit indexing with the standards-compliant Headers accessor:
+  new Headers(blocked.headers).get("Retry-After")
+- Preserves the runtime contract already proven by the 207/207 security suite.
+- No production logic, quota logic, migration, provider behavior, or UI behavior changed from v7.
+
+After applying V8, run:
+  npx tsc --noEmit
+  npm run test:security
+  npm run build
+
+Do not rerun Supabase migration as a requirement; it is already applied remotely. A db push would simply be a no-op if migration history is consistent.

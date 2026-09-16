@@ -1,113 +1,109 @@
 # Ghostwriter
 
-Ghostwriter is a `Next.js 16` rewrite app with a protected browser-to-server inference flow, explicit provider selection, opt-in public artifacts, and private quality feedback capture.
+**A privacy-conscious rewrite product with explicit model routing, abuse protection, opt-in public sharing, and a production-oriented security boundary.**
 
-## Required production env
+> Repository note: the GitHub slug is currently `second-voice`, but the checked-in application identifies itself as `ghostwritter`. This README describes the code that is actually in this repository.
 
-```bash
-GHOSTWRITER_PROVIDER=groq
-GROQ_API_KEY=...
-GHOSTWRITER_SECURITY_SECRET=32+ random chars
-GHOSTWRITER_TRUST_PROXY=true|false
-GHOSTWRITER_ABUSE_STORE_MODE=supabase
-SUPABASE_URL=...
-SUPABASE_SERVICE_ROLE_KEY=...
-SUPABASE_PUBLISHABLE_KEY=...
-NEXT_PUBLIC_SITE_URL=https://ghostwriter.example
+Ghostwriter is built around a deceptively hard product problem: rewriting text feels simple until the application has to protect user content, prevent abuse, handle multiple model providers, support sharing, and remain observable without logging the text itself.
+
+## Product flow
+
+```mermaid
+flowchart LR
+    A[User text] --> B[Signed browser session]
+    B --> C[CSRF + origin checks]
+    C --> D[Proof-of-work + rate limits]
+    D --> E[Selected model provider]
+    E --> F[Structured rewrite]
+    F --> G{User action}
+    G -->|Keep private| H[Private result]
+    G -->|Share explicitly| I[Public-safe artifact]
+    G -->|Feedback| J[Metadata-only quality signal]
 ```
 
-Optional:
+## Security architecture
 
-```bash
-GROQ_MODEL=openai/gpt-oss-20b
-GHOSTWRITER_ALLOW_PUBLIC_SHARING=false
-GHOSTWRITER_SHARE_SOURCE_TEXT=false
-GHOSTWRITER_POW_DIFFICULTY=4
-GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-2.5-flash-lite
+```mermaid
+flowchart TB
+    UI[Next.js client] --> SESSION[Signed session]
+    SESSION --> API[Protected server routes]
+    API --> ABUSE[Shared abuse store]
+    API --> PROVIDER[Explicit inference provider]
+    PROVIDER --> API
+    API --> PRIVATE[(Private rewrite data)]
+    API --> PUBLIC[(Public-safe view)]
+    API --> FEEDBACK[(Metadata-only feedback)]
 ```
 
-## Security posture
+### Explicit provider routing
 
-- Provider selection is explicit through `GHOSTWRITER_PROVIDER`. The app does not silently fall back across vendors.
-- `/ghostwriter` issues a signed browser session and CSRF token through `proxy.ts`.
-- `/api/ghostwriter/challenge`, `/api/ghostwriter`, `/api/ghostwriter/lab`, `/api/ghostwriter/share`, and `/api/ghostwriter/feedback` enforce same-origin checks, CSRF, signed sessions, proof-of-work, layered rate limits, and durable replay tracking before state changes or model calls.
-- Production abuse protection now requires a shared Supabase-backed store. In-memory mode is development-only.
-- Public sharing requires an explicit UI request and `GHOSTWRITER_ALLOW_PUBLIC_SHARING=true`. New public artifacts store rewritten output only by default.
-- Public share pages and OG images read through the `ghostwriter_public_rewrites` view, not the base table.
-- Legacy rows are private by default. Public-artifact migrations set `is_public=false` and only expose rows that were explicitly shared. Base-table `input_text` is preserved, but public reads mask it unless `source_visible=true`.
-- Feedback stores author, mood, provenance, rating, reason, request ID, and a SHA-256 rewrite hash only. It does not store source text or rewritten text.
-- Quality logs emit request-scoped metadata, model/provider, latency, schema/fallback status, and feedback outcomes without logging user text.
+The server chooses the configured provider intentionally. It does not silently hop between model vendors when one fails, which keeps cost, behavior, and data routing inspectable.
 
-## Supabase rollout order
+### Public sharing is opt-in
 
-Apply migrations in this order before deploying the app code:
+A rewrite is not public merely because a share feature exists. Public visibility requires an explicit user action and server-side allowance.
 
-1. `supabase/migrations/202604230000_ghostwriter_rewrites_baseline.sql`
-2. `supabase/migrations/202604230001_ghostwriter_hardening.sql`
-3. `supabase/migrations/202604230002_ghostwriter_public_artifacts.sql`
-4. `supabase/migrations/202604230003_ghostwriter_abuse_store.sql`
-5. `supabase/migrations/202604230004_ghostwriter_artifact_provenance.sql`
-6. `supabase/migrations/202604230005_ghostwriter_feedback.sql`
-7. `supabase/migrations/202604230006_ghostwriter_public_artifacts_privacy_correction.sql`
+### Public readers never query the base table directly
 
-What the follow-on migrations do:
+Shared pages read through a constrained public view. Source text is masked by default and only exposed when an explicit source-visibility decision exists.
 
-- `202604230000` creates the baseline rewrite artifact table.
-- `202604230001` hardens the base table with RLS and revokes anonymous access.
-- `202604230002` adds explicit public/share visibility flags, defaults existing and future rows to private, preserves base-table `input_text`, and exposes a safe public view that masks source text by default.
-- `202604230003` creates the durable shared abuse store plus atomic RPCs for rate limits, penalties, and one-time challenge use.
-- `202604230004` adds public-safe provenance for Rewrite Lab winners.
-- `202604230005` creates the private feedback table for binary user signals and reason tags without storing prompt or rewrite text.
-- `202604230006` corrects any database that may have seen an earlier public-artifact migration by making existing rows private unless their `short_id` is explicitly allowlisted by service role before the correction runs.
+### Abuse state is durable
 
-## Legacy data preservation
+Production rate limiting and challenge replay protection use a shared Supabase-backed store rather than per-instance memory.
 
-`202604230002_ghostwriter_public_artifacts.sql` and `202604230006_ghostwriter_public_artifacts_privacy_correction.sql` preserve existing `ghostwriter_rewrites.input_text` values. Privacy is enforced by private defaults, revoked base-table access, and public-view masking unless `source_visible=true`.
+### Observability without content logging
 
-If a production database already contains rows with verified prior public-share consent, add a reviewed pre-correction allowlist migration that creates and populates `ghostwriter_public_rewrite_allowlist` with those `short_id` values before `202604230006` runs. With an empty allowlist, all existing rows become private. New public links created by the application remain public because the server share path writes `is_public=true` only after explicit user consent.
+Quality telemetry records request-scoped metadata such as provider/model, latency, schema/fallback behavior and feedback outcomes without logging prompt or rewrite text.
 
-If an environment already ran an earlier destructive version of these migrations, this fix prevents future scrubbing but cannot restore source text that was already overwritten. Recovery would require a database backup from before that migration ran. Confirm whether the destructive migration ever ran before production deployment.
+## Stack
 
-Suggested pre-migration review query:
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS
+- Framer Motion
+- Zod
+- Supabase
+- server-side model providers
 
-```sql
-select short_id, input_text, output_text, created_at
-from public.ghostwriter_rewrites
-where coalesce(input_text, '') <> '';
+## Protected request path
+
+Representative server surfaces:
+
+```text
+/api/ghostwriter/challenge
+/api/ghostwriter
+/api/ghostwriter/lab
+/api/ghostwriter/share
+/api/ghostwriter/feedback
 ```
 
-After the migration:
+State-changing/model routes enforce same-origin checks, CSRF, signed sessions, proof-of-work, layered rate limits, and replay protection.
 
-- public readers only see `ghostwriter_public_rewrites`
-- `input_text` is blank unless `source_visible=true`
-- base-table `input_text` remains intact
-- existing rows are reset to `is_public=false` and `source_visible=false` unless explicitly allowlisted
+## Data model principles
 
-Rollback note:
+```text
+private rewrite
+    ├── source text
+    ├── rewritten output
+    └── private metadata
 
-- if an earlier destructive migration already ran, restore overwritten source text from a pre-migration backup
-- do not re-open direct anon/authenticated access to `ghostwriter_rewrites`
+explicit share
+    ↓
+public-safe view
+    ├── rewritten output
+    ├── safe provenance
+    └── source hidden by default
 
-## Abuse store operations
-
-The durable abuse store lives in Supabase:
-
-- `ghostwriter_abuse_counters`
-- `ghostwriter_abuse_penalties`
-- `ghostwriter_used_challenges`
-
-Cleanup helper:
-
-```sql
-select public.ghostwriter_abuse_cleanup();
+feedback
+    ├── request id
+    ├── rating / reason
+    ├── provider metadata
+    └── rewrite hash
+        (no source or rewritten text)
 ```
-
-Run that on a schedule if your platform does not already prune old rows.
 
 ## Verification
-
-For local development, `npm run security:check` loads `.env.local` when `NODE_ENV` is not `production`; existing shell environment variables still take precedence. CI runs `npm run security:check` with explicit production environment variables and does not rely on `.env.local`.
 
 ```bash
 npm run security:check
@@ -116,5 +112,30 @@ npm run test:security
 npm run test:scroll
 npx tsc --noEmit
 npm run lint
-npm run build -- --webpack
+npm run build
 ```
+
+## Run locally
+
+```bash
+git clone https://github.com/miguelalmeida0/second-voice.git
+cd second-voice
+npm install
+npm run dev
+```
+
+Copy the example environment and configure only the providers/services you intend to use. Never commit provider keys or Supabase service-role credentials.
+
+## What this project demonstrates
+
+- secure browser → server inference design;
+- explicit AI provider routing;
+- durable abuse prevention;
+- privacy-preserving public artifacts;
+- schema-validated model outputs;
+- product analytics without storing user content;
+- migration discipline around public/private data boundaries.
+
+---
+
+Built by [Miguel Almeida](https://github.com/miguelalmeida0).

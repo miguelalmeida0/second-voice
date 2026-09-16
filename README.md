@@ -4,6 +4,8 @@
 
 > Repository note: the GitHub slug is currently `second-voice`, but the checked-in application identifies itself as `ghostwritter`. This README describes the code that is actually in this repository.
 
+> Screenshot note: current screenshots from the deployed Second Voice route are intentionally not embedded here because they do not match the checked-in Ghostwriter source. The repository identity should be aligned before visual proof is published.
+
 Ghostwriter is built around a deceptively hard product problem: rewriting text feels simple until the application has to protect user content, prevent abuse, handle multiple model providers, support sharing, and remain observable without logging the text itself.
 
 ## Product flow

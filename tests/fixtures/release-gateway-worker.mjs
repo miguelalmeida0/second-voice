@@ -1,16 +1,21 @@
 // Isolated test process only. No runtime bypass flag or alternate production route.
 import http from "node:http";
+import {mock} from "node:test";
 import {execFile} from "node:child_process";
 import {executeGovernedRewrite} from "../../src/server/ai-gateway.ts";
 import {resolveAiPolicyConfig,resolvePortfolioFreePolicy} from "../../src/server/ai-policy.ts";
 const [container,profile] = process.argv.slice(2);
 const free=profile==="portfolio-free";
+// Reproduce the historical paid-policy contract in this isolated child only.
+// Never extend the real pricing review or freeze the authoritative SQL clock.
+if(!free)mock.timers.enable({apis:["Date"],now:Date.UTC(2026,8,7,12)});
 const quote = value => "'" + String(value).replaceAll("'", "''") + "'";
 const sql = statement => new Promise((resolve, reject) => {
  execFile("docker", ["exec", container, "psql", "-U", "postgres", "-Atq", "-v", "ON_ERROR_STOP=1", "-c", statement], {maxBuffer:32768,timeout:90000}, (error, stdout) => error ? reject(new Error("Fixture database unavailable")) : resolve(stdout.trim()));
 });
 const resolved = (free?resolvePortfolioFreePolicy:resolveAiPolicyConfig)({GHOSTWRITER_RELEASE_PROFILE:"portfolio-free",GROQ_FREE_ORGANIZATION_ID:"org-isolated",GROQ_FREE_PROJECT_ID:"project-isolated",AI_ENABLED:"true",GHOSTWRITER_PROVIDER:"groq",GROQ_MODEL:"openai/gpt-oss-20b",GHOSTWRITER_AI_PRICING_VERSION:"groq-openai-gpt-oss-20b-2026-09-07",GROQ_API_KEY:"synthetic-provider-never-live",GHOSTWRITER_FINGERPRINT_SECRET:"synthetic-fingerprint-for-isolated-proof-only",GHOSTWRITER_ABUSE_STORE_MODE:"supabase",SUPABASE_URL:"http://127.0.0.1",SUPABASE_SERVICE_ROLE_KEY:"synthetic-db",SUPABASE_PUBLISHABLE_KEY:"synthetic-public"});
 if (!resolved.enabled) throw new Error("Test policy unavailable: " + resolved.reason);
+if(!free)mock.timers.reset();
 const policy={...resolved.config,maximumReservationMicroUsd:free?750:10000,...(free?{profile:"portfolio-free",freeOrganizationId:"org-isolated",freeProjectId:"project-isolated"}:{})};
 let calls=0,active=0,maximumActive=0,held=true;
 let failTransport=false,failDatabase=false;
@@ -31,6 +36,7 @@ const transitions={
  markDispatched:(id,account)=>sql(`select public.ghostwriter_ai_mark_dispatched(${quote(id)},${quote(account)});`).then(v=>v==="t"),
  failBeforeDispatch:(id,account,reason)=>sql(`select public.ghostwriter_ai_fail_before_dispatch(${quote(id)},${quote(account)},${quote(reason)});`).then(v=>v==="t"),
  markUncertain:(id,account,reason)=>sql(`select public.ghostwriter_ai_mark_uncertain(${quote(id)},${quote(account)},${quote(reason)});`).then(v=>v==="t"),
+ settleKnownFailure:(id,account,reason)=>sql(`select public.ghostwriter_ai_settle_known_failure(${quote(id)},${quote(account)},${quote(reason)});`).then(v=>v==="t"),
  settleSuccess:o=>sql(`select public.ghostwriter_ai_settle_success(${quote(o.operationId)},${quote(o.accountId)},${o.actualMicroUsd},${quote(o.providerRequestId)},${quote(JSON.stringify(o.result))}::jsonb);`).then(v=>v==="t")
 };
 const server=http.createServer(async(req,res)=>{

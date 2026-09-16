@@ -256,7 +256,7 @@ test("rewrite limits trigger a cooldown after repeated submissions", async () =>
   const shield = __issueShieldCookiesForTests(USER_AGENT);
   let blocked: Awaited<ReturnType<typeof validateGhostwriterPost>> | null = null;
 
-  for (let attempt = 0; attempt < 6; attempt += 1) {
+  for (let attempt = 0; attempt < 7; attempt += 1) {
     const challenge = await issueChallengeToken(
       buildChallengeRequest(shield.sessionToken, shield.csrfToken),
     );
@@ -284,7 +284,8 @@ test("rewrite limits trigger a cooldown after repeated submissions", async () =>
     throw new Error("expected the limiter to produce a guard failure");
   }
   assert.equal(blocked.status, 429);
-  assert.match(blocked.error, /cooldown/i);
+  assert.equal(blocked.code, "ABUSE_COOLDOWN");
+  assert.match(blocked.error, /wait/i);
 });
 
 test("post ingress limiter blocks repeated pre-body checks", async () => {
@@ -311,7 +312,9 @@ test("post ingress limiter blocks repeated pre-body checks", async () => {
     throw new Error("expected the ingress limiter to produce a guard failure");
   }
   assert.equal(blocked.status, 429);
-  assert.match(blocked.error, /cooldown/i);
+  assert.equal(blocked.code, "ABUSE_COOLDOWN");
+  assert.match(blocked.error, /wait/i);
+  assert.ok(Number(new Headers(blocked.headers).get("Retry-After") ?? "0") >= 1);
 });
 
 test("rewrite lab has a stricter explicit-run limiter", async () => {
@@ -347,7 +350,9 @@ test("rewrite lab has a stricter explicit-run limiter", async () => {
     throw new Error("expected the lab limiter to produce a guard failure");
   }
   assert.equal(blocked.status, 429);
-  assert.match(blocked.error, /cooldown/i);
+  assert.equal(blocked.code, "ABUSE_COOLDOWN");
+  assert.match(blocked.error, /wait/i);
+  assert.ok(Number(new Headers(blocked.headers).get("Retry-After") ?? "0") >= 1);
 });
 
 test("public share creation has its own strict limiter", async () => {
@@ -383,7 +388,9 @@ test("public share creation has its own strict limiter", async () => {
     throw new Error("expected the share limiter to produce a guard failure");
   }
   assert.equal(blocked.status, 429);
-  assert.match(blocked.error, /cooldown/i);
+  assert.equal(blocked.code, "ABUSE_COOLDOWN");
+  assert.match(blocked.error, /wait/i);
+  assert.ok(Number(new Headers(blocked.headers).get("Retry-After") ?? "0") >= 1);
 });
 
 test("proxy IP handling ignores spoofed headers unless trust is enabled", () => {

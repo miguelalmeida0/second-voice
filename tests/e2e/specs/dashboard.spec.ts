@@ -6,19 +6,24 @@ test.describe("rewrite console dashboard", () => {
     await dashboard.goto();
     await dashboard.expectAuthorConsole();
 
-    await expect(page.getByText("Quick starts")).toBeVisible();
+    // Below 1100px the "Quick starts" heading is replaced by an equivalent
+    // disclosure toggle button (see gw-inspiration-toggle); either is a valid
+    // entry point into the same feature.
+    await expect(
+      page.getByRole("heading", { name: "Quick starts" }).or(dashboard.app.quickStartsToggle()),
+    ).toBeVisible();
+    await dashboard.app.openQuickStarts();
     await expect(page.getByRole("button", { name: "A rainy day thought" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Copy rewrite" })).toBeDisabled();
-    await expect(page.getByText(/Run a rewrite and the edit will happen here/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Copy rewrite" })).toHaveCount(0);
+    await expect(page.getByText("Your rewrite will appear here.")).toBeVisible();
   });
 
-  test("selecting an author updates selected state, headline, mood label, and rewrite CTA", async ({ app, page }) => {
+  test("selecting an author updates selected state, mood label, and rewrite CTA", async ({ app, page }) => {
     await app.goto();
     await app.chooseAuthor("Stephen King");
 
     await expectPressed(page.getByRole("button", { name: "Choose Stephen King" }), true);
     await expectPressed(page.getByRole("button", { name: "Choose J.R.R. Tolkien" }), false);
-    await expect(page.getByRole("heading", { name: /Rewrite anything with King as author/i })).toBeVisible();
     await expect(page.getByLabel(/dread mood dial/i)).toBeVisible();
     await expect(page.getByRole("button", { name: "Rewrite as King" })).toBeVisible();
   });

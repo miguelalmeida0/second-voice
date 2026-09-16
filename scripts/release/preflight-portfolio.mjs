@@ -3,6 +3,7 @@
 import {existsSync,readFileSync} from "node:fs";
 import {spawnSync} from "node:child_process";
 import {sourceIdentity,evidenceIdentityErrors} from "./source-identity.mjs";
+import {portfolioTargetSql,portfolioTargetErrors} from "./target-policy.mjs";
 const blockers=[];
 // Match local app configuration without shell sourcing or logging values.
 // Explicit process settings (including production target settings) take priority.
@@ -25,11 +26,11 @@ try{
  if(new URL(process.env.SUPABASE_URL).hostname!==attestation.supabaseProjectRef+".supabase.co")blockers.push("Supabase project identity mismatch");
  if(!process.env.PGSERVICE||process.env.PGPASSWORD)blockers.push("Read-only target connection requires protected PGSERVICE/.pgpass");
  else{
-  const r=spawnSync("psql",["-X","-Atq","-v","ON_ERROR_STOP=1"],{input:"begin read only;set local statement_timeout='3s';select json_build_object('deploymentId',deployment_id,'profile',release_profile,'organization',free_organization_id,'project',free_project_id,'reviewValid',free_verified_until>clock_timestamp(),'unresolved',(select count(*) from public.ghostwriter_ai_operations where state in ('reserved','dispatched','uncertain')),'runtimeTableWrite',has_table_privilege('service_role','public.ghostwriter_ai_operations','INSERT,UPDATE,DELETE,TRUNCATE'),'freeRpc',has_function_privilege('service_role','public.ghostwriter_free_reserve(uuid,uuid,text,text,text,text)','EXECUTE')) from public.ghostwriter_ai_control where singleton;commit;",encoding:"utf8",timeout:10000});
+  const r=spawnSync("psql",["-X","-Atq","-v","ON_ERROR_STOP=1"],{input:portfolioTargetSql,encoding:"utf8",timeout:10000});
   if(r.status!==0)blockers.push("Target schema/permissions unavailable");
   else{
    const db=JSON.parse(r.stdout.trim());
-   if(db.deploymentId!==attestation.deploymentId||db.profile!=="portfolio-free"||db.organization!==attestation.groqOrganizationId||db.project!==attestation.groqProjectId||!db.reviewValid||db.runtimeTableWrite||!db.freeRpc||db.unresolved!==0)blockers.push("Target schema/profile/privilege/quota-state mismatch");
+   blockers.push(...portfolioTargetErrors(db,attestation));
   }
  }
 }catch{blockers.push("Required local/target evidence unavailable or malformed");}

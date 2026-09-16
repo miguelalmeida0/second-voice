@@ -5,8 +5,8 @@ import {authenticateAiRequest} from "../src/server/ai-auth.ts";
 import {readAuthCookie} from "../src/server/auth-session.ts";
 import {calculateMaximumAiCostMicroUsd,calculateActualAiCostMicroUsd,resolveLiveAiPolicy,conservativeInputTokenUpperBound} from "../src/server/ai-policy.ts";
 test("HKDF signing purposes and rotations are disjoint",()=>{
- const keys=["gw.session","gw.csrf","gw.challenge","gw.artifact"].map(p=>signingKey("synthetic-root".repeat(4),p).toString("hex"));
- assert.equal(new Set(keys).size,4);
+ const keys=["gw.session","gw.csrf","gw.challenge","gw.artifact","gw.anonymous"].map(p=>signingKey("synthetic-root".repeat(4),p).toString("hex"));
+ assert.equal(new Set(keys).size,5);
  assert.notEqual(keys[0],signingKey("rotated-synthetic-root".repeat(4),"gw.session").toString("hex"));
  assert.throws(()=>signingKey("synthetic","unknown"));
 });

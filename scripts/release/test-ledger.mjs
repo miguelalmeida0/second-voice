@@ -34,7 +34,7 @@ try{
   await new Promise(r=>setTimeout(r,500));
  }
  assert.ok(ready,"PostgreSQL readiness");
- sql("create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key,email_confirmed_at timestamptz,banned_until timestamptz,email text); create table auth.sessions(id uuid primary key,user_id uuid,not_after timestamptz);");
+ sql("create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key,email_confirmed_at timestamptz,banned_until timestamptz,email text); create table auth.sessions(id uuid primary key,user_id uuid,not_after timestamptz,created_at timestamptz not null default now());");
  for(const f of readdirSync("supabase/migrations").filter(f=>f.endsWith(".sql")).sort()){
   sql(readFileSync("supabase/migrations/"+f,"utf8"));
   if(f==="202609070001_ghostwriter_ai_financial_boundary.sql"){
@@ -42,9 +42,10 @@ try{
   }
  }
  assert.equal(sql("select state||':'||reserved_micro_usd from public.ghostwriter_ai_operations where idempotency_key='historical-upgrade-0001';"),"dispatched:750");
+ sql("select public.ghostwriter_retention_maintenance();");
  evidence.push({scenario:"forward-migrations-preserve-existing-liability",status:"PASS"});
  sql("truncate public.ghostwriter_ai_operations;");
- sql("insert into auth.users select ('00000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,now(),null,'visitor'||n||'@isolated.test' from generate_series(1,25)n; insert into auth.sessions select id,id,null from auth.users; insert into public.ghostwriter_beta_entitlements(account_id,approved_slot) select id,row_number()over() from auth.users; update public.ghostwriter_ai_control set paused=false,valid_until=now()+interval '1 hour';");
+ sql("insert into auth.users select ('00000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,now(),null,'visitor'||n||'@isolated.test' from generate_series(1,25)n; insert into auth.sessions(id,user_id,not_after) select id,id,null from auth.users; insert into public.ghostwriter_beta_entitlements(account_id,approved_slot) select id,row_number()over() from auth.users; update public.ghostwriter_ai_control set paused=false,valid_until=now()+interval '1 hour';");
  if(process.argv.includes("--portfolio")){
   const {runPortfolioProof}=await import("../../tests/fixtures/portfolio-proof.mjs");
   await runPortfolioProof({sql,startWorker,workerPort,localFetch,name});
@@ -54,16 +55,21 @@ try{
  let fixture=source.replaceAll("ghostwriter_ai_reserve(","fixture_reserve(").replace("p_reservation_micro_usd <> 750","p_reservation_micro_usd not between 1 and 10000").replace("p_account_concurrency_limit <> 1","p_account_concurrency_limit not between 1 and 1000").replace("p_global_concurrency_limit not between 1 and 2","p_global_concurrency_limit not between 1 and 1000");
  fixture=fixture.replaceAll("v_count >= p_account_lifetime_limit","v_count >= 1000").replaceAll("v_count >= p_account_day_limit","v_count >= 1000").replaceAll("v_count >= p_account_minute_limit","v_count >= 1000").replaceAll("v_count >= p_global_minute_limit","v_count >= 1000");
  sql(fixture);
- async function storm(fn,accountLimit,globalLimit,reservation,budget,accountPool=25){
+ // This fixture intentionally fires 100 concurrent SQL admissions. Keep the
+ // production 3s timeout untouched; only the disposable cloned function gets
+ // extra wait budget so Docker/psql process startup cannot masquerade as a
+ // database-admission failure while requests serialize on the global lock.
+ sql("alter function public.fixture_reserve(uuid,uuid,text,text,text,bigint,integer,integer,integer,integer,integer,integer,integer,bigint,bigint,bigint) set statement_timeout='30s';");
+ async function storm(fn,accountLimit,globalLimit,reservation,budget,accountPool=25,attempts=100){
   sql("truncate public.ghostwriter_ai_operations;");
   const children=[0,1].map(()=>startWorker("tests/fixtures/release-ledger-worker.mjs",[name,fn,String(accountLimit),String(globalLimit),String(reservation),String(budget),String(accountPool)],{stdio:["ignore","ignore","inherit","ipc"]}));
   try{
    const ports=await Promise.all(children.map(workerPort));
-   const results=await Promise.all(Array.from({length:100},async(_,i)=>{const r=await localFetch("http://127.0.0.1:"+ports[i%2]+"/"+(i+1));assert.equal(r.status,200);return r.json();}));
+   const results=await Promise.all(Array.from({length:attempts},async(_,i)=>{const r=await localFetch("http://127.0.0.1:"+ports[i%2]+"/"+(i+1));assert.equal(r.status,200);return r.json();}));
    const admitted=results.filter(r=>r.kind==="admitted").length;
    const reasons=Object.fromEntries([...new Set(results.map(r=>r.reason).filter(Boolean))].map(reason=>[reason,results.filter(r=>r.reason===reason).length]));
    const liability=Number(sql("select coalesce(sum(reserved_micro_usd),0) from public.ghostwriter_ai_operations;"));
-   return {attempted:100,admitted,liability,reasons,processes:2,mockDispatches:0,scope:"HTTP SQL admission harness; not application HTTP/auth or provider execution"};
+   return {attempted:attempts,admitted,liability,reasons,processes:2,mockDispatches:0,scope:"HTTP SQL admission harness; not application HTTP/auth or provider execution"};
   }finally{children.forEach(c=>c.kill());}
  }
  const financial=await storm("fixture_reserve",1000,1000,10000,20000);
@@ -71,14 +77,20 @@ try{
  evidence.push({scenario:"isolated-financial-race",...financial});
  // Remove all financial admission comparisons: the same assertion MUST fail.
  sql(fixture.replaceAll("fixture_reserve(","fixture_mutated(").replaceAll(/v_spend \+ p_reservation_micro_usd > p_(hour_budget_micro_usd|day_budget_micro_usd|beta_lifetime_budget_micro_usd)/g,"false"));
- const mutation=await storm("fixture_mutated",1000,1000,10000,20000);
+ sql("alter function public.fixture_mutated(uuid,uuid,text,text,text,bigint,integer,integer,integer,integer,integer,integer,integer,bigint,bigint,bigint) set statement_timeout='30s';");
+ // Test a missing financial fence below the independent 60/24h combined cap.
+ const mutation=await storm("fixture_mutated",1000,1000,10000,20000,25,20);
  assert.ok(mutation.admitted>2,"negative control did not detect absent financial enforcement");
  evidence.push({scenario:"financial-mutation-detected",...mutation});
  const concurrency=await storm("fixture_reserve",1000,2,750,500000);
  assert.equal(concurrency.admitted,2);assert.deepEqual(concurrency.reasons,{global_concurrency_limit:98});
  evidence.push({scenario:"independent-global-concurrency",...concurrency});
  sql(fixture.replaceAll("fixture_reserve(","fixture_no_concurrency(").replaceAll("v_count >= p_global_concurrency_limit","false"));
- const concurrentMutation=await storm("fixture_no_concurrency",1000,2,750,500000);
+ sql("alter function public.fixture_no_concurrency(uuid,uuid,text,text,text,bigint,integer,integer,integer,integer,integer,integer,integer,bigint,bigint,bigint) set statement_timeout='30s';");
+ // Keep this mutation test below the independent 60/24h combined cap. The
+ // assertion only needs to prove that removing the concurrency fence admits
+ // more than two; asking for 100 would correctly trip the separate global cap.
+ const concurrentMutation=await storm("fixture_no_concurrency",1000,2,750,500000,25,20);
  assert.ok(concurrentMutation.admitted>2);evidence.push({scenario:"concurrency-mutation-detected",...concurrentMutation});
  const perAccount=await storm("fixture_reserve",1,1000,750,500000,1);
  assert.equal(perAccount.admitted,1);assert.deepEqual(perAccount.reasons,{account_concurrency_limit:99});
@@ -159,4 +171,5 @@ try{
  evidence.push({scenario:"recovery-fencing-monotonic-observed-cost-expiry-canary-history",status:"PASS",scope:"Real production SQL functions; operator settlement and expiry simulated in isolated database"});
  console.log(JSON.stringify({status:"PASS",evidence,limitations:["Auth schema is an isolated SQL fixture, not Supabase Auth browser integration","No real provider or application HTTP handler exercised","Docker network disabled"]},null,2));
  }
+ const {retentionProof}=await import("../../tests/fixtures/retention-proof.mjs");retentionProof(sql);
 }finally{cleanup();}

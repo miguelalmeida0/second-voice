@@ -15,10 +15,19 @@ export function buildContentSecurityPolicy(options: {
     ? `script-src 'self' 'nonce-${options.nonce}' 'strict-dynamic' 'unsafe-eval';`
     : `script-src 'self' 'nonce-${options.nonce}' 'strict-dynamic';`;
 
+  // Next's dev-mode HMR client injects <style> tags it does not nonce, so a
+  // nonce-only style-src blocks all styling in dev (browsers that enforce
+  // this strictly, e.g. WebKit, fail to ever apply CSS). Next's own CSP docs
+  // document swapping to 'unsafe-inline' for style-src in development only;
+  // production keeps the strict nonce-only directive unchanged.
+  const styleSrc = options.isDevelopment
+    ? "style-src 'self' 'unsafe-inline';"
+    : `style-src 'self' 'nonce-${options.nonce}';`;
+
   const directives = [
     "default-src 'self';",
     scriptSrc,
-    `style-src 'self' 'nonce-${options.nonce}';`,
+    styleSrc,
     "img-src 'self' data: blob:;",
     "font-src 'self' data:;",
     "connect-src 'self';",

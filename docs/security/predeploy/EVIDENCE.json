@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 2,
+  "recordedAt": "2026-09-15",
+  "repository": "/Users/malmeida/Documents/mockup/ghostwritter",
+  "branch": "security/ghostwritter-deployment-ready",
+  "authority": {
+    "localRepairs": true,
+    "syntheticTests": true,
+    "readOnlyAccountChecks": true,
+    "deployment": false,
+    "productionMigrations": false,
+    "credentialRotation": false,
+    "externalMessages": false,
+    "liveInference": false
+  },
+  "artifact": {
+    "identitySource": ".tmp/release/portfolio-evidence.json",
+    "productionScenarios": ".tmp/predeploy/production-gate.json",
+    "rule": "Final verifier must run after this index and all report edits. Read its timestamp, checks, sourceCommit/sourceTreeSha256/workingDiffSha256/buildId/buildSha256. This index does not embed a self-referential hash or copy historical PASS results.",
+    "freshnessHours": 24
+  },
+  "decisions": {
+    "local": "Final verifier required; interpret only matching final source/build evidence",
+    "aiDisabledDeployment": "BLOCKED: current host/Free-plan/credential isolation and privacy/operator review plus approval",
+    "ownerCanary": "BLOCKED: target schema/lease/Groq evidence/token semantics/auth/ingress plus approval",
+    "limitedBeta": "BLOCKED: canary, monitoring, recovery custody and human acceptance"
+  },
+  "targets": {
+    "supabase": {
+      "classification": "VERIFIED ON TARGET for metadata only; billing UNVERIFIED",
+      "checkedAt": "2026-09-15",
+      "project": "oycnkdlmdhfhmuuyfyqt",
+      "organization": "xklbazwgaucvimapgfbq",
+      "region": "eu-west-2",
+      "status": "ACTIVE_HEALTHY",
+      "deploymentId": "6f5fb526-40c8-4be5-a9e5-a707fe48e8f7",
+      "migrationCount": 13,
+      "lastMigration": "202609070004",
+      "pending": [
+        "202609080001",
+        "202609080002",
+        "202609080003",
+        "202609080004",
+        "202609080005"
+      ],
+      "paused": false,
+      "profile": "portfolio-free",
+      "validUntil": "2026-09-09T07:02:04.256302Z",
+      "freeVerifiedUntil": "2026-10-08T07:02:04.256304Z",
+      "organizationLabel": "Personal",
+      "note": "Expired lease left unchanged; labels and dates do not prove billing."
+    },
+    "vercel": {
+      "classification": "UNVERIFIED",
+      "checkedAt": "2026-09-15",
+      "error": "You do not have access to the specified account",
+      "historicalProject": "prj_QigqdvWvfo0tImNgMDonfELF9FIk",
+      "historicalTeam": "team_yiVtxHRnCt6hDEzgVpYMjlBz"
+    },
+    "groq": {
+      "classification": "UNVERIFIED",
+      "checkedAt": "2026-09-15",
+      "selectedProject": "project_01kpvdq6b7fjxrq47rtdke18p7",
+      "browserResult": "Billing page requires login",
+      "historicalEvidence": "GROQ_ACCOUNT_CHECK.md, September 8; not current proof"
+    }
+  },
+  "limits": {
+    "classification": "Local controls, not unconditional bill guarantee",
+    "recipients": 25,
+    "accountLifetime": 10,
+    "account24h": 3,
+    "accountMinute": 1,
+    "globalMinute": 2,
+    "global24h": 25,
+    "globalLifetime": 250,
+    "globalActive": 1,
+    "requestBytes": 10000,
+    "inputChars": 2000,
+    "generationParameter": 2000,
+    "providerDeadlineMs": 30000,
+    "responseBytes": 65536,
+    "retries": 0,
+    "paidFallback": false,
+    "backgroundGeneration": false,
+    "uncertaintyRetainsStarts": true,
+    "stricterSettingsRetained": true
+  },
+  "owner": {
+    "classification": "OWNER-ATTESTED",
+    "name": "Miguel",
+    "email": "miguelalmeida1592@gmail.com",
+    "purpose": "personal portfolio",
+    "retentionApproved": {
+      "privateContentDays": 7,
+      "recoveryDays": 90,
+      "permanentTrialRetirement": true
+    },
+    "remaining": [
+      "Applicable lawful controller/operator identification/address",
+      "Provider processing/transfer review",
+      "Staffed observation and backup/alert custody"
+    ]
+  },
+  "repairs": [
+    "Next/eslint-config-next16.3.5;js-yaml4.3.2",
+    "Node22.23.2 engines/.nvmrc",
+    "Test-only historical policy clock, no runtime expiry renewal",
+    "Bounded RPC/lifecycle target preflight plus negative control",
+    "Portfolio verifier retains original auth suite and requires production failure/restore,scroll,cron; missing provider dispatch fails",
+    "Patched local AVIF/WebP optimizer and remote-source denial regression checks",
+    "AI-disabled preparation distinct from live target/canary",
+    "Stale retirement/purged totals recovery proof"
+  ],
+  "initialTests": {
+    "productionGate": "Earlier Sep15 run passed reached server/failure/deletion/restore checks, then BLOCKED missing Chromium; not final PASS",
+    "integration": "Earlier Sep15 FAIL test-only paid pricing expiry; repaired and must rerun",
+    "scroll": "22/22 PASS before repairs; final rerun required",
+    "retentionCron": "PASS before repairs; final rerun required",
+    "dependencies": "Baseline Next critical advisory range and js-yaml dev-only high; patched lockfile requires fresh audit",
+    "install": "Node22.23.2 npm ci --offline succeeded after 228 missing registry tarballs were SHA-integrity verified into local cache; 148 were already cached. Default npm downloader stalled. No application network policy changed."
+  },
+  "securityScan": {
+    "id": "2c91158e-954b-4a89-91f1-be459c71a4cc",
+    "status": "complete",
+    "coverage": "partial",
+    "confirmedSourceFindings": 0,
+    "scope": "Independent static baseline + architecture + focused operator/recovery. Before local repairs; not dependency or target certificate.",
+    "report": "/private/var/folders/x6/0d36h_s16kj9j6jgw2m775480000gn/T/codex-security-scans-InljJM/ghostwritter/8e3232c0648224ebe111f610b60e186b649b7579_20260915T093218Z_a7qxobax/report.md",
+    "toolReportedUsage": {
+      "totalTokens": 9814119,
+      "note": "Workbench rollout accounting; includes cached/history input, not a request budget."
+    }
+  },
+  "gaps": [
+    "Current Free plans/payment/add-ons/key ownership and MFA",
+    "Full model-specific hidden-reasoning billing contract",
+    "Target migrations/maintenance,canonical auth redirect,ingress,old deployment closure",
+    "Centralized client-error reporting/monitored alert delivery and host retention",
+    "Off-site production/Auth/Storage/config backup custody and recovery",
+    "Legal/controller/processor/transfer review",
+    "Human beta and physical mobile/Safari acceptance",
+    "Static scan not exhaustive across every asset/dependency implementation"
+  ],
+  "externalApprovals": [
+    {
+      "target": "Supabase oycnkdlmdhfhmuuyfyqt / deployment6f5fb526-40c8-4be5-a9e5-a707fe48e8f7 (reverify)",
+      "action": "Approved backup and five forward migrations, bounded retention scheduling",
+      "impact": "Revokes legacy RPC/public lookup; introduces deletion/finite lifecycle; scheduling can erase expired content. No quota reset."
+    },
+    {
+      "target": "Vercel prj_QigqdvWvfo0tImNgMDonfELF9FIk after access/identity restored",
+      "action": "Reviewed AI-disabled deploy, no inference key; target auth/HTTPS/ingress checks",
+      "impact": "Publishes code; no inference authorization."
+    },
+    {
+      "target": "Groq project_01kpvdq6b7fjxrq47rtdke18p7",
+      "action": "Later separate one-operation canary plus identical replay",
+      "impact": "One counted bounded start; no retry or widened limits."
+    },
+    {
+      "target": "miguelalmeida1592@gmail.com",
+      "action": "One nonsensitive support/alert delivery test",
+      "impact": "External message; not yet sent."
+    }
+  ],
+  "externalActions": {
+    "deployed": false,
+    "productionMigrations": false,
+    "credentialsRotated": false,
+    "hostedDataDeleted": false,
+    "externalTestMessages": false,
+    "liveProviderCalls": 0,
+    "paidServicesCreated": false,
+    "localSyntheticCleanup": true
+  },
+  "browser": {
+    "path": "Playwright",
+    "reason": "Browser skill/plugin absent; existing repository harness used",
+    "viewports": "Production1440/768/390 and UI1440/1512/1024/768/390/360; use final artifacts for executed results",
+    "evidenceDirectories": [
+      ".tmp/predeploy",
+      ".tmp/release/portfolio-ui"
+    ],
+    "scope": "Synthetic browser and real local Auth/Storage tests distinguished; no live GitHub inference"
+  },
+  "references": [
+    "https://github.com/vercel/next.js/security/advisories/GHSA-2xp9-vwfh-vxw4",
+    "https://github.com/vercel/next.js/security/advisories/GHSA-p293-qw3h-jr36",
+    "https://github.com/nodeca/js-yaml/security/advisories/GHSA-2883-xcg3-v3hh",
+    "https://nodejs.org/en/blog/release/v22.23.2",
+    "https://console.groq.com/docs/api-reference",
+    "https://eur-lex.europa.eu/eli/reg/2016/679/oj"
+  ]
+}

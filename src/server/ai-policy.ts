@@ -1,5 +1,6 @@
 import "../lib/server-only.ts";
 import { rejectAmbiguousSecrets } from "./signing-purpose.ts";
+import { FREE_REVIEW_REFERENCE } from "../lib/free-review-reference.ts";
 
 export const AI_PROVIDER_ID = "groq" as const;
 export const AI_MODEL_ID = "openai/gpt-oss-20b" as const;
@@ -17,6 +18,7 @@ export function resolveLiveAiPolicy(): AiPolicyResolution {
 
 const DEFAULTS = {
   accountConcurrency: 1,
+  anonymousGlobalDailyLimit: 60,
   accountGenerationsPer24Hours: 5,
   accountGenerationsPerMinute: 3,
   betaLifetimeBudgetMicroUsd: 10_000_000,
@@ -43,6 +45,7 @@ export type AiPolicyConfig = {
   freeOrganizationId?: string;
   freeProjectId?: string;
   accountConcurrency: number;
+  anonymousGlobalDailyLimit: number;
   accountGenerationsPer24Hours: number;
   accountGenerationsPerMinute: number;
   betaLifetimeBudgetMicroUsd: number;
@@ -208,6 +211,11 @@ function resolveConfiguredPolicy(
       "GHOSTWRITER_AI_ACCOUNT_CONCURRENCY",
       DEFAULTS.accountConcurrency,
     ),
+    anonymousGlobalDailyLimit: positiveInteger(
+      environment,
+      "GHOSTWRITER_ANONYMOUS_GLOBAL_DAILY_LIMIT",
+      DEFAULTS.anonymousGlobalDailyLimit,
+    ),
     accountGenerationsPer24Hours: positiveInteger(
       environment,
       "GHOSTWRITER_AI_ACCOUNT_GENERATIONS_PER_24H",
@@ -288,6 +296,7 @@ function resolveConfiguredPolicy(
 
   if (
     safeValues.accountConcurrency > LIMITS.accountConcurrency ||
+    safeValues.anonymousGlobalDailyLimit > LIMITS.anonymousGlobalDailyLimit ||
     safeValues.accountGenerationsPer24Hours > LIMITS.accountGenerationsPer24Hours ||
     safeValues.accountGenerationsPerMinute > LIMITS.accountGenerationsPerMinute ||
     safeValues.betaLifetimeBudgetMicroUsd > LIMITS.betaLifetimeBudgetMicroUsd ||
@@ -346,12 +355,12 @@ export function resolvePortfolioFreePolicy(environment: AiPolicyEnvironment = pr
   if (environment.VERCEL_ENV && environment.VERCEL_ENV !== "production") return deny("Inference is disabled in previews.");
   if (environment.NODE_ENV === "production" && environment.GHOSTWRITER_E2E_FIXTURE_MODE === "true") return deny("Fixtures forbidden in production.");
   const org=environment.GROQ_FREE_ORGANIZATION_ID, project=environment.GROQ_FREE_PROJECT_ID;
-  if (!org || !project || !/^[A-Za-z0-9_-]{3,120}$/.test(org) || !/^[A-Za-z0-9_-]{3,120}$/.test(project)) return deny("Free organization/project metadata missing.");
+  if (!org || !project || !FREE_REVIEW_REFERENCE.test(org) || !FREE_REVIEW_REFERENCE.test(project)) return deny("Free organization/project metadata missing.");
   // These identifiers are NOT proof of billing plan. Admission and dispatch also
   // require the operator-reviewed, time-bounded matching record in PostgreSQL.
   const result=resolveConfiguredPolicy(environment,true);
   if (!result.enabled) return result;
-  return {enabled:true,reason:null,config:{...result.config,profile:"portfolio-free",freeOrganizationId:org,freeProjectId:project,accountGenerationsPer24Hours:3,accountGenerationsPerMinute:1,globalGenerationsPerMinute:2,globalConcurrency:1}};
+  return {enabled:true,reason:null,config:{...result.config,profile:"portfolio-free",freeOrganizationId:org,freeProjectId:project,accountGenerationsPer24Hours:Math.min(3,result.config.accountGenerationsPer24Hours),accountGenerationsPerMinute:Math.min(3,result.config.accountGenerationsPerMinute),globalGenerationsPerMinute:Math.min(6,result.config.globalGenerationsPerMinute),globalConcurrency:Math.min(1,result.config.globalConcurrency)}};
 }
 
 export function isAiKillSwitchEnabled(environment: AiPolicyEnvironment = process.env): boolean {

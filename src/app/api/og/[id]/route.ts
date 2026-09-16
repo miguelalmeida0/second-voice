@@ -68,6 +68,7 @@ export const dynamic = "force-dynamic";
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const row = await fetchRewriteById(id);
+  if (!row) return new Response(null, { status: 404, headers: buildNoStoreHeaders() });
 
   const author = row?.author ?? "hemingway";
   const tint = TINT_HEX[author];

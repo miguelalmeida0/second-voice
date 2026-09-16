@@ -74,7 +74,8 @@ function fail(message) {
 if (process.env.GHOSTWRITTER_SECURITY_SECRET !== undefined) fail("Unsupported GHOSTWRITTER_SECURITY_SECRET spelling.");
 
 const aiEnabled = (process.env.AI_ENABLED ?? "").trim().toLowerCase() === "true";
-if (aiEnabled) fail("Live transport is blocked pending the complete provider token/billing proof.");
+const portfolioFree = process.env.GHOSTWRITER_RELEASE_PROFILE === "portfolio-free";
+if (aiEnabled && !portfolioFree) fail("Paid/live transport remains blocked; only the governed portfolio-free profile may enable inference.");
 
 const abuseStoreMode = (process.env.GHOSTWRITER_ABUSE_STORE_MODE ?? "").trim().toLowerCase();
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim();
@@ -173,10 +174,11 @@ function requirePositiveInteger(name, maximum) {
 }
 
 if (aiEnabled) {
-  if(process.env.GHOSTWRITER_RELEASE_PROFILE==="portfolio-free"){
-    if(!process.env.GROQ_FREE_ORGANIZATION_ID || !process.env.GROQ_FREE_PROJECT_ID)fail("Free profile requires organization/project metadata and matching operator-verified database record.");
+  if(portfolioFree){
+    if(!process.env.GROQ_FREE_ORGANIZATION_ID || !process.env.GROQ_FREE_PROJECT_ID)fail("Free profile requires organization/project metadata and matching operator-reviewed database record.");
     if(process.env.VERCEL_ENV && process.env.VERCEL_ENV!=="production")fail("Inference cannot be enabled in previews.");
-    if(process.env.GHOSTWRITER_GITHUB_LOGIN_ENABLED!=="true" && process.env.GHOSTWRITER_EMAIL_LOGIN_ENABLED!=="true")fail("Free profile requires configured visitor authentication.");
+    if(process.env.GHOSTWRITER_GITHUB_LOGIN_ENABLED!=="true")fail("Portfolio Free production requires GitHub authentication to remain configured even though anonymous recruiter rewrites are available.");
+    if(isProduction && !hasStrongSecret(process.env.CRON_SECRET))fail("Portfolio Free production requires a strong CRON_SECRET for the external Supabase heartbeat.");
   }
   requireExact("GHOSTWRITER_PROVIDER", "groq");
   requireExact("GROQ_MODEL", AI_MODEL);
@@ -196,6 +198,7 @@ if (aiEnabled) {
 
   const boundedIntegers = [
     ["GHOSTWRITER_BETA_MAX_APPROVED_ACCOUNTS", 25],
+    ["GHOSTWRITER_ANONYMOUS_GLOBAL_DAILY_LIMIT", 60],
     ["GHOSTWRITER_AI_LIFETIME_GENERATIONS_PER_ACCOUNT", 10],
     ["GHOSTWRITER_AI_ACCOUNT_GENERATIONS_PER_24H", 5],
     ["GHOSTWRITER_AI_ACCOUNT_GENERATIONS_PER_MINUTE", 3],

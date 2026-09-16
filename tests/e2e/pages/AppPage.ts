@@ -9,7 +9,7 @@ export class AppPage {
   }
 
   async goto(path = "/second-voice") {
-    await this.page.goto(path, { waitUntil: "domcontentloaded" });
+    await this.page.goto(path, { waitUntil: "commit", timeout: 45_000 });
     await waitForAppReady(this.page);
   }
 
@@ -69,6 +69,21 @@ export class AppPage {
     await this.authorModeButton().click();
   }
 
+  quickStartsToggle() {
+    return this.page.getByRole("button", { name: /Quick starts/i });
+  }
+
+  // Below the 1100px breakpoint, quick starts sit behind a disclosure toggle
+  // (see .gw-inspiration-toggle in second-voice-studio.css). Above it the
+  // toggle is display:none and the samples are always expanded, so this is a
+  // no-op on desktop.
+  async openQuickStarts() {
+    const toggle = this.quickStartsToggle();
+    if (await toggle.isVisible()) {
+      await toggle.click();
+    }
+  }
+
   async setMood(value: string) {
     await this.moodDial().fill(value);
   }
@@ -82,7 +97,7 @@ export class AppPage {
   }
 
   async expectRewriteIdle() {
-    await expect(this.page.getByText(/run a rewrite and the edit will happen here/i)).toBeVisible();
+    await expect(this.page.getByText("Your rewrite will appear here.")).toBeVisible();
   }
 
   async copyRewrite() {

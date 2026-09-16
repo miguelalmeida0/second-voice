@@ -1,0 +1,21 @@
+Second Voice AI — V12 E2E contract repair
+2026-09-16
+
+Root cause of the apparent E2E cascade:
+- waitForAppReady() still waited for the retired heading "Rewrite anything...".
+- The locked studio now renders H1 "Second Voice".
+- Every test using AppPage.goto() therefore spent the 8s assertion timeout and failed before reaching its real assertions.
+- The screenshot pattern (app-based tests ~8.5s failures while direct route/auth fixture tests pass) matches this single stale readiness contract.
+
+Additional stale assertions repaired in the same pass so the suite does not fail one-by-one afterward:
+- author/outcome surfaces now use stable accessible group semantics
+- author buttons explicitly expose "Choose <author>" accessible names
+- idle Copy is expected to be absent, matching the production reliability fix
+- idle output copy updated to "Your rewrite will appear here."
+- Request ID is tested behind "Technical details", matching the production error UX
+- loading CTA accepts the current typographic ellipsis
+- navigation reflects one Surprise-me action and the case-study link living in the How-it-works drawer
+- drawer focus test verifies the focus trap rather than an obsolete tab sequence
+- removed assertions for retired "Choose a writer/outcome" and dynamic "Rewrite anything with King..." headings
+
+This patch intentionally aligns tests with the locked current UI instead of reverting the product to old test copy.

@@ -1,29 +1,12 @@
-export type PortfolioAllowance = { remaining: number; todayRemaining?: number; available: boolean };
-export type PortfolioSession =
-  | { status: "checking" | "anonymous" | "unavailable" }
-  | { status: "authenticated"; allowance: PortfolioAllowance | null };
-
-export function parsePortfolioAllowance(value: unknown): PortfolioAllowance | null {
-  if (!value || typeof value !== "object") return null;
-  const data = value as Record<string, unknown>;
-  if (!Number.isInteger(data.remaining) || Number(data.remaining) < 0 || Number(data.remaining) > 10 || typeof data.available !== "boolean") return null;
-  if (data.todayRemaining !== undefined && (!Number.isInteger(data.todayRemaining) || Number(data.todayRemaining) < 0 || Number(data.todayRemaining) > 3)) return null;
-  return { remaining: Number(data.remaining), available: data.available, ...(data.todayRemaining !== undefined ? { todayRemaining: Number(data.todayRemaining) } : {}) };
-}
-
-// Presentation only. Every dispatch still requires server identity and atomic admission.
-export function portfolioAccessView(session: PortfolioSession, githubEnabled: boolean, rewriteEnabled: boolean) {
-  const signIn = githubEnabled && (session.status === "anonymous" || session.status === "checking");
-  if (session.status !== "authenticated") return {
-    signIn, canGenerate: false,
-    message: signIn ? "Sign in with GitHub to claim an available Free portfolio trial." : "AI demo is temporarily unavailable. Your text stays here.",
-  };
-  const allowance = session.allowance;
-  if (allowance && allowance.remaining === 0) return {
-    signIn: false, canGenerate: false, message: "Your Free portfolio trial has reached its limit. Your text stays here.",
-  };
-  if (!rewriteEnabled || !allowance?.available || allowance.todayRemaining === 0) return {
-    signIn: false, canGenerate: false, message: "AI demo is temporarily unavailable. Your text stays here.",
-  };
-  return { signIn: false, canGenerate: true, message: `${allowance.remaining} trial rewrites remaining.` };
-}
+import { COMBINED_AI_LIMIT_MESSAGE } from "./combined-ai-limit.ts";
+export type PortfolioAllowance={remaining:number;todayRemaining?:number;available:boolean;globalLimited?:boolean;retryAfterSeconds?:number};
+export type PortfolioSession=
+ |{status:"checking"}
+ |{status:"unavailable"}
+ |{status:"anonymous";allowance:PortfolioAllowance|null}
+ |{status:"authenticated";allowance:PortfolioAllowance|null};
+export function parsePortfolioAllowance(value:unknown):PortfolioAllowance|null{if(!value||typeof value!=="object")return null;const data=value as Record<string,unknown>;if(!Number.isInteger(data.remaining)||Number(data.remaining)<0||Number(data.remaining)>10||typeof data.available!=="boolean")return null;if(data.todayRemaining!==undefined&&(!Number.isInteger(data.todayRemaining)||Number(data.todayRemaining)<0||Number(data.todayRemaining)>3))return null;if(data.globalLimited!==undefined&&typeof data.globalLimited!=="boolean")return null;
+if(data.retryAfterSeconds!==undefined&&(!Number.isInteger(data.retryAfterSeconds)||Number(data.retryAfterSeconds)<1||Number(data.retryAfterSeconds)>86400))return null;
+if(data.globalLimited===true&&data.available===true)return null;
+return{remaining:Number(data.remaining),available:data.available,...(data.todayRemaining!==undefined?{todayRemaining:Number(data.todayRemaining)}:{}),...(data.globalLimited!==undefined?{globalLimited:data.globalLimited as boolean}:{}),...(data.retryAfterSeconds!==undefined?{retryAfterSeconds:Number(data.retryAfterSeconds)}:{})};}
+export function portfolioAccessView(session:PortfolioSession,githubEnabled:boolean,rewriteEnabled:boolean){if(session.status==="checking")return{signIn:false,canGenerate:false,message:"Checking your free rewrite allowance."};if(session.status==="unavailable")return{signIn:false,canGenerate:false,message:"AI demo is temporarily unavailable. Your text stays here."};const allowance=session.allowance;if(!allowance)return{signIn:false,canGenerate:false,message:"AI demo is temporarily unavailable. Your text stays here."};if(allowance.globalLimited===true)return{signIn:false,canGenerate:false,message:COMBINED_AI_LIMIT_MESSAGE};if(session.status==="anonymous"){if((allowance.todayRemaining??allowance.remaining)===0)return{signIn:false,canGenerate:false,message:"Free rewrites are used for today. Try again tomorrow."};if(!rewriteEnabled||!allowance.available)return{signIn:false,canGenerate:false,message:"AI demo is temporarily unavailable. Your text stays here."};const remaining=allowance.todayRemaining??allowance.remaining;return{signIn:false,canGenerate:true,message:`${remaining} free rewrite${remaining===1?"":"s"} left today.${githubEnabled?" Sign in with GitHub any time to use your account trial.":""}`};}if((allowance.todayRemaining??allowance.remaining)===0)return{signIn:false,canGenerate:false,message:"You’ve used your 3 rewrites in the last 24 hours. Try again when an earlier rewrite leaves that window. Your text stays here."};if(!rewriteEnabled||!allowance.available)return{signIn:false,canGenerate:false,message:"AI demo is temporarily unavailable. Your text stays here."};return{signIn:false,canGenerate:true,message:`${allowance.todayRemaining??allowance.remaining} rewrites left in your rolling 24-hour allowance.`};}

@@ -13,11 +13,19 @@ export const RECOVERABLE_SESSION_ERRORS = [
 
 export class GhostwriterRequestError extends Error {
   requestId: string | null;
+  reasonCode: string | null;
+  retryAfterSeconds: number | null;
 
-  constructor(message: string, requestId: string | null) {
+  constructor(
+    message: string,
+    requestId: string | null,
+    options: { reasonCode?: string | null; retryAfterSeconds?: number | null } = {},
+  ) {
     super(message);
     this.name = "GhostwriterRequestError";
     this.requestId = requestId;
+    this.reasonCode = options.reasonCode ?? null;
+    this.retryAfterSeconds = options.retryAfterSeconds ?? null;
   }
 }
 
@@ -115,6 +123,7 @@ export async function issueGhostwriterChallenge(
     challengeToken?: string;
     difficulty?: number | null;
     error?: string | null;
+    reasonCode?: string | null;
   };
 
   if (
@@ -123,9 +132,14 @@ export async function issueGhostwriterChallenge(
     !challenge.challengeToken ||
     typeof challenge.difficulty !== "number"
   ) {
+    const retryAfter = Number.parseInt(challengeResponse.headers.get("Retry-After") ?? "", 10);
     throw new GhostwriterRequestError(
       challenge.error || "The rewrite challenge could not be issued.",
       requestIdFrom(challengeResponse),
+      {
+        reasonCode: challenge.reasonCode ?? null,
+        retryAfterSeconds: Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null,
+      },
     );
   }
 

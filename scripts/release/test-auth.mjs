@@ -7,7 +7,7 @@ import {createClient} from "@supabase/supabase-js";
 import {chromium} from "@playwright/test";
 import assert from "node:assert/strict";
 const prefix="gw-auth-proof-"+process.pid;
-const network=prefix+"-net",pg=prefix+"-pg",auth=prefix+"-auth",rest=prefix+"-rest";
+const network=prefix+"-net",pg=prefix+"-pg",auth=prefix+"-auth",rest=prefix+"-rest",storage=prefix+"-storage";
 const jwt="isolated-auth-test-secret-never-a-real-credential-2026";
 const tmp=".tmp/"+prefix;mkdirSync(tmp,{recursive:true});
 // Separate Next's dev lock/cache from the owner's running development server.
@@ -22,11 +22,11 @@ symlinkSync(resolve("node_modules"),appDirectory+"/node_modules","dir");
 const docker=(args)=>execFileSync("docker",args,{encoding:"utf8",timeout:120000,stdio:["ignore","pipe","pipe"]}).trim();
 const sql=s=>{const r=spawnSync("docker",["exec","-i",pg,"psql","-U","postgres","-Atq","-v","ON_ERROR_STOP=1"],{input:s,encoding:"utf8",timeout:30000});if(r.status!==0)throw new Error("Isolated SQL error: "+(r.stderr??r.error?.code??"unavailable").slice(0,900));return r.stdout.trim();};
 const nativeFetch=globalThis.fetch;
-globalThis.fetch=(input,options={})=>nativeFetch(input,{...options,signal:options.signal?AbortSignal.any([options.signal,AbortSignal.timeout(15000)]):AbortSignal.timeout(15000)});
+globalThis.fetch=(input,options={})=>nativeFetch(input,{...options,signal:options.signal??AbortSignal.timeout(15000)});
 const envFile=(name,values)=>{const path=tmp+"/"+name;writeFileSync(path,Object.entries(values).map(([k,v])=>k+"="+v).join("\n"),{mode:0o600});return path;};
 const token=role=>{const h=Buffer.from(JSON.stringify({alg:"HS256",typ:"JWT"})).toString("base64url");const p=Buffer.from(JSON.stringify({role,iss:"supabase",exp:Math.floor(Date.now()/1000)+3600})).toString("base64url");return h+"."+p+"."+createHmac("sha256",jwt).update(h+"."+p).digest("base64url");};
 const anon=token("anon"),service=token("service_role");
-let authPort,restPort,app,browser;
+let authPort,restPort,storagePort,app,browser,authUnavailable=false,restFailure=null;
 let appLog="";
 let cleanupPromise;
 function cleanup(){
@@ -34,20 +34,31 @@ function cleanup(){
   await browser?.close();
   if(app?.pid){try{process.kill(-app.pid,"SIGTERM");}catch{app.kill();}}
   proxy.closeAllConnections();if(proxy.listening)await new Promise(r=>proxy.close(r));
-  for(const name of [rest,auth,pg])spawnSync("docker",["stop",name],{stdio:"ignore",timeout:30000});
+  for(const name of [storage,rest,auth,pg])spawnSync("docker",["stop",name],{stdio:"ignore",timeout:30000});
   spawnSync("docker",["network","rm",network],{stdio:"ignore",timeout:30000});rmSync(tmp,{recursive:true,force:true});
  })();
 }
 for(const signal of ["SIGTERM","SIGINT"])process.on(signal,()=>{void cleanup().finally(()=>process.exit(2));});
 const proxy=createServer(async(req,res)=>{
  const authPath=req.url.startsWith("/auth/v1/");
- const base=authPath?authPort:restPort;
+ const storagePath=req.url.startsWith("/storage/v1/");
+ if(storagePath&&restFailure==="storage-outage"){res.writeHead(503).end('{}');return;}
+ if(authUnavailable && authPath){res.writeHead(503).end('{"message":"Isolated outage"}');return;}
+ if(restFailure==="outage" && !authPath){res.writeHead(503).end('{}');return;}
+ const base=authPath?authPort:storagePath?storagePort:restPort;
  if(!base){res.writeHead(503).end();return;}
  try{
   const chunks=[];for await(const c of req)chunks.push(c);
   const body=Buffer.concat(chunks);
+  if(restFailure?.kind==="before-dispatch" && req.url.endsWith("/ghostwriter_ai_mark_dispatched")){
+   const checkpoint=restFailure;checkpoint.reached=true;
+   await new Promise(resolve=>{checkpoint.release=resolve;});
+   res.writeHead(503).end('{}');return;
+  }
   const headers={...req.headers};delete headers.host;delete headers.connection;
-  const upstream=await fetch("http://127.0.0.1:"+base+req.url.replace(authPath?"/auth/v1":"/rest/v1",""),{method:req.method,headers,body:body.length?body:undefined,redirect:"manual"});
+  const upstream=await fetch("http://127.0.0.1:"+base+req.url.replace(authPath?"/auth/v1":storagePath?"/storage/v1":"/rest/v1",""),{method:req.method,headers,body:body.length?body:undefined,redirect:"manual"});
+  if(storagePath&&req.method==="DELETE"&&restFailure==="storage-lost-response"&&upstream.ok){restFailure=null;await upstream.arrayBuffer();res.writeHead(503).end('{}');return;}
+  if(restFailure && req.url.endsWith("/"+restFailure) && upstream.ok){restFailure=null;await upstream.arrayBuffer();res.writeHead(503).end('{}');return;}
   res.writeHead(upstream.status,Object.fromEntries([...upstream.headers].filter(([k])=>!["content-encoding","transfer-encoding"].includes(k))));
   res.end(Buffer.from(await upstream.arrayBuffer()));
  }catch{res.writeHead(503).end();}
@@ -60,17 +71,28 @@ try{
  docker(["network","create",network]);
  docker(["run","--rm","-d","--network",network,"--name",pg,"-e","POSTGRES_PASSWORD=isolated-only","postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94"]);
  await wait(()=>spawnSync("docker",["exec",pg,"pg_isready","-h","127.0.0.1","-U","postgres"]).status===0,"PostgreSQL");
- sql("create role anon; create role authenticated; create role service_role; create role authenticator login password 'isolated-only' noinherit; grant anon,authenticated,service_role to authenticator; create schema auth; alter role postgres set search_path=auth,public;");
+ // Match Supabase's service role: BYPASSRLS does not grant table privileges.
+ // The app's explicit table/RPC revocations must still hold with this role.
+ sql("create role anon; create role authenticated; create role service_role bypassrls; create role authenticator login password 'isolated-only' noinherit; grant anon,authenticated,service_role to authenticator; create schema auth; alter role postgres set search_path=auth,public;");
  const authEnv=envFile("auth.env",{GOTRUE_API_HOST:"0.0.0.0",GOTRUE_API_PORT:9999,API_EXTERNAL_URL:base+"/auth/v1",GOTRUE_DB_DRIVER:"postgres",GOTRUE_DB_DATABASE_URL:"postgres://postgres:isolated-only@"+pg+":5432/postgres",GOTRUE_DB_NAMESPACE:"auth",GOTRUE_SITE_URL:"http://127.0.0.1:3219/second-voice",GOTRUE_DISABLE_SIGNUP:"true",GOTRUE_JWT_ADMIN_ROLES:"service_role",GOTRUE_JWT_AUD:"authenticated",GOTRUE_JWT_DEFAULT_GROUP_NAME:"authenticated",GOTRUE_JWT_EXP:3600,GOTRUE_JWT_SECRET:jwt,GOTRUE_JWT_ISSUER:base+"/auth/v1",GOTRUE_EXTERNAL_EMAIL_ENABLED:"true",GOTRUE_MAILER_AUTOCONFIRM:"false",GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED:"false"});
  docker(["run","--rm","-d","--network",network,"--name",auth,"-p","127.0.0.1::9999","--env-file",authEnv,"supabase/gotrue:v2.189.0@sha256:385184459f57569c54c25209f51f3b2be99ddd7c4ce9e3555b5d3eea8447b7cf"]);
  authPort=port(auth,9999);
  await wait(async()=> (await fetch(base+"/auth/v1/health")).ok,"GoTrue");
  for(const f of readdirSync("supabase/migrations").filter(f=>f.endsWith(".sql")).sort())sql(readFileSync("supabase/migrations/"+f,"utf8"));
+ sql("select public.ghostwriter_retention_maintenance();");
  const restEnv=envFile("rest.env",{PGRST_DB_URI:"postgres://authenticator:isolated-only@"+pg+":5432/postgres",PGRST_DB_SCHEMAS:"public",PGRST_DB_ANON_ROLE:"anon",PGRST_JWT_SECRET:jwt,PGRST_DB_MAX_ROWS:100});
  docker(["run","--rm","-d","--network",network,"--name",rest,"-p","127.0.0.1::3000","--env-file",restEnv,"postgrest/postgrest:v14.12@sha256:54000f24847d01a2c2302e0041cf0618b875c57fb48507d743cfa9aaa50bf43c"]);
  restPort=port(rest,3000);
  const admin=createClient(base,service,{auth:{persistSession:false,autoRefreshToken:false}});
  await wait(async()=> (await fetch(base+"/rest/v1/",{headers:{authorization:"Bearer "+service,apikey:service}})).ok,"PostgREST");
+ if (process.argv.includes("--predeploy")) {
+  const storageEnv=envFile("storage.env",{ANON_KEY:anon,SERVICE_KEY:service,POSTGREST_URL:"http://"+rest+":3000",AUTH_JWT_SECRET:jwt,DATABASE_URL:"postgres://postgres:isolated-only@"+pg+":5432/postgres",DB_INSTALL_ROLES:"true",STORAGE_BACKEND:"file",FILE_STORAGE_BACKEND_PATH:"/var/lib/storage",FILE_SIZE_LIMIT:1048576,GLOBAL_S3_BUCKET:"isolated",TENANT_ID:"isolated",REGION:"local",ENABLE_IMAGE_TRANSFORMATION:"false"});
+  docker(["run","--rm","-d","--network",network,"--name",storage,"-p","127.0.0.1::5000","--env-file",storageEnv,"supabase/storage-api:v1.60.4@sha256:c8eb9858eafec891a97c27125470aaad54703c3f4eb4d55ca7f1bf6c6411febf"]);
+  storagePort=port(storage,5000);
+  try{await wait(async()=> (await fetch(base+"/storage/v1/status")).ok,"Storage");const probe=await admin.storage.createBucket("fixture-readiness",{public:false});assert.equal(probe.error,null);}catch(error){console.error(docker(["logs","--tail","40",storage]));throw error;}
+  const {runProductionGate}=await import("./test-production-gate.mjs");
+  await runProductionGate({sql,base,anon,service,admin,appDirectory,pg,setAuthUnavailable:value=>{authUnavailable=value;},setRestFailure:value=>{restFailure=value;}});
+ } else {
  const email="owner@isolated.test";
  const created=await admin.auth.admin.createUser({email,email_confirm:true});
  assert.equal(created.error,null);const account=created.data.user.id;
@@ -92,6 +114,13 @@ try{
  const ua="Mozilla/5.0 GhostwriterReleaseVerification";
  function acceptCookies(response){for(const value of response.headers.getSetCookie()){const first=value.split(";")[0],i=first.indexOf("=");const key=first.slice(0,i),v=first.slice(i+1);if(v)jar.set(key,v);else jar.delete(key);}}
  const initial=await fetch(appOrigin+"/second-voice",{headers:{"user-agent":ua}});acceptCookies(initial);
+ const alias=await fetch("http://localhost:3219/second-voice",{redirect:"manual",headers:{"user-agent":ua}});
+ assert.ok([200,307].includes(alias.status));
+ // Streaming Server Components can send the redirect as an absolute meta
+ // refresh in a 200 response. The real browser below must follow it as well.
+ if(alias.status===307)assert.equal(alias.headers.get("location"),appOrigin+"/second-voice");
+ else assert.ok((await alias.text()).includes('url='+appOrigin+'/second-voice'),"Canonical streaming redirect missing");
+ assert.equal((await fetch(appOrigin+"/second-voice")).status,200,"Canonical entry must not loop");
  async function action(body,path="/api/ghostwriter/auth",expectedStatus=200){
   const csrf=jar.get("gw_csrf");assert.ok(csrf);
   const headers={"user-agent":ua,origin:appOrigin,"x-ghostwriter-csrf":csrf,cookie:[...jar].map(([k,v])=>k+"="+v).join("; ")};
@@ -172,7 +201,8 @@ try{
  // no application guard or authentication check is disabled for this test.
  const context=await browser.newContext({userAgent:ua});const page=await context.newPage();
  // No traces/videos/screenshots: even synthetic auth tokens stay out of artifacts.
- await page.goto("http://127.0.0.1:3219/second-voice");
+ await page.goto("http://localhost:3219/second-voice");
+ await page.waitForURL(appOrigin+"/second-voice");
  await page.getByText("Invited beta access",{exact:true}).click();
  await page.getByLabel("Email",{exact:true}).fill(email);
  await page.getByLabel("Email code",{exact:true}).fill(browserCode.data.properties.email_otp);
@@ -185,18 +215,24 @@ try{
  await signInNavigation;await page.waitForLoadState("load");
  await wait(async()=> (await context.cookies()).some(c=>c.name==="gw-access"),"Verified auth cookie");
  const captured=(await context.cookies()).find(c=>c.name==="gw-access");
- assert.ok(captured.httpOnly);assert.equal(captured.sameSite,"Strict");
+ assert.ok(captured.httpOnly);assert.equal(captured.sameSite,"Lax");assert.equal(captured.path,"/");
  Object.assign(process.env,{SUPABASE_URL:base,SUPABASE_PUBLISHABLE_KEY:anon,SUPABASE_SERVICE_ROLE_KEY:service});
  const {authenticateAiRequest}=await import("../../src/server/ai-auth.ts");
  const request=()=>new Request("http://127.0.0.1:3219/api/ghostwriter",{headers:{authorization:"Bearer "+captured.value}});
  assert.equal((await authenticateAiRequest(request())).ok,true,"Real Auth identity failed");
- await page.reload();await page.getByText("Invited beta access",{exact:true}).click();
+ const statusResponse=page.waitForResponse(r=>r.url().endsWith("/api/ghostwriter/auth")&&r.request().postDataJSON()?.action==="status");
+ await page.reload();assert.equal((await statusResponse).status(),200);
+ const second=await context.newPage();
+ const secondStatus=second.waitForResponse(r=>r.url().endsWith("/api/ghostwriter/auth")&&r.request().postDataJSON()?.action==="status");
+ await second.goto(appOrigin+"/second-voice");assert.equal((await secondStatus).status(),200);await second.close();
+ await page.getByText("Invited beta access",{exact:true}).click();
  await page.getByRole("button",{name:"Sign out",exact:true}).click();
  await wait(async()=>!(await context.cookies()).some(c=>c.name==="gw-access"),"Logout");
  assert.equal((await authenticateAiRequest(request())).ok,false,"Captured access token still authorized after committed logout");
  const replay=await admin.auth.verifyOtp({email,token:otp,type:"email"});
  assert.ok(replay.error,"OTP replay accepted");
  console.log(JSON.stringify({status:"PASS",scope:"Real GoTrue + PostgREST + PostgreSQL, actual Next browser OTP verification/logout; no paid provider",checks:["direct-signup-denied","email-code-browser-signin","httpOnly-cookie","server-identity-verification","durable-logout","captured-token-rejected","otp-replay-denied"],limitations:["SMTP delivery not tested: operator generateLink supplied isolated code","No paid gateway dispatch; live billing contract remains blocked"]},null,2));
+ }
 }catch(error){
  writeFileSync(".tmp/release/auth-app.log",appLog.replaceAll(jwt,"[synthetic]").replaceAll(service,"[synthetic]").replaceAll(anon,"[synthetic]"));
  if(/bootstrap_check_in|MachPortRendezvous|Permission denied|operation not permitted|EPERM/.test(String(error))){console.error("BROWSER_BLOCKED: native browser bootstrap permission denied; HTTP authentication proof completed separately");process.exitCode=2;}else throw error;

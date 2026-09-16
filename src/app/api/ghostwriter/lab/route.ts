@@ -92,6 +92,10 @@ async function readJsonBody(request: Request): Promise<
 
 export async function POST(request: Request) {
   const requestId = createRequestId();
+  // This endpoint has no live implementation. Deny before reading a body or
+  // allocating abuse-store records, even when a caller bypasses the UI.
+  if (process.env.NODE_ENV === "production" || process.env.GHOSTWRITER_RELEASE_PROFILE === "portfolio-free")
+    return labResponse("Rewrite Lab is unavailable in this release.", 404, requestId);
   const headerGuard = await validateGhostwriterHeaders(request);
 
   if ("status" in headerGuard) {

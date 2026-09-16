@@ -18,6 +18,7 @@ test.describe("composer forms and rewrite submissions", () => {
   test("quick-start sample buttons populate the composer", async ({ app }) => {
     await app.goto();
     await app.fillDraft("");
+    await app.openQuickStarts();
     await app.page.getByRole("button", { name: "A moonlit thought" }).click();
 
     await expect(app.draftInput()).toHaveValue(/Maybe the moon only looks that gentle/);
@@ -65,7 +66,7 @@ test.describe("composer forms and rewrite submissions", () => {
     await app.runRewrite();
 
     await expect(page.getByRole("status")).toContainText(/Rewriting with Tolkien/i);
-    await expect(page.getByRole("button", { name: "Rewriting..." }).first()).toBeDisabled();
+    await expect(page.getByRole("button", { name: /Rewriting/ }).first()).toBeDisabled();
     await app.expectRewriteVisible(apiResponses.rewrite);
   });
 

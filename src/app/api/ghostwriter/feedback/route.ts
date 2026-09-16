@@ -13,6 +13,8 @@ const FeedbackChallengeSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  if (process.env.GHOSTWRITER_RELEASE_PROFILE === "portfolio-free")
+    return Response.json({error:"Feedback collection is unavailable in this release."}, {status:404,headers:buildNoStoreHeaders()});
   const requestId = createRequestId();
   const noStoreHeaders = (headers?: HeadersInit) =>
     withRequestId(headers ? mergeHeaders(headers, buildNoStoreHeaders()) : buildNoStoreHeaders(), requestId);

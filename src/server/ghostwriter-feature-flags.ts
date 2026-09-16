@@ -29,6 +29,7 @@ export function getGhostwriterFeatureAvailability(): GhostwriterFeatureAvailabil
     supabaseUrl: process.env.SUPABASE_URL,
   });
   const hasAbuseStore = Boolean(abuseStore.mode);
+  const optionalFeatures = process.env.GHOSTWRITER_RELEASE_PROFILE !== "portfolio-free";
   const rewriteEnabled = e2eFixtureMode || (aiPolicy.enabled && hasAbuseStore);
   const rewriteUnavailableReason = rewriteEnabled
     ? null
@@ -39,9 +40,9 @@ export function getGhostwriterFeatureAvailability(): GhostwriterFeatureAvailabil
       : null;
 
   return {
-    feedbackEnabled: hasWritableStore && hasAbuseStore,
+    feedbackEnabled: optionalFeatures && hasWritableStore && hasAbuseStore,
     publicSharingEnabled:
-      publicSharingEnabled(process.env.GHOSTWRITER_ALLOW_PUBLIC_SHARING) &&
+      optionalFeatures && publicSharingEnabled(process.env.GHOSTWRITER_ALLOW_PUBLIC_SHARING) &&
       hasWritableStore &&
       hasPublicReadStore &&
       hasAbuseStore,

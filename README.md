@@ -11,29 +11,88 @@ Second Voice is built around a deceptively hard product problem: rewriting text 
 
 ```mermaid
 flowchart LR
-    A[User text] --> B[Signed browser session]
-    B --> C[CSRF + origin checks]
-    C --> D[Proof-of-work + rate limits]
-    D --> E[Selected model provider]
-    E --> F[Structured rewrite]
-    F --> G{User action}
-    G -->|Keep private| H[Private result]
-    G -->|Share explicitly| I[Public-safe artifact]
-    G -->|Feedback| J[Metadata-only quality signal]
+  subgraph Browser["01 · Browser"]
+    WRITE(["Write or paste text"]):::actor
+    SESSION["Signed browser session"]:::guard
+  end
+
+  subgraph Trust["02 · Request trust boundary"]
+    ORIGIN{"Origin + CSRF valid?"}:::decision
+    LIMIT["Proof-of-work<br/>+ durable rate limits"]:::guard
+    BLOCK(["Reject request"]):::private
+  end
+
+  subgraph Rewrite["03 · Rewrite engine"]
+    ROUTE[["Explicit provider routing"]]:::system
+    MODEL["Selected model provider"]:::system
+    RESULT(["Schema-validated rewrite"]):::actor
+  end
+
+  subgraph Outcome["04 · User-controlled outcome"]
+    KEEP[("Private result")]:::private
+    SHARE(["Public-safe artifact"]):::safe
+    FEEDBACK[("Metadata-only feedback")]:::data
+  end
+
+  WRITE --> SESSION --> ORIGIN
+  ORIGIN -- "no" --> BLOCK
+  ORIGIN -- "yes" --> LIMIT --> ROUTE --> MODEL --> RESULT
+  RESULT -- "keep private" --> KEEP
+  RESULT -- "share explicitly" --> SHARE
+  RESULT -- "rate / report" --> FEEDBACK
+
+  style Browser fill:#F8FAFC,stroke:#CBD5E1,stroke-width:1px
+  style Trust fill:#FFF7ED,stroke:#FED7AA,stroke-width:1px
+  style Rewrite fill:#ECFEFF,stroke:#A5F3FC,stroke-width:1px
+  style Outcome fill:#F8FAFC,stroke:#CBD5E1,stroke-width:1px
+  classDef actor fill:#E8F1FF,stroke:#2563EB,color:#0F172A,stroke-width:1.6px;
+classDef system fill:#ECFEFF,stroke:#0891B2,color:#0F172A,stroke-width:1.6px;
+classDef decision fill:#FFFBEB,stroke:#D97706,color:#0F172A,stroke-width:1.6px;
+classDef guard fill:#FFF7ED,stroke:#EA580C,color:#0F172A,stroke-width:1.6px;
+classDef safe fill:#ECFDF5,stroke:#059669,color:#0F172A,stroke-width:1.6px;
+classDef private fill:#FFF1F2,stroke:#E11D48,color:#0F172A,stroke-width:1.6px;
+classDef data fill:#F8FAFC,stroke:#64748B,color:#0F172A,stroke-width:1.6px;
+linkStyle default stroke:#94A3B8,stroke-width:1.5px;
 ```
 
 ## Security architecture
 
 ```mermaid
 flowchart TB
-    UI[Next.js client] --> SESSION[Signed session]
-    SESSION --> API[Protected server routes]
-    API --> ABUSE[Shared abuse store]
-    API --> PROVIDER[Explicit inference provider]
-    PROVIDER --> API
-    API --> PRIVATE[(Private rewrite data)]
-    API --> PUBLIC[(Public-safe view)]
-    API --> FEEDBACK[(Metadata-only feedback)]
+  USER(["Next.js client"]):::actor
+
+  subgraph Server["Server trust boundary"]
+    SESSION["Signed session"]:::guard
+    GATE{"Origin · CSRF · abuse checks"}:::decision
+    API[["Protected server routes"]]:::system
+    PROVIDER["Explicit inference provider"]:::system
+    VALIDATED["Validated model response"]:::safe
+  end
+
+  subgraph Data["Data boundary"]
+    ABUSE[("Shared abuse state")]:::guard
+    PRIVATE[("Private rewrite data")]:::private
+    PUBLIC[("Public-safe view")]:::safe
+    META[("Metadata-only telemetry")]:::data
+  end
+
+  USER --> SESSION --> GATE --> API
+  GATE --> ABUSE
+  API --> PROVIDER --> VALIDATED --> API
+  API --> PRIVATE
+  API --> PUBLIC
+  API --> META
+
+  style Server fill:#F8FAFC,stroke:#CBD5E1,stroke-width:1px
+  style Data fill:#F8FAFC,stroke:#CBD5E1,stroke-width:1px
+  classDef actor fill:#E8F1FF,stroke:#2563EB,color:#0F172A,stroke-width:1.6px;
+classDef system fill:#ECFEFF,stroke:#0891B2,color:#0F172A,stroke-width:1.6px;
+classDef decision fill:#FFFBEB,stroke:#D97706,color:#0F172A,stroke-width:1.6px;
+classDef guard fill:#FFF7ED,stroke:#EA580C,color:#0F172A,stroke-width:1.6px;
+classDef safe fill:#ECFDF5,stroke:#059669,color:#0F172A,stroke-width:1.6px;
+classDef private fill:#FFF1F2,stroke:#E11D48,color:#0F172A,stroke-width:1.6px;
+classDef data fill:#F8FAFC,stroke:#64748B,color:#0F172A,stroke-width:1.6px;
+linkStyle default stroke:#94A3B8,stroke-width:1.5px;
 ```
 
 ### Explicit provider routing
@@ -83,25 +142,27 @@ State-changing/model routes enforce same-origin checks, CSRF, signed sessions, p
 
 ## Data model principles
 
-```text
-private rewrite
-    ├── source text
-    ├── rewritten output
-    └── private metadata
+```mermaid
+flowchart LR
+  PRIVATE[("Private rewrite<br/>source + output + metadata")]:::private
+  DECIDE{"Explicit share?"}:::decision
+  STAY(["Remain private"]):::private
+  PUBLIC[("Public-safe view<br/>source hidden by default")]:::safe
+  FEEDBACK[("Feedback metadata<br/>request id · rating · provider · hash")]:::data
 
-explicit share
-    ↓
-public-safe view
-    ├── rewritten output
-    ├── safe provenance
-    └── source hidden by default
+  PRIVATE --> DECIDE
+  DECIDE -- "no" --> STAY
+  DECIDE -- "yes" --> PUBLIC
+  PRIVATE -. "no content copied" .-> FEEDBACK
 
-feedback
-    ├── request id
-    ├── rating / reason
-    ├── provider metadata
-    └── rewrite hash
-        (no source or rewritten text)
+  classDef actor fill:#E8F1FF,stroke:#2563EB,color:#0F172A,stroke-width:1.6px;
+classDef system fill:#ECFEFF,stroke:#0891B2,color:#0F172A,stroke-width:1.6px;
+classDef decision fill:#FFFBEB,stroke:#D97706,color:#0F172A,stroke-width:1.6px;
+classDef guard fill:#FFF7ED,stroke:#EA580C,color:#0F172A,stroke-width:1.6px;
+classDef safe fill:#ECFDF5,stroke:#059669,color:#0F172A,stroke-width:1.6px;
+classDef private fill:#FFF1F2,stroke:#E11D48,color:#0F172A,stroke-width:1.6px;
+classDef data fill:#F8FAFC,stroke:#64748B,color:#0F172A,stroke-width:1.6px;
+linkStyle default stroke:#94A3B8,stroke-width:1.5px;
 ```
 
 ## Verification

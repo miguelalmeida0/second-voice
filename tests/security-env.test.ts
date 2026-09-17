@@ -18,6 +18,7 @@ import {
 
 const SECURITY_CHECK_SCRIPT = fileURLToPath(new URL("../scripts/security-check.mjs", import.meta.url));
 const README_PATH = new URL("../README.md", import.meta.url);
+const SECURITY_DOC_PATH = new URL("../docs/SECURITY.md", import.meta.url);
 const GITHUB_SECURITY_WORKFLOW_PATH = new URL(
   "../.github/workflows/security.yml",
   import.meta.url,
@@ -207,14 +208,32 @@ test("production security check ignores .env.local and stays explicit", () => {
   );
 });
 
-test("security check docs match local and CI command behavior", () => {
+test("README links to the dedicated security setup documentation", () => {
   const readme = readFileSync(README_PATH, "utf8");
+
+  assert.match(readme, /docs\/SECURITY\.md/);
+});
+
+test("security documentation covers the local and CI security contract", () => {
+  const securityDoc = readFileSync(SECURITY_DOC_PATH, "utf8");
+
+  // Local: .env.local is the documented way to supply credentials, and
+  // npm run security:check is the documented way to validate them.
+  assert.match(securityDoc, /\.env\.local/);
+  assert.match(securityDoc, /npm run security:check/);
+
+  // CI: must not depend on .env.local, and must document that production
+  // configuration fails closed rather than silently degrading.
+  assert.match(securityDoc, /does not rely on `?\.env\.local`?/i);
+  assert.match(securityDoc, /production/i);
+  assert.match(securityDoc, /fails? closed/i);
+});
+
+test("CI workflow enforces the durable security contract", () => {
   const workflow = readFileSync(GITHUB_SECURITY_WORKFLOW_PATH, "utf8");
 
-  assert.match(readme, /npm run security:check/);
-  assert.match(readme, /\.env\.local/);
-  assert.match(readme, /CI runs `npm run security:check` with explicit production environment variables/);
   assert.match(workflow, /npm run security:check/);
-  assert.match(workflow, /NODE_ENV: production/);
-  assert.match(workflow, /GHOSTWRITER_ABUSE_STORE_MODE: supabase/);
+  assert.match(workflow, /NODE_ENV:\s*production/);
+  assert.match(workflow, /GHOSTWRITER_ABUSE_STORE_MODE:\s*supabase/);
+  assert.match(workflow, /npm audit/);
 });

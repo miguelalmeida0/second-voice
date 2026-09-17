@@ -67,13 +67,13 @@ Prompt constraints:
 - Optimize for vivid output, low latency, and clean final text.
 
 Files to review first:
-- plan/ghostwriter-portfolio/README.md
-- plan/ghostwriter-portfolio/01-product-brief.md
-- plan/ghostwriter-portfolio/02-experience-and-design.md
-- plan/ghostwriter-portfolio/03-prompt-and-model-spec.md
-- plan/ghostwriter-portfolio/04-engineering-plan.md
-- plan/ghostwriter-portfolio/05-case-study-content.md
-- plan/ghostwriter-portfolio/06-delivery-plan.md
+- docs/internal/planning/ghostwriter-portfolio/README.md
+- docs/internal/planning/ghostwriter-portfolio/01-product-brief.md
+- docs/internal/planning/ghostwriter-portfolio/02-experience-and-design.md
+- docs/internal/planning/ghostwriter-portfolio/03-prompt-and-model-spec.md
+- docs/internal/planning/ghostwriter-portfolio/04-engineering-plan.md
+- docs/internal/planning/ghostwriter-portfolio/05-case-study-content.md
+- docs/internal/planning/ghostwriter-portfolio/06-delivery-plan.md
 
 Execution standard:
 - Prefer elegant, small changes over large architectural expansion.

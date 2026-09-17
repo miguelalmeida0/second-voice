@@ -103,8 +103,8 @@ const CASE_TOPBAR_PATH = new URL(
   "../src/components/ghostwriter/case-study/TopBar.tsx",
   import.meta.url,
 );
-const AGENTS_PATH = new URL("../AGENTS.md", import.meta.url);
-const SCROLL_SKILL_PATH = new URL("../skills/ghostwriter-scroll-integrity/SKILL.md", import.meta.url);
+const AGENTS_PATH = new URL("../docs/internal/automation/AGENTS.md", import.meta.url);
+const SCROLL_SKILL_PATH = new URL("../docs/internal/automation/skills/ghostwriter-scroll-integrity/SKILL.md", import.meta.url);
 const GITHUB_SECURITY_WORKFLOW_PATH = new URL("../.github/workflows/security.yml", import.meta.url);
 
 test("imports the ghostwriter overflow guard stylesheet", () => {

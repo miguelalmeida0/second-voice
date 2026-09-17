@@ -1,6 +1,8 @@
 # Second Voice
 **A privacy-conscious rewrite product with explicit model routing, abuse protection, opt-in public sharing, and a production-oriented security boundary.**
 
+[Live Second Voice ↗](https://secondvoice-ai.vercel.app/second-voice) *(external — leaves GitHub)*
+
 
 
 Second Voice is built around a deceptively hard product problem: rewriting text feels simple until the application has to protect user content, prevent abuse, handle multiple model providers, support sharing, and remain observable without logging the text itself.

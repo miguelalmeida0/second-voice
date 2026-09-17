@@ -1,0 +1,43 @@
+flowchart LR
+  subgraph Browser["01 · Browser"]
+    WRITE(["Write or paste text"]):::actor
+    SESSION["Signed browser session"]:::guard
+  end
+
+  subgraph Trust["02 · Request trust boundary"]
+    ORIGIN{"Origin + CSRF valid?"}:::decision
+    LIMIT["Proof-of-work<br/>+ durable rate limits"]:::guard
+    BLOCK(["Reject request"]):::private
+  end
+
+  subgraph Rewrite["03 · Rewrite engine"]
+    ROUTE[["Explicit provider routing"]]:::system
+    MODEL["Selected model provider"]:::system
+    RESULT(["Schema-validated rewrite"]):::actor
+  end
+
+  subgraph Outcome["04 · User-controlled outcome"]
+    KEEP[("Private result")]:::private
+    SHARE(["Public-safe artifact"]):::safe
+    FEEDBACK[("Metadata-only feedback")]:::data
+  end
+
+  WRITE --> SESSION --> ORIGIN
+  ORIGIN -- "no" --> BLOCK
+  ORIGIN -- "yes" --> LIMIT --> ROUTE --> MODEL --> RESULT
+  RESULT -- "keep private" --> KEEP
+  RESULT -- "share explicitly" --> SHARE
+  RESULT -- "rate / report" --> FEEDBACK
+
+  style Browser fill:#F8FAFC,stroke:#CBD5E1,stroke-width:1px
+  style Trust fill:#FFF7ED,stroke:#FED7AA,stroke-width:1px
+  style Rewrite fill:#ECFEFF,stroke:#A5F3FC,stroke-width:1px
+  style Outcome fill:#F8FAFC,stroke:#CBD5E1,stroke-width:1px
+  classDef actor fill:#E8F1FF,stroke:#2563EB,color:#0F172A,stroke-width:1.6px;
+classDef system fill:#ECFEFF,stroke:#0891B2,color:#0F172A,stroke-width:1.6px;
+classDef decision fill:#FFFBEB,stroke:#D97706,color:#0F172A,stroke-width:1.6px;
+classDef guard fill:#FFF7ED,stroke:#EA580C,color:#0F172A,stroke-width:1.6px;
+classDef safe fill:#ECFDF5,stroke:#059669,color:#0F172A,stroke-width:1.6px;
+classDef private fill:#FFF1F2,stroke:#E11D48,color:#0F172A,stroke-width:1.6px;
+classDef data fill:#F8FAFC,stroke:#64748B,color:#0F172A,stroke-width:1.6px;
+linkStyle default stroke:#94A3B8,stroke-width:1.5px;

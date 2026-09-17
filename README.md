@@ -186,7 +186,7 @@ npm install
 npm run dev
 ```
 
-Copy the example environment and configure only the providers/services you intend to use. Never commit provider keys or Supabase service-role credentials.
+Copy your credentials into `.env.local` and configure only the providers/services you intend to use. See [Security setup](./docs/SECURITY.md) for the full local vs. CI security contract, including how `npm run security:check` validates configuration in each environment. Never commit provider keys or Supabase service-role credentials.
 
 ## What this project demonstrates
 
@@ -203,6 +203,6 @@ Copy the example environment and configure only the providers/services you inten
 Built by [Miguel Almeida](https://github.com/miguelalmeida0).
 
 
-[Repository guide](./docs/START_HERE.md)
+[Repository guide](./docs/START_HERE.md) · [Security setup](./docs/SECURITY.md)
 
 <!-- repository-presentation-repair:1 -->

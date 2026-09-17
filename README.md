@@ -1,12 +1,9 @@
-# Ghostwriter
-
+# Second Voice
 **A privacy-conscious rewrite product with explicit model routing, abuse protection, opt-in public sharing, and a production-oriented security boundary.**
 
-> Repository note: the GitHub slug is currently `second-voice`, but the checked-in application identifies itself as `ghostwritter`. This README describes the code that is actually in this repository.
 
-> Screenshot note: current screenshots from the deployed Second Voice route are intentionally not embedded here because they do not match the checked-in Ghostwriter source. The repository identity should be aligned before visual proof is published.
 
-Ghostwriter is built around a deceptively hard product problem: rewriting text feels simple until the application has to protect user content, prevent abuse, handle multiple model providers, support sharing, and remain observable without logging the text itself.
+Second Voice is built around a deceptively hard product problem: rewriting text feels simple until the application has to protect user content, prevent abuse, handle multiple model providers, support sharing, and remain observable without logging the text itself.
 
 ## Product flow
 
@@ -141,3 +138,8 @@ Copy the example environment and configure only the providers/services you inten
 ---
 
 Built by [Miguel Almeida](https://github.com/miguelalmeida0).
+
+
+[Repository guide](./docs/START_HERE.md)
+
+<!-- repository-presentation-repair:1 -->

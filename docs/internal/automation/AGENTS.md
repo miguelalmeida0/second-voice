@@ -7,7 +7,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 <!-- BEGIN:ghostwriter-scroll-integrity -->
 # Ghostwriter scroll integrity is a release blocker
 
-For every UI, layout, asset, animation, or CSS change, preserve one native document scroller. Before editing scroll-adjacent code, apply `skills/ghostwriter-scroll-integrity/SKILL.md`.
+For every UI, layout, asset, animation, or CSS change, preserve one native document scroller. Before editing scroll-adjacent code, apply `docs/internal/automation/skills/ghostwriter-scroll-integrity/SKILL.md`.
 
 - The white bottom-left scrollbar/thumb artifact shown at the page end is forbidden. Any visible horizontal scrollbar track, thumb, or white pill on Ghostwriter is a release blocker, even if vertical scrolling still works.
 - Keep `devIndicators: false` in `next.config.ts`. The Next.js development indicator renders as a bottom-left `NEXTJS-PORTAL` and visually resembles the forbidden white scrollbar/thumb artifact.

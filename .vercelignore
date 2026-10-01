@@ -1,0 +1,11 @@
+# Local credentials and verification artifacts must never enter an upload.
+.env*
+.tmp
+supabase/.temp
+.git
+.codex
+.agents
+test-results
+playwright-report
+coverage
+*.pem

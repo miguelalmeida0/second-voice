@@ -18,7 +18,17 @@ test("builds a strict nonce-based csp", () => {
   assert.match(csp, /font-src 'self' data:;/);
   assert.match(csp, /object-src 'none';/);
   assert.match(csp, /frame-ancestors 'none';/);
+  assert.match(csp, /upgrade-insecure-requests;/);
   assert.doesNotMatch(csp, /unsafe-inline|fonts\.googleapis|fonts\.gstatic/);
+});
+
+test("does not upgrade localhost development assets to https", () => {
+  const csp = buildContentSecurityPolicy({
+    isDevelopment: true,
+    nonce: "nonce-value",
+  });
+
+  assert.doesNotMatch(csp, /upgrade-insecure-requests/);
 });
 
 test("includes baseline browser hardening headers", () => {

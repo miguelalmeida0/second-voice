@@ -14,6 +14,8 @@ type GhostwriterAuthorId =
   | "naval";
 
 type GhostwriterGenerationSource = "single_rewrite" | "rewrite_lab";
+type GhostwriterOutcomeId = "clarity" | "reply" | "confident" | "concise" | "persuasive";
+type GhostwriterRewriteMode = "author" | "outcome";
 
 export type Database = {
   public: {
@@ -75,7 +77,9 @@ export type Database = {
           lab_winner_label: string | null;
           lab_winner_score: number | null;
           mood: number;
+          outcome: GhostwriterOutcomeId | null;
           output_text: string;
+          rewrite_mode: GhostwriterRewriteMode;
           short_id: string;
           source_visible: boolean;
         };
@@ -90,7 +94,9 @@ export type Database = {
           lab_winner_label?: string | null;
           lab_winner_score?: number | null;
           mood: number;
+          outcome?: GhostwriterOutcomeId | null;
           output_text: string;
+          rewrite_mode?: GhostwriterRewriteMode;
           short_id: string;
           source_visible?: boolean;
         };
@@ -105,7 +111,9 @@ export type Database = {
           lab_winner_label: string | null;
           lab_winner_score: number | null;
           mood: number;
+          outcome: GhostwriterOutcomeId | null;
           output_text: string;
+          rewrite_mode: GhostwriterRewriteMode;
           short_id: string;
           source_visible: boolean;
         }>;
@@ -121,6 +129,7 @@ export type Database = {
           lab_winner_label: string | null;
           lab_winner_score: number | null;
           mood: number;
+          outcome: GhostwriterOutcomeId | null;
           rating: "positive" | "negative";
           reason:
             | "useful"
@@ -131,6 +140,7 @@ export type Database = {
             | "wrong_voice"
             | null;
           request_id: string | null;
+          rewrite_mode: GhostwriterRewriteMode;
           rewrite_hash: string;
           rewrite_short_id: string | null;
         };
@@ -143,6 +153,7 @@ export type Database = {
           lab_winner_label?: string | null;
           lab_winner_score?: number | null;
           mood: number;
+          outcome?: GhostwriterOutcomeId | null;
           rating: "positive" | "negative";
           reason?:
             | "useful"
@@ -153,6 +164,7 @@ export type Database = {
             | "wrong_voice"
             | null;
           request_id?: string | null;
+          rewrite_mode?: GhostwriterRewriteMode;
           rewrite_hash: string;
           rewrite_short_id?: string | null;
         };
@@ -165,6 +177,7 @@ export type Database = {
           lab_winner_label: string | null;
           lab_winner_score: number | null;
           mood: number;
+          outcome: GhostwriterOutcomeId | null;
           rating: "positive" | "negative";
           reason:
             | "useful"
@@ -175,6 +188,7 @@ export type Database = {
             | "wrong_voice"
             | null;
           request_id: string | null;
+          rewrite_mode: GhostwriterRewriteMode;
           rewrite_hash: string;
           rewrite_short_id: string | null;
         }>;
@@ -210,7 +224,9 @@ export type Database = {
           lab_winner_label: string | null;
           lab_winner_score: number | null;
           mood: number;
+          outcome: GhostwriterOutcomeId | null;
           output_text: string;
+          rewrite_mode: GhostwriterRewriteMode;
           short_id: string;
           source_visible: boolean;
         };
@@ -247,6 +263,26 @@ export type Database = {
         };
         Returns: boolean;
       };
+      ghostwriter_public_rewrite_lookup: {
+        Args: {
+          p_short_id: string;
+        };
+        Returns: Array<{
+          author: GhostwriterAuthorId;
+          created_at: string;
+          generation_source: GhostwriterGenerationSource;
+          input_text: string;
+          lab_selection_reason: string | null;
+          lab_winner_label: string | null;
+          lab_winner_score: number | null;
+          mood: number;
+          outcome: GhostwriterOutcomeId | null;
+          output_text: string;
+          rewrite_mode: GhostwriterRewriteMode;
+          short_id: string;
+          source_visible: boolean;
+        }>;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
@@ -260,11 +296,19 @@ let cachedAdmin: SupabaseAdminClient | null | undefined;
 let cachedPublic: SupabasePublicClient | null | undefined;
 
 function buildClient(key: string): ReturnType<typeof createClient<Database>> {
+  const allowedOrigin = new URL(process.env.SUPABASE_URL!).origin;
   return createClient<Database>(process.env.SUPABASE_URL!, key, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
     },
+    global: { fetch: (input, options) => {
+      const target = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+      if (target.origin !== allowedOrigin) throw new Error("Unexpected datastore destination");
+      const deadline = AbortSignal.timeout(10_000);
+      return fetch(input, {...options, redirect:"error", cache:"no-store",
+        signal: options?.signal ? AbortSignal.any([options.signal, deadline]) : deadline});
+    } },
   });
 }
 

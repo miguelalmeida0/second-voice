@@ -1,0 +1,57 @@
+name: Portfolio Database Backup
+permissions:
+  contents: read
+on:
+  schedule:
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+concurrency:
+  group: portfolio-database-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Validate backup secrets
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_DB_URL" || { echo "SUPABASE_DB_URL is not configured" >&2; exit 1; }
+          test "${#BACKUP_ENCRYPTION_KEY}" -ge 32 || { echo "BACKUP_ENCRYPTION_KEY must be at least 32 characters" >&2; exit 1; }
+      - name: Export public schema
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp/portfolio-backup
+          docker run --rm -e DATABASE_URL="$SUPABASE_DB_URL" -v "$PWD/.tmp/portfolio-backup:/backup" \
+            supabase/postgres:17.6.1.136@sha256:f371b5f3f2ac0a05703f33d6e6134515fb2498cab708fb948a0aeb7481467c00 \
+            sh -eu -c 'pg_dump "$DATABASE_URL" --format=custom --no-owner --no-privileges --schema=public --file=/backup/ghostwriter-public.dump'
+          test -s .tmp/portfolio-backup/ghostwriter-public.dump
+      - name: Encrypt backup before artifact storage
+        env:
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          output=".tmp/portfolio-backup/ghostwriter-public-${stamp}.dump.enc"
+          openssl enc -aes-256-cbc -salt -pbkdf2 -iter 250000 -in .tmp/portfolio-backup/ghostwriter-public.dump -out "$output" -pass env:BACKUP_ENCRYPTION_KEY
+          rm -f .tmp/portfolio-backup/ghostwriter-public.dump
+          sha256sum "$output" > "${output}.sha256"
+          echo "BACKUP_FILE=$output" >> "$GITHUB_ENV"
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ghostwriter-db-backup-${{ github.run_id }}
+          path: |
+            ${{ env.BACKUP_FILE }}
+            ${{ env.BACKUP_FILE }}.sha256
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

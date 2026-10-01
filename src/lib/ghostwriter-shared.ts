@@ -1,4 +1,6 @@
 export type AuthorId = "hemingway" | "tolkien" | "tolstoy" | "stephenking";
+export type RewriteMode = "author" | "outcome";
+export type OutcomeId = "clarity" | "reply" | "confident" | "concise" | "persuasive";
 export type StoredAuthorId =
   | AuthorId
   | "didion"
@@ -28,6 +30,49 @@ export type DemoPreset = {
   mood: number;
   text: string;
 };
+
+export type OutcomeMeta = {
+  id: OutcomeId;
+  instruction: string;
+  label: string;
+  trait: string;
+};
+
+export const DEFAULT_REWRITE_MODE: RewriteMode = "author";
+export const DEFAULT_OUTCOME_ID: OutcomeId = "clarity";
+
+export const OUTCOMES: OutcomeMeta[] = [
+  {
+    id: "clarity",
+    instruction: "improve clarity and readability",
+    label: "Improve clarity",
+    trait: "Clearer, smoother, easier to understand.",
+  },
+  {
+    id: "reply",
+    instruction: "increase likelihood of getting a response",
+    label: "Get a reply",
+    trait: "Warm, direct, easy to answer.",
+  },
+  {
+    id: "confident",
+    instruction: "sound confident but not aggressive",
+    label: "Sound confident",
+    trait: "Assured, grounded, never pushy.",
+  },
+  {
+    id: "concise",
+    instruction: "be concise and to the point",
+    label: "Be concise",
+    trait: "Shorter, sharper, still natural.",
+  },
+  {
+    id: "persuasive",
+    instruction: "be more persuasive while staying natural",
+    label: "Be persuasive",
+    trait: "Stronger case, human tone.",
+  },
+];
 
 export const AUTHORS: AuthorMeta[] = [
   {
@@ -228,6 +273,10 @@ export function moodBandIndex(mood: number): 0 | 1 | 2 | 3 | 4 {
 
 export function moodLabelFor(author: AuthorId, mood: number): string {
   return MOOD_LABELS[author][moodBandIndex(mood)];
+}
+
+export function outcomeLabelFor(outcome: OutcomeId): string {
+  return OUTCOMES.find((entry) => entry.id === outcome)?.label ?? OUTCOMES[0].label;
 }
 
 export function siteOrigin(): string {

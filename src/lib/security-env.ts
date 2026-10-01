@@ -13,27 +13,20 @@ type AbuseStoreResolution = {
   reason: string | null;
 };
 
-type ProviderName = "groq" | "gemini";
-
-export type SelectedProvider = {
-  name: ProviderName;
-  apiKey: string;
-  model: string;
-  url: string;
-};
-
-type ProviderSelectionInput = {
-  geminiApiKey?: string;
-  geminiModel?: string;
-  geminiUrl: string;
-  groqApiKey?: string;
-  groqModel?: string;
-  groqUrl: string;
-  preferredProvider?: string;
-};
+export type TrustedClientIpHeader =
+  | "cf-connecting-ip"
+  | "fly-client-ip"
+  | "x-forwarded-for"
+  | "x-real-ip";
 
 const PLACEHOLDER_SECRET =
   /change_me|dev-only-secret|placeholder|example|replace_me|todo/i;
+const TRUSTED_CLIENT_IP_HEADERS = new Set<TrustedClientIpHeader>([
+  "cf-connecting-ip",
+  "fly-client-ip",
+  "x-forwarded-for",
+  "x-real-ip",
+]);
 
 export function hasStrongSecuritySecret(value: string | undefined | null): boolean {
   const trimmed = value?.trim() ?? "";
@@ -84,6 +77,18 @@ export function resolveSecuritySecret(options: {
 
 export function shouldTrustProxy(rawValue: string | undefined | null): boolean {
   return (rawValue ?? "").trim().toLowerCase() === "true";
+}
+
+export function normalizeTrustedClientIpHeader(
+  rawValue: string | undefined | null,
+): TrustedClientIpHeader | null {
+  const normalized = (rawValue ?? "").trim().toLowerCase();
+
+  if (TRUSTED_CLIENT_IP_HEADERS.has(normalized as TrustedClientIpHeader)) {
+    return normalized as TrustedClientIpHeader;
+  }
+
+  return null;
 }
 
 export function resolveAbuseStoreConfig(options: {
@@ -152,38 +157,6 @@ export function normalizeIpAddress(value: string | undefined | null): string {
   }
 
   return normalized.toLowerCase();
-}
-
-export function selectAiProvider(input: ProviderSelectionInput): SelectedProvider | null {
-  const preferredProvider = (input.preferredProvider ?? "groq").trim().toLowerCase();
-
-  if (preferredProvider === "gemini") {
-    const apiKey = input.geminiApiKey?.trim();
-
-    if (!apiKey) {
-      return null;
-    }
-
-    return {
-      apiKey,
-      model: input.geminiModel?.trim() || "gemini-2.5-flash-lite",
-      name: "gemini",
-      url: input.geminiUrl,
-    };
-  }
-
-  const groqApiKey = input.groqApiKey?.trim();
-
-  if (!groqApiKey) {
-    return null;
-  }
-
-  return {
-    apiKey: groqApiKey,
-    model: input.groqModel?.trim() || "openai/gpt-oss-20b",
-    name: "groq",
-    url: input.groqUrl,
-  };
 }
 
 export function normalizeSiteOrigin(value: string | undefined | null): string | null {

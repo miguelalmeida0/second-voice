@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { AnimatePresence, motion, type Transition, useReducedMotion } from "framer-motion";
 import { BookOpen, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 type HowItWorksStep = {
   body: string;
@@ -14,23 +14,24 @@ type HowItWorksStep = {
 type HowItWorksDrawerProps = {
   open: boolean;
   onClose: () => void;
+  returnFocusRef?: RefObject<HTMLElement | null>;
 };
 
 const HOW_TO_USE_STEPS: HowItWorksStep[] = [
   {
     id: "write",
     title: "Write one thing",
-    body: "Paste a sentence, a small paragraph, or tap Surprise me if you just want a demo.",
+    body: "Write or paste up to 2,000 characters, or choose a Quick Start to fill the editor.",
   },
   {
     id: "choose",
-    title: "Choose the feeling",
-    body: "Pick a writer card, then move the mood dial until it sounds close to what you want.",
+    title: "Choose your direction",
+    body: "In Authors, pick a writer and tune the mood. In Outcomes, choose what you want your writing to do.",
   },
   {
     id: "rewrite",
     title: "Press rewrite",
-    body: "The result appears as an edit, so you can see what changed instead of guessing.",
+    body: "Read the rewrite beside your original, then copy it when you’re ready. Surprise me runs a rewrite with a random voice or outcome and uses one rewrite from your allowance.",
   },
 ];
 
@@ -75,7 +76,7 @@ function useMediaQuery(query: string) {
   return matches;
 }
 
-export function HowItWorksDrawer({ open, onClose }: HowItWorksDrawerProps) {
+export function HowItWorksDrawer({ open, onClose, returnFocusRef }: HowItWorksDrawerProps) {
   const drawerRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -93,13 +94,29 @@ export function HowItWorksDrawer({ open, onClose }: HowItWorksDrawerProps) {
     }
 
     previousFocusRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      returnFocusRef?.current ??
+      (document.activeElement instanceof HTMLElement ? document.activeElement : null);
 
     const previousOverflow = document.body.style.overflow;
     const previousPaddingRight = document.body.style.paddingRight;
     const scrollbarGap = window.innerWidth - document.documentElement.clientWidth;
 
     document.body.style.overflow = "hidden";
+
+    // Isolate the modal from every surrounding layer, including header logout.
+    // Preserve pre-existing inert state so nested application shells restore safely.
+    const surrounding: Array<{ element: HTMLElement; inert: boolean }> = [];
+    let branch: HTMLElement | null = drawerRef.current;
+    while (branch?.parentElement) {
+      for (const sibling of Array.from(branch.parentElement.children)) {
+        if (sibling instanceof HTMLElement && sibling !== branch && !sibling.matches(".gw-how-backdrop, script, style, link")) {
+          surrounding.push({ element: sibling, inert: sibling.inert });
+          sibling.inert = true;
+        }
+      }
+      if (branch.parentElement === document.body) break;
+      branch = branch.parentElement;
+    }
 
     if (scrollbarGap > 0) {
       document.body.style.paddingRight = `${scrollbarGap}px`;
@@ -130,16 +147,19 @@ export function HowItWorksDrawer({ open, onClose }: HowItWorksDrawerProps) {
         return;
       }
 
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus({ preventScroll: true });
-        return;
-      }
+      const activeIndex = focusable.findIndex(
+        (element) => element === document.activeElement,
+      );
+      const nextIndex =
+        activeIndex === -1
+          ? event.shiftKey
+            ? focusable.length - 1
+            : 0
+          : (activeIndex + (event.shiftKey ? -1 : 1) + focusable.length) %
+            focusable.length;
 
-      if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus({ preventScroll: true });
-      }
+      event.preventDefault();
+      focusable[nextIndex]?.focus({ preventScroll: true });
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -149,20 +169,31 @@ export function HowItWorksDrawer({ open, onClose }: HowItWorksDrawerProps) {
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
       document.body.style.paddingRight = previousPaddingRight;
+      for (const { element, inert } of surrounding) element.inert = inert;
 
       if (previousFocusRef.current?.isConnected) {
         previousFocusRef.current.focus({ preventScroll: true });
       }
     };
-  }, [open, prefersReducedMotion]);
+  }, [open, prefersReducedMotion, returnFocusRef]);
 
   const transition: Transition = prefersReducedMotion
     ? { duration: 0.01 }
     : { duration: 0.28, ease: [0.22, 1, 0.36, 1] };
   const drawerOffset = isMobileSheet ? { x: 0, y: 28 } : { x: 28, y: 0 };
 
+  function restorePreviousFocus() {
+    const target = returnFocusRef?.current ?? previousFocusRef.current;
+
+    window.requestAnimationFrame(() => {
+      if (target?.isConnected) {
+        target.focus({ preventScroll: true });
+      }
+    });
+  }
+
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={restorePreviousFocus}>
       {open ? (
         <>
           <motion.button
@@ -199,13 +230,11 @@ export function HowItWorksDrawer({ open, onClose }: HowItWorksDrawerProps) {
             >
               <header className="gw-how-header">
                 <div>
-                  <p className="gw-how-kicker">Start here</p>
                   <h2 id="gw-how-title" className="gw-how-title">
                     How to use Second Voice
                   </h2>
                   <p id="gw-how-intro" className="gw-how-intro">
-                    Write something, pick a writer, move the mood dial, then press rewrite.
-                    That is the whole game.
+                    Your words stay in the editor. Choose a direction and read the rewrite alongside them.
                   </p>
                 </div>
 
@@ -220,19 +249,22 @@ export function HowItWorksDrawer({ open, onClose }: HowItWorksDrawerProps) {
                 </button>
               </header>
 
-              <section className="gw-how-plain-steps" aria-label="How to use Second Voice">
+              <ol className="gw-how-plain-steps" aria-label="How to use Second Voice">
                 {HOW_TO_USE_STEPS.map((step, index) => (
-                  <article key={step.id} className="gw-how-step">
-                    <span className="gw-how-step-number">{index + 1}</span>
+                  <li key={step.id} className="gw-how-step">
+                    <span className="gw-how-step-number" aria-hidden="true">{index + 1}</span>
                     <div>
                       <h3 className="gw-how-step-title">{step.title}</h3>
                       <p className="gw-how-step-body">{step.body}</p>
                     </div>
-                  </article>
+                  </li>
                 ))}
-              </section>
+              </ol>
 
               <footer className="gw-how-footer">
+                <Link href="/second-voice/account" className="gw-how-case-link" onClick={onClose}>Account &amp; deletion</Link>
+                <Link href="/second-voice/privacy" className="gw-how-case-link" onClick={onClose}>Privacy &amp; contact</Link>
+                <a href="/ghostwriter/portraits/ATTRIBUTION.md" className="gw-how-case-link">Photography credits</a>
                 <Link href="/second-voice/case-study" className="gw-how-case-link" onClick={onClose}>
                   <BookOpen className="h-4 w-4" aria-hidden />
                   Read the case study

@@ -1,0 +1,8 @@
+Second Voice AI V16
+
+Fixes the one real accessibility violation reported by axe-core in the main app.
+
+- Changes the "Tune the mood" heading from h3 to h2.
+- Preserves all visual styling and behavior.
+- Corrects semantic heading progression under the page h1.
+- No quota, provider, database, auth, or rate-limit code changed.

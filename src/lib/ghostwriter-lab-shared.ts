@@ -26,6 +26,7 @@ export type RewriteLabScores = RewriteLabScoresInput & {
 };
 
 export type RewriteLabCandidate = {
+  artifactToken: string;
   evaluatorNote: string;
   flags: string[];
   id: RewriteLabCandidateId;
@@ -36,6 +37,7 @@ export type RewriteLabCandidate = {
 };
 
 export type RewriteLabWinnerSelection = {
+  artifactToken: string;
   label: string;
   overall: number;
   reason: string;

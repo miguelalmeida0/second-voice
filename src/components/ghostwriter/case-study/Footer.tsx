@@ -7,7 +7,7 @@ export function CaseStudyFooter() {
       <div className="mx-auto flex max-w-[1520px] flex-col items-start justify-between gap-6 px-6 py-10 md:flex-row md:items-center md:px-10 xl:px-14">
         <SecondVoiceMark className="[&_.second-voice-mark-title]:text-[hsl(var(--cs-foreground))] [&_.second-voice-mark-divider]:bg-[hsl(var(--cs-hairline))] [&_.second-voice-mark-tagline]:text-[hsl(var(--cs-muted-foreground))]" />
 
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-[hsl(var(--cs-muted-foreground))]">
+        <div className="flex items-center gap-6 text-sm text-[hsl(var(--cs-muted-foreground))]">
           <Link href="/second-voice" className="transition-colors hover:text-[hsl(var(--cs-foreground))]">
             Open Second Voice AI
           </Link>
@@ -17,15 +17,6 @@ export function CaseStudyFooter() {
           <a href="#case-study-top" className="transition-colors hover:text-[hsl(var(--cs-foreground))]">
             Back to top
           </a>
-          <Link href="/second-voice/legal#imprint" className="transition-colors hover:text-[hsl(var(--cs-foreground))]">
-            Imprint
-          </Link>
-          <Link href="/second-voice/legal#privacy" className="transition-colors hover:text-[hsl(var(--cs-foreground))]">
-            Privacy
-          </Link>
-          <Link href="/second-voice/legal#ai-notice" className="transition-colors hover:text-[hsl(var(--cs-foreground))]">
-            AI notice
-          </Link>
         </div>
       </div>
     </footer>

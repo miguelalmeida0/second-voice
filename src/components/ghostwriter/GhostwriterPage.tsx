@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Feather } from "lucide-react";
@@ -448,6 +449,7 @@ export function GhostwriterPage({
       () => abortController.abort(),
       REWRITE_CLIENT_TIMEOUT_MS,
     );
+
     try {
       let csrfToken = readGhostwriterCsrfToken();
 
@@ -896,7 +898,8 @@ export function GhostwriterPage({
 
             if (csrfToken) {
               continue;
-            }          }
+            }
+          }
 
           throw attemptError;
         }

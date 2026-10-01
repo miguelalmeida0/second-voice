@@ -1,19 +1,40 @@
-import { LoaderCircle } from "lucide-react";
+import { Feather } from "lucide-react";
 
 export default function SecondVoiceLoading() {
   return (
-    <main className="ghostwriter gw-overflow-guard relative min-h-dvh overflow-x-clip">
-      <div className="gw-overflow-guard relative z-10 mx-auto flex min-h-dvh w-full max-w-[1460px] items-center px-4 py-16 sm:px-8 lg:px-10 xl:px-12">
-        <section className="gw-card-strong w-full max-w-2xl p-6 sm:p-8" role="status" aria-live="polite">
-          <LoaderCircle className="h-5 w-5 animate-spin text-[var(--ghost)]" aria-hidden />
-          <h1 className="mt-5 font-playfair text-3xl font-medium text-[var(--ghost)]">
-            Loading Second Voice AI
-          </h1>
-          <p className="mt-3 text-sm leading-relaxed text-[var(--mist)]">
-            Preparing the writing controls and request protection.
-          </p>
-        </section>
-      </div>
+    <main className="ghostwriter sv-loading-page">
+      <section className="sv-loading-shell" role="status" aria-live="polite">
+        <div className="sv-loading-brand">
+          <Feather aria-hidden="true" />
+          <span>Second Voice</span>
+        </div>
+
+        <div className="sv-loading-mark" aria-hidden="true">
+          <div className="sv-loading-wave">
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+        </div>
+
+        <div className="sv-loading-copy">
+          <p className="sv-loading-kicker">Preparing your workspace</p>
+          <h1>Loading Second Voice AI</h1>
+          <p>Preparing writing controls and request protection.</p>
+        </div>
+
+        <div className="sv-loading-progress" aria-hidden="true">
+          <span />
+        </div>
+
+        <div className="sv-loading-meta" aria-hidden="true">
+          <span>Writing controls</span>
+          <span>Session protection</span>
+          <span>AI safeguards</span>
+        </div>
+      </section>
     </main>
   );
 }

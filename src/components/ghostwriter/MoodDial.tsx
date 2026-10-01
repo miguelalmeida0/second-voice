@@ -20,10 +20,9 @@ export function MoodDial({
     <div className="gw-mood-dock" data-voice={author ?? undefined}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="font-playfair text-[1.08rem] font-medium tracking-[-0.015em] text-[var(--ghost)] sm:text-[1.14rem]">Tune the mood</h3>
+          <h2 className="font-playfair text-[1.08rem] font-medium tracking-[-0.015em] text-[var(--ghost)] sm:text-[1.14rem]">Tune the mood</h2>
           <p className="mt-1 text-[12px] leading-relaxed text-[var(--mist)] sm:text-[13px]">
-            {author ? `${MOOD_NAME[author]} axis` : "Choose an author first"}
-            <span className="hidden sm:inline"> · drag and the rewrite leans with it</span>
+            {author ? MOOD_NAME[author] : "Choose an author first"}
           </p>
         </div>
         <div className="gw-mood-badge inline-flex items-center rounded-[10px] border px-3 py-1 text-[11px] sm:text-[12px]">
@@ -49,7 +48,6 @@ export function MoodDial({
         </div>
         <div className="mt-3 flex items-center justify-between gap-3 text-[12px] text-[var(--whisper)]">
           <span>{labels?.[0] ?? "first pick"}</span>
-          <span className="hidden sm:inline">drag to tune</span>
           <span className="text-right">{labels?.[4] ?? "then tune"}</span>
         </div>
       </div>

@@ -1,11 +1,10 @@
 import { z } from "zod";
 import { PUBLIC_REWRITE_SHARE_CONSENT } from "@/lib/ghostwriter-share";
 import { buildNoStoreHeaders, mergeHeaders } from "@/lib/security-http";
-import { validateGhostwriterHeaders, validateGhostwriterPost } from "@/server/abuse-protection";
+import { validateGhostwriterHeaders, validateGhostwriterSharePost } from "@/server/abuse-protection";
 import {
   InputSchema,
   REWRITE_OUTPUT_MAX_CHARS,
-  RewriteArtifactProvenanceSchema,
   createPublicRewriteArtifact,
 } from "@/server/ghostwriter";
 import { readGhostwriterJsonBody } from "@/server/ghostwriter-request";
@@ -14,7 +13,7 @@ import { createRequestId, withRequestId } from "@/server/request-id";
 export const runtime = "nodejs";
 
 const ShareRequestSchema = InputSchema.extend({
-  artifactProvenance: RewriteArtifactProvenanceSchema.optional(),
+  artifactToken: z.string().min(32).max(4096),
   challengeNonce: z.string().min(1).max(10),
   challengeToken: z.string().min(16).max(1024),
   rewrite: z.string().trim().min(1).max(REWRITE_OUTPUT_MAX_CHARS),
@@ -22,6 +21,8 @@ const ShareRequestSchema = InputSchema.extend({
 });
 
 export async function POST(request: Request) {
+  if (process.env.GHOSTWRITER_RELEASE_PROFILE === "portfolio-free")
+    return Response.json({shortId:null,error:"Public sharing is unavailable in this release."}, {status:404,headers:buildNoStoreHeaders()});
   const requestId = createRequestId();
   const noStoreHeaders = (headers?: HeadersInit) =>
     withRequestId(headers ? mergeHeaders(headers, buildNoStoreHeaders()) : buildNoStoreHeaders(), requestId);
@@ -61,10 +62,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const guard = await validateGhostwriterPost(
+  const guard = await validateGhostwriterSharePost(
     request,
     parsed.data.challengeToken,
     parsed.data.challengeNonce,
+    headerGuard,
   );
 
   if ("status" in guard) {
@@ -80,8 +82,10 @@ export async function POST(request: Request) {
   const result = await createPublicRewriteArtifact(
     {
       author: parsed.data.author,
-      artifactProvenance: parsed.data.artifactProvenance,
+      artifactToken: parsed.data.artifactToken,
       mood: parsed.data.mood,
+      mode: parsed.data.mode,
+      outcome: parsed.data.outcome,
       rewrite: parsed.data.rewrite,
       text: parsed.data.text,
     },

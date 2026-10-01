@@ -37,7 +37,7 @@ const LAB_STAGES = [
   },
 ] as const;
 const LAB_STAGE_SCHEDULE_MS = [1200, 3200, 5200] as const;
-const LAB_CLIENT_TIMEOUT_MS = 30_000;
+const LAB_CLIENT_TIMEOUT_MS = 45_000;
 
 type LabState =
   | { error: string | null; lab: null; runId: null; status: "idle"; stage: number }
@@ -66,7 +66,7 @@ async function requestRewriteLab({
         throw new Error("Protection cookies are missing. Refresh the page and try again.");
       }
 
-      const challenge = await issueGhostwriterChallenge(csrfToken);
+      const challenge = await issueGhostwriterChallenge(csrfToken, { signal });
       const response = await fetch("/api/ghostwriter/lab", {
         body: JSON.stringify({
           author,
@@ -94,7 +94,7 @@ async function requestRewriteLab({
       const message = error instanceof Error ? error.message : "Rewrite Lab could not finish.";
 
       if (attempt === 0 && isRecoverableSessionError(message)) {
-        csrfToken = await refreshGhostwriterShieldSession();
+        csrfToken = await refreshGhostwriterShieldSession({ signal });
 
         if (csrfToken) {
           continue;
@@ -323,6 +323,7 @@ export function RewriteLabPanel({
     }
 
     onUseWinner?.({
+      artifactToken: winner.artifactToken,
       label: winner.label,
       overall: winner.scores.overall,
       reason: state.status === "success" ? state.lab.selectionReason : "",

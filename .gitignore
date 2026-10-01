@@ -12,9 +12,13 @@
 
 # testing
 /coverage
+/playwright-report
+/test-results
+/.tmp
 
 # next.js
 /.next/
+/.next-playwright-*/
 /out/
 
 # production
@@ -32,9 +36,11 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
+/supabase/.temp/
 
 # typescript
 *.tsbuildinfo

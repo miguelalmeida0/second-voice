@@ -1,8 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-
 import Image from "next/image";
+import Link from "next/link";
 import { Feather } from "lucide-react";
 import { QuickStartsPanel } from "@/components/ghostwriter/QuickStartsPanel";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -448,7 +448,6 @@ export function GhostwriterPage({
       () => abortController.abort(),
       REWRITE_CLIENT_TIMEOUT_MS,
     );
-
     try {
       let csrfToken = readGhostwriterCsrfToken();
 
@@ -897,8 +896,7 @@ export function GhostwriterPage({
 
             if (csrfToken) {
               continue;
-            }
-          }
+            }          }
 
           throw attemptError;
         }
@@ -1150,7 +1148,13 @@ export function GhostwriterPage({
               />
             </div>
 
-
+            <p className="mt-3 text-[11px] leading-relaxed text-[var(--whisper)]">
+              Rewrites use generative AI and may send your text to the configured model provider.
+              Do not paste secrets or sensitive data you are not authorised to share.{" "}
+              <Link href="/second-voice/privacy" className="underline underline-offset-4 hover:text-[var(--mist)]">
+                Privacy details
+              </Link>
+            </p>
           </div>
 
           <QuickStartsPanel
@@ -1208,6 +1212,17 @@ export function GhostwriterPage({
           </div>
         </section>
 
+        <footer className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-white/10 pb-8 pt-6 text-xs text-[var(--whisper)]">
+          <Link href="/second-voice/legal#imprint" className="transition-colors hover:text-[var(--mist)]">
+            Imprint
+          </Link>
+          <Link href="/second-voice/privacy" className="transition-colors hover:text-[var(--mist)]">
+            Privacy
+          </Link>
+          <Link href="/second-voice/legal#ai-notice" className="transition-colors hover:text-[var(--mist)]">
+            AI notice
+          </Link>
+        </footer>
       </div>
 
       <HowItWorksDrawer

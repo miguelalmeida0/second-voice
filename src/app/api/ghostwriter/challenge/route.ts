@@ -14,6 +14,7 @@ export async function GET(request: Request) {
         challengeToken: "",
         difficulty: null,
         error: challenge.error,
+        reasonCode: challenge.code ?? null,
       },
       {
         headers: withRequestId(mergeHeaders(challenge.headers, buildNoStoreHeaders()), requestId),

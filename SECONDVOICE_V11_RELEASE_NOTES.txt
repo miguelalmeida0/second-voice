@@ -1,0 +1,13 @@
+Second Voice AI production reliability v11
+
+Fixes the isolated integration retention fixture only.
+
+Root cause:
+- The ledger harness creates auth users after migrations have already run.
+- Migration 202609150001 backfills ghostwriter_portfolio_entitlements only for users present during migration.
+- The non-portfolio integration path therefore had no active portfolio entitlement when retentionProof() began and failed at assert.ok(account).
+
+Fix:
+- Seed exactly one synthetic portfolio entitlement for an already verified, active fixture user before retention assertions.
+- Uses the same SHA-256 normalized-email identity shape as production enrollment.
+- Production migrations, provider logic, quotas, concurrency limits, auth, and application code are untouched.

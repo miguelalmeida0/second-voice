@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 type SecurityEventLevel = "info" | "warn" | "error";
 
 type SecurityEventDefinition = {
@@ -10,6 +8,7 @@ type SecurityEventDefinition = {
 
 const SECURITY_EVENT_DEFINITIONS: Record<string, SecurityEventDefinition> = {
   abuse_store_error: { alert: true, category: "operations", level: "error" },
+  ai_operation_uncertain: { alert: true, category: "operations", level: "error" },
   ai_provider_error: { alert: false, category: "provider", level: "warn" },
   ai_provider_output_rejected: { alert: true, category: "provider", level: "warn" },
   challenge_replay_detected: { alert: true, category: "abuse", level: "warn" },
@@ -28,23 +27,21 @@ const SECURITY_EVENT_DEFINITIONS: Record<string, SecurityEventDefinition> = {
   share_storage_unavailable: { alert: true, category: "operations", level: "error" },
 };
 
-function maskValue(value: unknown): unknown {
-  if (typeof value !== "string") {
-    return value;
+const numericFields = new Set(["status","severity","retryAfter","latencyMs","outputChars","mood"]);
+const enumValues = new Set(["tolkien","tolstoy","hemingway","stephenking","author","outcome","clarity","reply","confident","concise","persuasive","single_rewrite","rewrite_lab","positive","negative","none","provider_dispatch_failed","provider_rate_limited","provider_rejected","provider_unavailable","settlement_failed","result_persistence_failed","provider_usage_out_of_bounds","abuse_cooldown","protection_unavailable"]);
+const enumFields = new Set(["author","rewriteMode","outcome","generationSource","rating","reason"]);
+export function sanitizeSecurityDetails(details: Record<string,unknown>) {
+  const safe:Record<string,string|number>={};
+  for (const [name,value] of Object.entries(details)) {
+    if (numericFields.has(name) && typeof value==="number" && Number.isFinite(value) && value>=0 && value<=1e9) safe[name]=value;
+    if (enumFields.has(name) && typeof value==="string" && enumValues.has(value)) safe[name]=value;
+    if (name==="requestId" && typeof value==="string" && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value)) safe[name]=value;
   }
-
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return trimmed;
-  }
-
-  if (trimmed.length <= 8) {
-    return `sha256:${createHash("sha256").update(trimmed).digest("hex").slice(0, 10)}`;
-  }
-
-  return `${trimmed.slice(0, 3)}…${trimmed.slice(-3)}`;
+  return safe;
 }
+// Bounded process-local noise suppression, not a fleet-wide billing cap.
+const lastEvents=new Map<string,number>();
+let windowStart=0, emitted=0;
 
 function consoleForLevel(level: SecurityEventLevel) {
   if (level === "error") {
@@ -59,20 +56,13 @@ function consoleForLevel(level: SecurityEventLevel) {
 }
 
 export function logSecurityEvent(event: string, details: Record<string, unknown>) {
-  const definition = SECURITY_EVENT_DEFINITIONS[event] ?? {
-    alert: false,
-    category: "operations",
-    level: "warn" as const,
-  };
-
-  const payload = Object.fromEntries(
-    Object.entries(details).map(([key, value]) => [
-      key,
-      /cookie|csrf|challenge|ip|key|secret|session|token|userAgent/i.test(key)
-        ? maskValue(value)
-        : value,
-    ]),
-  );
+  const definition = SECURITY_EVENT_DEFINITIONS[event];
+  if (!definition) return;
+  const time=Date.now();
+  if (time<windowStart || time-windowStart>=60_000) {windowStart=time;emitted=0;lastEvents.clear();}
+  if (emitted>=60 || (lastEvents.has(event) && time-lastEvents.get(event)!<10_000)) return;
+  lastEvents.set(event,time);emitted++;
+  const payload = sanitizeSecurityDetails(details);
 
   consoleForLevel(definition.level)(
     JSON.stringify({

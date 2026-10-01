@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 const RequestSchema = RewriteLabInputSchema.extend({
   challengeNonce: z.string().min(1).max(10),
   challengeToken: z.string().min(16).max(1024),
-});
+}).strict();
 
 function labResponse(error: string, status: number, requestId: string, headers?: HeadersInit) {
   return Response.json(
@@ -92,6 +92,10 @@ async function readJsonBody(request: Request): Promise<
 
 export async function POST(request: Request) {
   const requestId = createRequestId();
+  // This endpoint has no live implementation. Deny before reading a body or
+  // allocating abuse-store records, even when a caller bypasses the UI.
+  if (process.env.NODE_ENV === "production" || process.env.GHOSTWRITER_RELEASE_PROFILE === "portfolio-free")
+    return labResponse("Rewrite Lab is unavailable in this release.", 404, requestId);
   const headerGuard = await validateGhostwriterHeaders(request);
 
   if ("status" in headerGuard) {
@@ -114,6 +118,7 @@ export async function POST(request: Request) {
     request,
     parsed.data.challengeToken,
     parsed.data.challengeNonce,
+    headerGuard,
   );
 
   if ("status" in guard) {

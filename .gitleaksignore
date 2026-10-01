@@ -1,0 +1,5 @@
+# Exact historical false positives: two CI placeholders and one deterministic test fixture.
+# Do not replace these with rule-, path-, or commit-wide exclusions.
+a7c86e21b02bf87955d64eaeed651be2ce5139e0:.github/workflows/security.yml:generic-api-key:33
+a7c86e21b02bf87955d64eaeed651be2ce5139e0:.github/workflows/security.yml:generic-api-key:46
+a7c86e21b02bf87955d64eaeed651be2ce5139e0:tests/security-abuse.test.ts:generic-api-key:39

@@ -12,6 +12,14 @@ const GHOSTWRITER_SERVER = readFileSync(
   new URL("../src/server/ghostwriter.ts", import.meta.url),
   "utf8",
 );
+const AI_PROVIDER_SERVER = readFileSync(
+  new URL("../src/server/ai-provider.ts", import.meta.url),
+  "utf8",
+);
+const AI_GATEWAY_SERVER = readFileSync(
+  new URL("../src/server/ai-gateway.ts", import.meta.url),
+  "utf8",
+);
 
 function providerPayload(content: string) {
   return {
@@ -30,6 +38,15 @@ test("single rewrite prompt carries an explicit contract version", () => {
   assert.match(GHOSTWRITER_SERVER, /Contract version:\n\$\{REWRITE_PROMPT_VERSION\}/);
   assert.match(GHOSTWRITER_SERVER, /Return only the rewritten passage/);
   assert.match(GHOSTWRITER_SERVER, /Preserve the core message, facts, and point of view/);
+});
+
+test("outcome rewrite prompt is separate from author style prompting", () => {
+  assert.match(GHOSTWRITER_SERVER, /export function buildOutcomePrompt\(outcome: OutcomeId\)/);
+  assert.match(GHOSTWRITER_SERVER, /You are an outcome-driven rewrite engine/);
+  assert.match(GHOSTWRITER_SERVER, /Do not imitate a famous author or literary style/);
+  assert.match(GHOSTWRITER_SERVER, /Never invent details, claims, promises, or emotional stakes/);
+  assert.match(AI_GATEWAY_SERVER, /input\.mode === "outcome"[\s\S]*buildOutcomePrompt\(input\.outcome\)/);
+  assert.match(GHOSTWRITER_SERVER, /data\.mode === "outcome"[\s\S]*\? outcomeLabelFor\(data\.outcome\)/);
 });
 
 test("rewrite output cleanup trims framing quotes and excess blank lines", () => {
@@ -65,10 +82,9 @@ test("provider payload validation rejects malformed, empty, oversized, and wrapp
   );
 });
 
-test("rewriteText uses the quality contract before accepting provider output", () => {
-  assert.match(GHOSTWRITER_SERVER, /validateRewriteProviderPayload\(json\)/);
-  assert.match(GHOSTWRITER_SERVER, /ai_provider_output_rejected/);
-  assert.match(GHOSTWRITER_SERVER, /reason: validatedRewrite\.reason/);
-  assert.match(GHOSTWRITER_SERVER, /status: 502/);
-  assert.match(GHOSTWRITER_SERVER, /const rewrite = validatedRewrite\.rewrite;/);
+test("the central provider choke point validates output before finalization", () => {
+  assert.match(AI_PROVIDER_SERVER, /validateRewriteProviderPayload\(json\)/);
+  assert.match(AI_PROVIDER_SERVER, /ProviderEnvelopeSchema\.safeParse\(json\)/);
+  assert.match(AI_PROVIDER_SERVER, /throw new AiProviderDispatchError\("malformed_response"\)/);
+  assert.match(AI_PROVIDER_SERVER, /rewrite: validatedRewrite\.rewrite/);
 });

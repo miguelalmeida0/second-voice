@@ -1,0 +1,20 @@
+Second Voice production reliability fix v15
+
+Scope: Playwright web-server addressing only.
+
+Root cause repaired:
+- v13/v14 selected a free random port while evaluating playwright.config.ts.
+- Playwright can evaluate config in separate processes. Those evaluations could
+  select different random ports, so the managed Next server was healthy on one
+  port while the test worker navigated to another, causing immediate
+  net::ERR_CONNECTION_REFUSED.
+
+Change:
+- Default Playwright webServer/baseURL port is now stable at 3211.
+- PLAYWRIGHT_PORT remains supported as an explicit override.
+- reuseExistingServer remains false.
+- GHOSTWRITER_NEXT_DIST_DIR remains isolated, so an existing app dev server on
+  3210 can continue running without sharing Next's dev lock/build directory.
+
+No application, provider, quota, database, security, auth, or product behavior
+was changed by v15.

@@ -9,7 +9,8 @@ import {
   REWRITE_FEEDBACK_RATINGS,
   REWRITE_FEEDBACK_REASONS,
 } from "@/lib/ghostwriter-feedback";
-import { InputSchema, REWRITE_OUTPUT_MAX_CHARS, RewriteArtifactProvenanceSchema } from "@/server/ghostwriter";
+import { InputSchema, REWRITE_OUTPUT_MAX_CHARS } from "@/server/ghostwriter";
+import { verifyRewriteArtifactToken } from "@/server/ghostwriter-artifact-token";
 import { cleanupRewriteOutput } from "@/server/ghostwriter-quality";
 import { logSecurityEvent } from "@/server/security-events";
 
@@ -19,17 +20,18 @@ type FeedbackRequestContext = {
 
 const RewriteFeedbackSubjectSchema = InputSchema.pick({
   author: true,
+  mode: true,
   mood: true,
+  outcome: true,
 });
 const POSITIVE_REASON_SET = new Set<string>(POSITIVE_REWRITE_FEEDBACK_REASONS);
 const NEGATIVE_REASON_SET = new Set<string>(NEGATIVE_REWRITE_FEEDBACK_REASONS);
 
 export const RewriteFeedbackSchema = RewriteFeedbackSubjectSchema.extend({
-  artifactProvenance: RewriteArtifactProvenanceSchema.optional(),
+  artifactToken: z.string().min(32).max(4096),
   rating: z.enum(REWRITE_FEEDBACK_RATINGS),
   reason: z.enum(REWRITE_FEEDBACK_REASONS).optional(),
   rewrite: z.string().trim().min(1).max(REWRITE_OUTPUT_MAX_CHARS),
-  shortId: z.string().regex(/^[abcdefghijkmnopqrstuvwxyz23456789]{8}$/).optional(),
 }).superRefine((feedback, context) => {
   if (!feedback.reason) {
     return;
@@ -55,26 +57,6 @@ function rewriteHash(rewrite: string): string {
   return createHash("sha256").update(rewrite).digest("hex");
 }
 
-function provenanceFields(provenance: RewriteFeedbackInput["artifactProvenance"]) {
-  const parsed = provenance ? RewriteArtifactProvenanceSchema.safeParse(provenance) : null;
-
-  if (!parsed || !parsed.success || parsed.data.source === "single_rewrite") {
-    return {
-      generation_source: "single_rewrite" as const,
-      lab_selection_reason: null,
-      lab_winner_label: null,
-      lab_winner_score: null,
-    };
-  }
-
-  return {
-    generation_source: "rewrite_lab" as const,
-    lab_selection_reason: parsed.data.reason,
-    lab_winner_label: parsed.data.label,
-    lab_winner_score: parsed.data.overall,
-  };
-}
-
 export async function recordRewriteFeedback(
   input: RewriteFeedbackInput,
   context: FeedbackRequestContext = {},
@@ -82,6 +64,22 @@ export async function recordRewriteFeedback(
   const rewrite = cleanupRewriteOutput(input.rewrite);
 
   if (!rewrite || rewrite.length > REWRITE_OUTPUT_MAX_CHARS) {
+    return {
+      error: "Invalid feedback.",
+      status: 400,
+    };
+  }
+
+  const verifiedArtifact = verifyRewriteArtifactToken({
+    artifactToken: input.artifactToken,
+    author: input.author,
+    mode: input.mode,
+    mood: input.mood,
+    outcome: input.outcome,
+    rewrite,
+  });
+
+  if (!verifiedArtifact || verifiedArtifact.rewriteHash !== rewriteHash(rewrite)) {
     return {
       error: "Invalid feedback.",
       status: 400,
@@ -100,21 +98,23 @@ export async function recordRewriteFeedback(
     };
   }
 
-  const provenance = provenanceFields(input.artifactProvenance);
+  const rewriteMode = verifiedArtifact.mode;
   const { error } = await ((supabaseAdmin.from("ghostwriter_feedback") as unknown) as {
     insert: (value: Record<string, unknown>) => Promise<{ error: { code?: string; message: string } | null }>;
   }).insert({
-    author: input.author,
-    generation_source: provenance.generation_source,
-    lab_selection_reason: provenance.lab_selection_reason,
-    lab_winner_label: provenance.lab_winner_label,
-    lab_winner_score: provenance.lab_winner_score,
-    mood: input.mood,
+    author: verifiedArtifact.author,
+    generation_source: verifiedArtifact.generationSource,
+    lab_selection_reason: verifiedArtifact.labSelectionReason,
+    lab_winner_label: verifiedArtifact.labWinnerLabel,
+    lab_winner_score: verifiedArtifact.labWinnerScore,
+    mood: verifiedArtifact.mood,
+    outcome: verifiedArtifact.outcome,
     rating: input.rating,
     reason: input.reason ?? null,
     request_id: context.requestId ?? null,
-    rewrite_hash: rewriteHash(rewrite),
-    rewrite_short_id: input.shortId ?? null,
+    rewrite_mode: rewriteMode,
+    rewrite_hash: verifiedArtifact.rewriteHash,
+    rewrite_short_id: null,
   });
 
   if (error) {
@@ -131,12 +131,14 @@ export async function recordRewriteFeedback(
   }
 
   logSecurityEvent("rewrite_feedback_recorded", {
-    author: input.author,
-    generationSource: provenance.generation_source,
-    hasPublicArtifact: Boolean(input.shortId),
+    author: verifiedArtifact.author,
+    generationSource: verifiedArtifact.generationSource,
+    hasPublicArtifact: false,
+    outcome: rewriteMode === "outcome" ? verifiedArtifact.outcome : "none",
     rating: input.rating,
     reason: input.reason ?? "none",
     requestId: context.requestId,
+    rewriteMode,
   });
 
   return {

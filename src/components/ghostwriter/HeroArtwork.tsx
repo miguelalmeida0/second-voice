@@ -50,7 +50,14 @@ export function HeroArtwork({ className }: HeroArtworkProps) {
       <source media="(min-width: 1280px)" srcSet={desktopSrcSet} />
       <source media="(min-width: 1024px)" srcSet={mediumSrcSet} />
       <source media="(max-width: 1023px)" srcSet={smallSrcSet} />
-      <img {...imgProps} alt={HERO_ALT} className="hero-character-image" src={src} />
+      <img
+        {...imgProps}
+        alt={HERO_ALT}
+        className="hero-character-image"
+        src={src}
+        style={{ color: "transparent" }}
+        suppressHydrationWarning
+      />
     </picture>
   );
 }

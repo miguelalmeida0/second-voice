@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { signingKey, rejectAmbiguousSecrets } from "./signing-purpose.ts";
 import type { NextRequest } from "next/server";
 import {
   consumeAbuseRateLimits,
@@ -10,6 +11,7 @@ import {
   type AbuseRateRule,
 } from "./abuse-store.ts";
 import {
+  normalizeTrustedClientIpHeader,
   normalizeIpAddress,
   normalizeSiteOrigin,
   resolveSecuritySecret,
@@ -59,6 +61,7 @@ type GuardSuccess = {
 };
 
 type GuardFailure = {
+  code?: "ABUSE_COOLDOWN" | "PROTECTION_UNAVAILABLE";
   error: string;
   headers?: HeadersInit;
   status: number;
@@ -74,7 +77,7 @@ function clampDifficulty(raw: string | undefined): number {
     return 4;
   }
 
-  return Math.max(3, Math.min(5, parsed));
+  return Math.max(3, Math.min(4, parsed));
 }
 
 function now(): number {
@@ -82,6 +85,7 @@ function now(): number {
 }
 
 function secret(): string {
+  rejectAmbiguousSecrets();
   if (!cachedEphemeralSecret) {
     cachedEphemeralSecret = randomBytes(32).toString("base64url");
   }
@@ -120,8 +124,9 @@ function base64UrlDecode(input: string): string {
 }
 
 function signToken(kind: string, payload: Record<string, unknown>): string {
+  rejectAmbiguousSecrets();
   const encodedPayload = base64UrlEncode(JSON.stringify(payload));
-  const signature = createHmac("sha256", secret()).update(`${kind}.${encodedPayload}`).digest("base64url");
+  const signature = createHmac("sha256", signingKey(secret(), kind)).update(`${kind}.${encodedPayload}`).digest("base64url");
   return `${encodedPayload}.${signature}`;
 }
 
@@ -138,7 +143,7 @@ function verifyToken<T>(kind: string, token: string): T | null {
     return null;
   }
 
-  const expectedSignature = createHmac("sha256", secret())
+  const expectedSignature = createHmac("sha256", signingKey(secret(), kind))
     .update(`${kind}.${encodedPayload}`)
     .digest("base64url");
 
@@ -318,30 +323,64 @@ function sameOrigin(value: string | null, origins: Set<string>): boolean {
 }
 
 function buildPenaltyKeyHashes(ip: string, sessionId: string, userAgent: string): string[] {
-  const fingerprint = hashAbuseKey("fingerprint", fingerprintSeed(ip, sessionId, userAgent));
+  // v2 intentionally invalidates penalty keys produced by the previous limiter,
+  // where an ordinary rate-bucket hit incorrectly escalated into a cross-endpoint
+  // penalty. This clears those false lockouts without deleting durable abuse data.
+  const fingerprint = hashAbuseKey("penalty-v2-fingerprint", fingerprintSeed(ip, sessionId, userAgent));
 
   return uniqueKeyHashes([
-    hashAbuseKey("session", sessionId),
+    hashAbuseKey("penalty-v2-session", sessionId),
     fingerprint,
-    ip === "unknown" ? null : hashAbuseKey("ip", ip),
+    ip === "unknown" ? null : hashAbuseKey("penalty-v2-ip", ip),
   ]);
 }
 
 function buildChallengeRateRules(ip: string, sessionId: string, userAgent: string): AbuseRateRule[] {
+  // Challenge requests are cheap and precede the authoritative 3-rewrite quota.
+  // Keep abuse protection, but leave enough recovery headroom that a transient
+  // failure cannot strand a visitor who still has rewrites available.
   return uniqueKeyHashes([
     hashAbuseKey("challenge-session", sessionId),
     hashAbuseKey("challenge-fingerprint", fingerprintSeed(ip, sessionId, userAgent)),
     ip === "unknown" ? null : hashAbuseKey("challenge-ip", ip),
   ]).map((keyHash, index) => ({
     keyHash,
-    limit: index === 0 ? 10 : index === 1 ? 14 : 18,
+    limit: index === 0 ? 12 : index === 1 ? 18 : 30,
     windowMs: 5 * 60 * 1000,
   }));
 }
 
+function buildPostIngressRateRules(ip: string, sessionId: string, userAgent: string): AbuseRateRule[] {
+  const rules: AbuseRateRule[] = [
+    { keyHash: hashAbuseKey("post-session-burst", sessionId), limit: 12, windowMs: 60 * 1000 },
+    {
+      keyHash: hashAbuseKey("post-session-five-minute", sessionId),
+      limit: 30,
+      windowMs: 5 * 60 * 1000,
+    },
+    {
+      keyHash: hashAbuseKey("post-fingerprint-five-minute", fingerprintSeed(ip, sessionId, userAgent)),
+      limit: 36,
+      windowMs: 5 * 60 * 1000,
+    },
+  ];
+
+  if (ip !== "unknown") {
+    rules.push({
+      keyHash: hashAbuseKey("post-ip-five-minute", ip),
+      limit: 60,
+      windowMs: 5 * 60 * 1000,
+    });
+  }
+
+  return rules;
+}
+
 function buildRewriteRateRules(ip: string, sessionId: string, userAgent: string): AbuseRateRule[] {
   const rules: AbuseRateRule[] = [
-    { keyHash: hashAbuseKey("rewrite-session-burst", sessionId), limit: 5, windowMs: 60 * 1000 },
+    // The durable ledger is the actual generation quota. These are only
+    // anti-hammering limits, so they must not be tighter than the UX contract.
+    { keyHash: hashAbuseKey("rewrite-session-burst", sessionId), limit: 6, windowMs: 60 * 1000 },
     {
       keyHash: hashAbuseKey("rewrite-session-ten-minute", sessionId),
       limit: 12,
@@ -349,15 +388,18 @@ function buildRewriteRateRules(ip: string, sessionId: string, userAgent: string)
     },
     {
       keyHash: hashAbuseKey("rewrite-fingerprint", fingerprintSeed(ip, sessionId, userAgent)),
-      limit: 10,
+      limit: 12,
       windowMs: 10 * 60 * 1000,
     },
   ];
 
   if (ip !== "unknown") {
+    // Shared/NAT IPs (and incognito acceptance testing) must not inherit a
+    // four-attempt lockout from another browser session. Provider admission is
+    // still bounded by the database quota and the fleet-wide dispatch cap.
     rules.push(
-      { keyHash: hashAbuseKey("rewrite-ip-burst", ip), limit: 6, windowMs: 60 * 1000 },
-      { keyHash: hashAbuseKey("rewrite-ip-ten-minute", ip), limit: 20, windowMs: 10 * 60 * 1000 },
+      { keyHash: hashAbuseKey("rewrite-ip-burst", ip), limit: 12, windowMs: 60 * 1000 },
+      { keyHash: hashAbuseKey("rewrite-ip-ten-minute", ip), limit: 30, windowMs: 10 * 60 * 1000 },
     );
   }
 
@@ -368,12 +410,12 @@ function buildLabRateRules(ip: string, sessionId: string, userAgent: string): Ab
   const rules: AbuseRateRule[] = [
     {
       keyHash: hashAbuseKey("lab-session-ten-minute", sessionId),
-      limit: 3,
+      limit: 2,
       windowMs: 10 * 60 * 1000,
     },
     {
       keyHash: hashAbuseKey("lab-fingerprint-ten-minute", fingerprintSeed(ip, sessionId, userAgent)),
-      limit: 4,
+      limit: 3,
       windowMs: 10 * 60 * 1000,
     },
   ];
@@ -381,7 +423,33 @@ function buildLabRateRules(ip: string, sessionId: string, userAgent: string): Ab
   if (ip !== "unknown") {
     rules.push({
       keyHash: hashAbuseKey("lab-ip-hour", ip),
+      limit: 6,
+      windowMs: 60 * 60 * 1000,
+    });
+  }
+
+  return rules;
+}
+
+function buildShareRateRules(ip: string, sessionId: string, userAgent: string): AbuseRateRule[] {
+  const rules: AbuseRateRule[] = [
+    { keyHash: hashAbuseKey("share-session-burst", sessionId), limit: 2, windowMs: 60 * 1000 },
+    {
+      keyHash: hashAbuseKey("share-session-hour", sessionId),
+      limit: 8,
+      windowMs: 60 * 60 * 1000,
+    },
+    {
+      keyHash: hashAbuseKey("share-fingerprint-hour", fingerprintSeed(ip, sessionId, userAgent)),
       limit: 10,
+      windowMs: 60 * 60 * 1000,
+    },
+  ];
+
+  if (ip !== "unknown") {
+    rules.push({
+      keyHash: hashAbuseKey("share-ip-hour", ip),
+      limit: 18,
       windowMs: 60 * 60 * 1000,
     });
   }
@@ -393,12 +461,12 @@ function buildFeedbackRateRules(ip: string, sessionId: string, userAgent: string
   const rules: AbuseRateRule[] = [
     {
       keyHash: hashAbuseKey("feedback-session-ten-minute", sessionId),
-      limit: 10,
+      limit: 6,
       windowMs: 10 * 60 * 1000,
     },
     {
       keyHash: hashAbuseKey("feedback-fingerprint-hour", fingerprintSeed(ip, sessionId, userAgent)),
-      limit: 24,
+      limit: 12,
       windowMs: 60 * 60 * 1000,
     },
   ];
@@ -406,7 +474,7 @@ function buildFeedbackRateRules(ip: string, sessionId: string, userAgent: string
   if (ip !== "unknown") {
     rules.push({
       keyHash: hashAbuseKey("feedback-ip-hour", ip),
-      limit: 36,
+      limit: 18,
       windowMs: 60 * 60 * 1000,
     });
   }
@@ -435,8 +503,27 @@ function readCookie(headers: Headers, name: string): string | undefined {
   return undefined;
 }
 
-export function resolveClientIp(headers: Headers, trustProxy = shouldTrustProxy(process.env.GHOSTWRITER_TRUST_PROXY)): string {
+export function resolveClientIp(
+  headers: Headers,
+  trustProxy = shouldTrustProxy(process.env.GHOSTWRITER_TRUST_PROXY),
+  trustedHeader = process.env.GHOSTWRITER_CLIENT_IP_HEADER,
+  nodeEnv = process.env.NODE_ENV ?? "development",
+): string {
   if (!trustProxy) {
+    return "unknown";
+  }
+
+  const configuredHeader = normalizeTrustedClientIpHeader(trustedHeader);
+
+  if (configuredHeader) {
+    const rawValue = headers.get(configuredHeader);
+    const candidate =
+      configuredHeader === "x-forwarded-for" ? rawValue?.split(",")[0] : rawValue;
+
+    return normalizeIpAddress(candidate ?? "unknown");
+  }
+
+  if (nodeEnv === "production") {
     return "unknown";
   }
 
@@ -536,7 +623,8 @@ async function reject(
 async function enforceRateLimits(
   rules: AbuseRateRule[],
   guard: GuardSuccess,
-  location: "challenge" | "feedback" | "lab" | "rewrite",
+  location: "challenge" | "feedback" | "ingress" | "lab" | "rewrite" | "share"
+    | `auth-${"send-code" | "verify" | "refresh" | "logout" | "status"}`,
 ): Promise<GuardFailure | null> {
   try {
     const result = await consumeAbuseRateLimits(rules, guard.penaltyKeyHashes, now());
@@ -545,17 +633,34 @@ async function enforceRateLimits(
       return null;
     }
 
-    return reject(
-      "Too many requests. Cooldown in progress.",
-      429,
-      guard,
-      location === "rewrite" || location === "lab" ? 2 : 1,
-      result.retryAfterSeconds,
-    );
+    const retryAfterSeconds = Math.max(1, result.retryAfterSeconds);
+
+    // Hitting a normal rate bucket is not itself malicious behaviour. Do not
+    // escalate it into the cross-endpoint penalty store: that used to turn a
+    // single busy minute into a multi-minute lockout and made a fresh incognito
+    // session show available quota while every rewrite was still rejected.
+    logSecurityEvent("request_blocked", {
+      reason: "abuse_cooldown",
+      ip: guard.ip,
+      retryAfter: retryAfterSeconds,
+      sessionId: guard.sessionId,
+      severity: 1,
+      status: 429,
+    });
+
+    return {
+      code: "ABUSE_COOLDOWN",
+      error: location === "rewrite" || location === "challenge"
+        ? "Please wait a moment before trying another rewrite."
+        : "Please wait a moment and try again.",
+      headers: { "Retry-After": String(retryAfterSeconds) },
+      status: 429,
+    };
   } catch (error) {
     logAbuseStoreFailure(`rate_limit_${location}`, error);
 
     return {
+      code: "PROTECTION_UNAVAILABLE",
       error: "Protection temporarily unavailable.",
       status: 503,
     };
@@ -618,6 +723,10 @@ export async function validateBrowserGuard(request: Request): Promise<GuardSucce
     return reject("Request verification failed.", 403, guard, 2);
   }
 
+  if ((process.env.NODE_ENV ?? "development") === "production" && guard.ip === "unknown") {
+    return reject("Client identity unavailable.", 503, guard, 1);
+  }
+
   return guard;
 }
 
@@ -669,6 +778,7 @@ async function validateChallengeProof(
     logAbuseStoreFailure("challenge_consume", error);
 
     return {
+      code: "PROTECTION_UNAVAILABLE",
       error: "Protection temporarily unavailable.",
       status: 503,
     };
@@ -677,18 +787,41 @@ async function validateChallengeProof(
   return null;
 }
 
-export async function validateGhostwriterHeaders(request: Request): Promise<GuardSuccess | GuardFailure> {
+export async function validateGhostwriterHeaders(request: Request, purpose: "rewrite" | "auth" = "rewrite"): Promise<GuardSuccess | GuardFailure> {
   const guard = await validateBrowserGuard(request);
 
   if ("status" in guard) {
     return guard;
   }
 
+  // Account safety operations have their own ingress limits. A rewrite penalty
+  // must not prevent a valid same-origin/CSRF-authenticated logout or deletion.
+  if (purpose === "auth") guard.penaltyKeyHashes = [];
+
+  if (request.method !== "GET") {
+    const ingressRateFailure = await enforceRateLimits(
+      purpose === "auth"
+        ? [{ keyHash: hashAbuseKey("auth-ingress", guard.sessionId), limit: 60, windowMs: 60_000 }]
+        : buildPostIngressRateRules(guard.ip, guard.sessionId, guard.userAgent),
+      guard,
+      "ingress",
+    );
+
+    if (ingressRateFailure) {
+      return ingressRateFailure;
+    }
+  }
+
   const contentType = request.headers.get("content-type") ?? "";
   const mediaType = contentType.split(";")[0]?.trim().toLowerCase();
+  const contentEncoding = request.headers.get("content-encoding")?.trim().toLowerCase();
 
   if (mediaType !== "application/json") {
     return reject("Unsupported request format.", 415, guard, 1);
+  }
+
+  if (contentEncoding && contentEncoding !== "identity") {
+    return reject("Compressed request bodies are not supported.", 415, guard, 1);
   }
 
   const length = contentLength(request.headers);
@@ -740,8 +873,9 @@ export async function validateGhostwriterPost(
   request: Request,
   challengeToken: string,
   challengeNonce: string,
+  prevalidatedGuard?: GuardSuccess,
 ): Promise<GuardSuccess | GuardFailure> {
-  const guard = await validateGhostwriterHeaders(request);
+  const guard = prevalidatedGuard ?? (await validateGhostwriterHeaders(request));
 
   if ("status" in guard) {
     return guard;
@@ -766,12 +900,34 @@ export async function validateGhostwriterPost(
   return guard;
 }
 
+export async function validateGhostwriterAuthPost(
+  guard: GuardSuccess,
+  action: "send-code" | "verify" | "refresh" | "logout" | "status" | "github",
+  challengeToken?: string,
+  challengeNonce?: string,
+): Promise<GuardSuccess | GuardFailure> {
+  const limit = action === "send-code" ? 2 : action === "status" ? 60 : 10;
+  const windowMs = action === "send-code" ? 600_000 : 60_000;
+  const rules = [{keyHash: hashAbuseKey(`auth-${action}-session`, guard.sessionId),limit,windowMs}];
+  // In local/dev environments client IP may intentionally resolve to "unknown".
+  // Never collapse every browser on that sentinel into one shared rate bucket.
+  if (guard.ip !== "unknown") rules.push({keyHash:hashAbuseKey(`auth-${action}-ip`,guard.ip),limit:limit * 3,windowMs});
+  const failure = await enforceRateLimits(rules, guard, action==="github"?"auth-verify":`auth-${action}`);
+  if (failure) return failure;
+  // Revocation/status retain same-origin, CSRF, session and independent rate
+  // checks. They must not depend on generation or challenge issuance capacity.
+  if (action === "logout" || action === "status") return guard;
+  if (!challengeToken || !challengeNonce) return {error:"Challenge required.",status:403};
+  return await validateChallengeProof(guard, challengeToken, challengeNonce) ?? guard;
+}
+
 export async function validateGhostwriterLabPost(
   request: Request,
   challengeToken: string,
   challengeNonce: string,
+  prevalidatedGuard?: GuardSuccess,
 ): Promise<GuardSuccess | GuardFailure> {
-  const guard = await validateGhostwriterHeaders(request);
+  const guard = prevalidatedGuard ?? (await validateGhostwriterHeaders(request));
 
   if ("status" in guard) {
     return guard;
@@ -796,12 +952,44 @@ export async function validateGhostwriterLabPost(
   return guard;
 }
 
+export async function validateGhostwriterSharePost(
+  request: Request,
+  challengeToken: string,
+  challengeNonce: string,
+  prevalidatedGuard?: GuardSuccess,
+): Promise<GuardSuccess | GuardFailure> {
+  const guard = prevalidatedGuard ?? (await validateGhostwriterHeaders(request));
+
+  if ("status" in guard) {
+    return guard;
+  }
+
+  const shareRateFailure = await enforceRateLimits(
+    buildShareRateRules(guard.ip, guard.sessionId, guard.userAgent),
+    guard,
+    "share",
+  );
+
+  if (shareRateFailure) {
+    return shareRateFailure;
+  }
+
+  const challengeFailure = await validateChallengeProof(guard, challengeToken, challengeNonce);
+
+  if (challengeFailure) {
+    return challengeFailure;
+  }
+
+  return guard;
+}
+
 export async function validateGhostwriterFeedbackPost(
   request: Request,
   challengeToken: string,
   challengeNonce: string,
+  prevalidatedGuard?: GuardSuccess,
 ): Promise<GuardSuccess | GuardFailure> {
-  const guard = await validateGhostwriterHeaders(request);
+  const guard = prevalidatedGuard ?? (await validateGhostwriterHeaders(request));
 
   if ("status" in guard) {
     return guard;

@@ -1,0 +1,12 @@
+Second Voice AI production reliability v10
+2026-09-16
+
+Release-gate integration repair only. No production quota, provider, security, UI, or database behavior is weakened.
+
+Fixes:
+- The isolated financial/concurrency ledger harness now gives only its disposable cloned SQL functions a 30s statement timeout. Production functions remain at 3s.
+- The concurrency negative-control storm now uses 20 attempts, deliberately below the independent 60/24h combined AI cap. The assertion still proves that removing the global-concurrency fence admits more than two operations without colliding with a different guard.
+- The standalone combined-cap regression fixture now applies both 202609160001 and 202609160002 as the current migration chain, so it is no longer stale after the provider-failure accounting migration.
+
+Why the previous release gate failed:
+The negative-control fixture intentionally removed one guard, but then asked for 100 admissions. The newer independent 60/24h combined-cap trigger correctly stopped that synthetic mutation run, which the old harness surfaced as HTTP 500. This was a test-harness interaction, not a production application failure.

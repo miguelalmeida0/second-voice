@@ -13,6 +13,7 @@ function candidate(
   scores: Partial<RewriteLabCandidate["scores"]>,
 ): RewriteLabCandidate {
   return {
+    artifactToken: "test-artifact-token",
     evaluatorNote: "test",
     flags: [],
     id,

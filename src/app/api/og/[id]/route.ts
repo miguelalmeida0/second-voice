@@ -1,4 +1,11 @@
-import { AUTHORS, FIRST, MOOD_NAME, TINT_HEX, moodLabelFor } from "@/lib/ghostwriter-shared";
+import {
+  AUTHORS,
+  FIRST,
+  MOOD_NAME,
+  TINT_HEX,
+  moodLabelFor,
+  outcomeLabelFor,
+} from "@/lib/ghostwriter-shared";
 import { buildNoStoreHeaders } from "@/lib/security-http";
 import { fetchRewriteById } from "@/server/ghostwriter-fetch";
 
@@ -61,15 +68,22 @@ export const dynamic = "force-dynamic";
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const row = await fetchRewriteById(id);
+  if (!row) return new Response(null, { status: 404, headers: buildNoStoreHeaders() });
 
   const author = row?.author ?? "hemingway";
   const tint = TINT_HEX[author];
   const first = FIRST[author];
   const mood = row?.mood ?? 50;
   const moodLabel = moodLabelFor(author, mood);
+  const isOutcomeRewrite = row ? row.rewrite_mode === "outcome" && row.outcome !== null : false;
+  const outcomeLabel = row?.outcome ? outcomeLabelFor(row.outcome) : "Improve clarity";
   const lines = buildLines(row?.output_text || "Second Voice AI", 50, 7);
-  const subtitle = `${first}'s rewrite · ${mood}% ${MOOD_NAME[author]} · ${moodLabel}`;
+  const subtitle = isOutcomeRewrite
+    ? `Outcome rewrite · ${outcomeLabel}`
+    : `${first}'s rewrite · ${mood}% ${MOOD_NAME[author]} · ${moodLabel}`;
   const authorName = AUTHORS.find((entry) => entry.id === author)?.name ?? "Ernest Hemingway";
+  const headline = isOutcomeRewrite ? "Outcome rewrite" : `${first}'s rewrite`;
+  const byline = isOutcomeRewrite ? outcomeLabel : authorName;
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
@@ -95,10 +109,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         SECOND VOICE AI · ${escapeXml(subtitle)}
       </text>
       <text x="84" y="145" fill="#f5f0e6" font-family="'Playfair Display', Georgia, serif" font-size="56" font-style="italic">
-        ${escapeXml(`${first}'s rewrite`)}
+        ${escapeXml(headline)}
       </text>
       <text x="84" y="182" fill="#9b93a8" font-family="Inter, Arial, sans-serif" font-size="22">
-        ${escapeXml(authorName)}
+        ${escapeXml(byline)}
       </text>
 
       ${lines

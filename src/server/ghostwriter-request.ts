@@ -1,6 +1,6 @@
 import "../lib/server-only.ts";
 
-import { GHOSTWRITER_MAX_BODY_BYTES } from "@/server/abuse-protection";
+import { GHOSTWRITER_MAX_BODY_BYTES } from "./abuse-protection.ts";
 
 export type GhostwriterJsonBody =
   | { data: unknown; ok: true }
@@ -24,8 +24,13 @@ export async function readGhostwriterJsonBody(request: Request): Promise<Ghostwr
   const chunks: Uint8Array[] = [];
   let receivedBytes = 0;
 
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("body_deadline")), 10_000);
+  });
+  try {
   while (true) {
-    const { done, value } = await reader.read();
+    const { done, value } = await Promise.race([reader.read(), deadline]);
 
     if (done) {
       break;
@@ -38,7 +43,7 @@ export async function readGhostwriterJsonBody(request: Request): Promise<Ghostwr
     receivedBytes += value.byteLength;
 
     if (receivedBytes > GHOSTWRITER_MAX_BODY_BYTES) {
-      await reader.cancel();
+      void reader.cancel().catch(() => undefined);
       return {
         error: "Request too large.",
         ok: false,
@@ -47,6 +52,13 @@ export async function readGhostwriterJsonBody(request: Request): Promise<Ghostwr
     }
 
     chunks.push(value);
+  }
+
+  } catch {
+    void reader.cancel().catch(() => undefined);
+    return {ok:false,error:"Request body deadline exceeded.",status:408};
+  } finally {
+    clearTimeout(timer);
   }
 
   try {

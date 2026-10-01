@@ -8,7 +8,7 @@ const contactEmail = process.env.SECOND_VOICE_LEGAL_EMAIL?.trim() || "miguelalme
 
 export default function PrivacyPage() {
   const addressLines = operatorAddress
-    ? operatorAddress.split(/\\n|\\|/).map((line) => line.trim()).filter(Boolean)
+    ? operatorAddress.split(/\n|\|/).map((line) => line.trim()).filter(Boolean)
     : [];
   return <main className="mx-auto max-w-2xl px-6 py-12 text-[#eeeae3] sm:py-16">
     <Link href="/second-voice" className="underline underline-offset-4">Back to Second Voice</Link>

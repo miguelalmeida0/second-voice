@@ -2,11 +2,27 @@ import Link from "next/link";
 
 export const metadata = { title: "Privacy & contact — Second Voice" };
 
+const operatorName = process.env.SECOND_VOICE_LEGAL_NAME?.trim() || "Miguel Almeida";
+const operatorAddress = process.env.SECOND_VOICE_LEGAL_ADDRESS?.trim() || "";
+const contactEmail = process.env.SECOND_VOICE_LEGAL_EMAIL?.trim() || "miguelalmeida1592@gmail.com";
+
 export default function PrivacyPage() {
+  const addressLines = operatorAddress
+    ? operatorAddress.split(/\\n|\\|/).map((line) => line.trim()).filter(Boolean)
+    : [];
   return <main className="mx-auto max-w-2xl px-6 py-12 text-[#eeeae3] sm:py-16">
     <Link href="/second-voice" className="underline underline-offset-4">Back to Second Voice</Link>
     <h1 className="mt-10 text-3xl">Privacy &amp; contact</h1>
-    <p className="mt-4 leading-relaxed">Second Voice is Miguel’s personal, non-commercial portfolio project. For support, privacy requests or a security report, contact <a href="mailto:miguelalmeida1592@gmail.com" className="break-words underline underline-offset-4">miguelalmeida1592@gmail.com</a>. Never send passwords, API keys or sign-in codes.</p>
+    <div className="mt-4 space-y-1 leading-relaxed">
+      <p>Second Voice is {operatorName}&apos;s personal, non-commercial portfolio project.</p>
+      <p>{operatorName}</p>
+      {addressLines.length > 0 ? (
+        <address className="not-italic">
+          {addressLines.map((line) => <span key={line} className="block">{line}</span>)}
+        </address>
+      ) : null}
+      <p>For support, privacy requests or a security report, contact <a href={`mailto:${contactEmail}`} className="break-words underline underline-offset-4">{contactEmail}</a>. Never send passwords, API keys or sign-in codes.</p>
+    </div>
     <section className="mt-8 space-y-4 leading-relaxed" aria-labelledby="data-heading">
       <h2 id="data-heading" className="text-xl">What happens to your words</h2>
       <p>Your draft stays in this browser tab until you request a rewrite. When live rewriting is available, that request sends your text and the selected writing instructions to Groq. The output is stored privately for replay, so retrying the same operation does not generate it again. Do not submit confidential information, sensitive personal data, or someone else’s private information.</p>
@@ -27,7 +43,8 @@ export default function PrivacyPage() {
     <section className="mt-8 space-y-4 leading-relaxed" aria-labelledby="rights-heading">
       <h2 id="rights-heading" className="text-xl">Your choices and rights</h2>
       <p>You can request access, correction, deletion, restriction or portability where applicable, and object to processing based on legitimate interests. Contact the email above; we may need proportionate identity verification. You can also complain to your competent data-protection authority.</p>
-      <p className="text-sm">Updated 8 September 2026. This page describes the approved release policy. Public launch remains gated on provider and operational verification.</p>
+      <p className="text-sm">Updated 1 October 2026. This page describes the approved release policy.</p>
+      <p className="text-sm"><Link href="/second-voice/legal" className="underline underline-offset-4">Imprint and AI notice</Link></p>
     </section>
   </main>;
 }

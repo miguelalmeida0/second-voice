@@ -1,0 +1,47 @@
+name: AI Quality
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: second-voice-ai-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deterministic-evals:
+    name: Deterministic rewrite quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PROMPTFOO_DISABLE_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.2
+          cache: npm
+      - run: npm ci
+      - name: Run application quality contracts
+        run: npm run test:unit
+      - name: Run zero-cost rewrite regression corpus
+        run: |
+          mkdir -p artifacts/ai-quality
+          npx --yes promptfoo@0.123.1 eval \
+            -c evals/promptfooconfig.yaml \
+            --no-cache \
+            -o artifacts/ai-quality/results.json
+      - name: Preserve evaluation results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: second-voice-ai-quality
+          path: artifacts/ai-quality/
+          if-no-files-found: warn
+          retention-days: 30

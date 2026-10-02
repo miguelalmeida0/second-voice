@@ -1,0 +1,61 @@
+description: Second Voice deterministic rewrite regression corpus
+
+prompts:
+  - "{{candidate}}"
+
+providers:
+  - echo
+
+defaultTest:
+  assert:
+    - type: not-contains
+      value: "```"
+    - type: not-regex
+      value: "^(Here is|Here's|Rewritten passage|Rewrite:)"
+    - type: javascript
+      value: "output.trim().length > 0 && output.length <= 6000"
+
+tests:
+  - description: preserves explicit travel facts
+    vars:
+      candidate: "At 8:10, the train left Berlin for Hamburg. Mara kept the blue folder on her lap."
+    assert:
+      - type: contains-all
+        value:
+          - "8:10"
+          - "Berlin"
+          - "Hamburg"
+          - "Mara"
+          - "blue folder"
+
+  - description: preserves first-person point of view and concrete detail
+    vars:
+      candidate: "I waited outside the pharmacy for twelve minutes, holding the receipt in my left hand."
+    assert:
+      - type: contains-all
+        value:
+          - "I"
+          - "pharmacy"
+          - "twelve minutes"
+          - "receipt"
+          - "left hand"
+
+  - description: keeps uncertainty instead of upgrading it to a claim
+    vars:
+      candidate: "The lights might have been left on upstairs; I could not tell from the street."
+    assert:
+      - type: contains-all
+        value:
+          - "might"
+          - "could not tell"
+      - type: javascript
+        value: "!/the lights (?:were|had been) left on/i.test(output)"
+
+  - description: does not wrap a prepared rewrite in assistant framing
+    vars:
+      candidate: "Rain pressed softly against the kitchen window while the kettle clicked off."
+    assert:
+      - type: starts-with
+        value: "Rain"
+      - type: not-contains
+        value: "Here is"

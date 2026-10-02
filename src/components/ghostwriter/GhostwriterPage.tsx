@@ -1127,6 +1127,14 @@ export function GhostwriterPage({
               </span>
             </div>
 
+            <p className="mt-3 text-[11px] leading-relaxed text-[var(--whisper)]">
+              Rewrites use generative AI and may send your text to the configured model provider.
+              Do not paste secrets or sensitive data you are not authorised to share.{" "}
+              <Link href="/second-voice/privacy" className="underline underline-offset-4 hover:text-[var(--mist)]">
+                Privacy details
+              </Link>
+            </p>
+
             <div className="gw-composer-field mt-4 rounded-[13px] border border-white/10 bg-black/20">
               <label
                 htmlFor="second-voice-input"
@@ -1151,13 +1159,6 @@ export function GhostwriterPage({
               />
             </div>
 
-            <p className="mt-3 text-[11px] leading-relaxed text-[var(--whisper)]">
-              Rewrites use generative AI and may send your text to the configured model provider.
-              Do not paste secrets or sensitive data you are not authorised to share.{" "}
-              <Link href="/second-voice/privacy" className="underline underline-offset-4 hover:text-[var(--mist)]">
-                Privacy details
-              </Link>
-            </p>
           </div>
 
           <QuickStartsPanel

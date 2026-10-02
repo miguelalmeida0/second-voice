@@ -5,7 +5,7 @@ prompts:
   - "{{input}}"
 
 providers:
-  - id: file://evals/prompt-contract-provider.ts
+  - id: file://prompt-contract-provider.ts
 
 tests:
   - description: Hemingway sober prompt preserves the rewrite contract

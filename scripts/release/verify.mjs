@@ -23,7 +23,7 @@ if(portfolio){
  checks.push(["production-gate","node",["--experimental-strip-types","scripts/release/test-auth.mjs","--predeploy"]]);
  checks.push(["retention-cron","node",["scripts/release/test-retention-cron.mjs"]]);
  checks.find(c=>c[0]==="sql-integration")[2].push("--portfolio");
- checks.splice(checks.findIndex(c=>c[0]==="browser"),1); // Auth includes its own actual browser flow; the broad visual matrix remains in verify:release.
+ checks.splice(checks.findIndex(c=>c[0]==="browser"),1);
  checks.splice(checks.findIndex(c=>c[0]==="build")+1,0,["portfolio-ui","node",["scripts/release/test-portfolio-browser.mjs"]]);
 }
 const synthetic="CANARY_ONLY_NOT_A_CREDENTIAL_7293c67a83bb4ce79d36";
@@ -35,13 +35,17 @@ for(const [name,cmd,args] of checks){
  const r=spawnSync(cmd,args,{env,encoding:"utf8",timeout:15*60*1000,killSignal:"SIGTERM",maxBuffer:16*1024*1024});
  const sandboxUnavailable=/BROWSER_BLOCKED|bootstrap_check_in.*Permission denied|MachPortRendezvous|operation not permitted/i.test((r.stderr??"")+(r.stdout??""));
  let status=r.error||(["authentication","production-gate","browser","portfolio-ui"].includes(name)&&r.status===2)||sandboxUnavailable?"BLOCKED":r.status===0?"PASS":"FAIL";
- // Tests use synthetic data. Redact synthetic secret markers too.
  const log=((r.stdout??"")+"\n"+(r.stderr??"")).replaceAll(synthetic,"[SYNTHETIC_REDACTED]");
  writeFileSync(".tmp/release/"+name+".log",log,{mode:0o600});
  let details;
  if(name==="sql-integration"&&r.status===0){try{details=portfolio?r.stdout.split("\n").filter(line=>line.startsWith('{"scenario":')).map(line=>JSON.parse(line)):JSON.parse(r.stdout);}catch{details={unreadable:true};}}
  if(name==="authentication"||name==="production-gate")details=(r.stdout??"").split("\n").filter(line=>line.startsWith('{"scope":')).map(line=>{try{return JSON.parse(line);}catch{return {unreadable:true};}});
  if(details&&/"(?:status|verdict)":"(?:BLOCKED|FAIL)"|"unreadable":true/.test(JSON.stringify(details)))status="FAIL";
+ if(status==="FAIL"){
+   console.error("\n--- "+name+" failure output ---");
+   console.error(log.trimEnd());
+   console.error("--- end "+name+" failure output ---\n");
+ }
  results.push({name,status,exitCode:r.status,unavailable:r.error?.code??null,...(details?{details}: {})});
 }
 function files(dir){return existsSync(dir)?readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(dir+"/"+e.name):[dir+"/"+e.name]):[];}

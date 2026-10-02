@@ -8,10 +8,10 @@ providers:
 
 defaultTest:
   assert:
-    - type: javascript
-      value: "!output.includes('\\`\\`\\`')"
-    - type: javascript
-      value: "!/^\\s*(here(?:'s| is)|rewritten passage|rewrite:)\\b/i.test(output)"
+    - type: not-contains
+      value: "```"
+    - type: not-regex
+      value: "^(Here is|Here's|Rewritten passage|Rewrite:)"
     - type: javascript
       value: "output.trim().length > 0 && output.length <= 6000"
 

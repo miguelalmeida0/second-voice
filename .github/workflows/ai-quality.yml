@@ -1,0 +1,74 @@
+name: AI Quality
+
+on:
+  pull_request:
+    paths:
+      - "src/server/ghostwriter.ts"
+      - "src/server/ghostwriter-quality.ts"
+      - "src/lib/ghostwriter-shared.ts"
+      - "evals/**"
+      - "tests/ghostwriter-quality-contract.test.ts"
+      - "tests/rewrite-lab.test.ts"
+      - ".github/workflows/ai-quality.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/server/ghostwriter.ts"
+      - "src/server/ghostwriter-quality.ts"
+      - "src/lib/ghostwriter-shared.ts"
+      - "evals/**"
+      - "tests/ghostwriter-quality-contract.test.ts"
+      - "tests/rewrite-lab.test.ts"
+      - ".github/workflows/ai-quality.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: second-voice-ai-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROMPTFOO_DISABLE_TELEMETRY: "1"
+  PROMPTFOO_DISABLE_UPDATE: "1"
+  PROMPTFOO_DISABLE_REMOTE_GENERATION: "true"
+  PROMPTFOO_DISABLE_SHARING: "true"
+
+jobs:
+  quality:
+    name: AI quality contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.23.2"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run rewrite contract tests
+        run: >
+          node --experimental-strip-types
+          --experimental-specifier-resolution=node
+          --test
+          tests/ghostwriter-quality-contract.test.ts
+          tests/rewrite-lab.test.ts
+
+      - name: Run deterministic prompt evaluation
+        run: |
+          mkdir -p artifacts/ai-evals
+          npx --yes promptfoo@0.123.1 eval             -c evals/promptfooconfig.ci.yaml             --no-cache             --no-progress-bar             --output artifacts/ai-evals/results.json             --output artifacts/ai-evals/report.html
+
+      - name: Upload AI quality report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: second-voice-ai-quality
+          path: artifacts/ai-evals/
+          if-no-files-found: warn
+          retention-days: 14

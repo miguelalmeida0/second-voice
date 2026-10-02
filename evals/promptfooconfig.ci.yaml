@@ -1,0 +1,73 @@
+description: Second Voice deterministic prompt contract
+sharing: false
+
+prompts:
+  - "{{input}}"
+
+providers:
+  - id: file://prompt-contract-provider.ts
+
+tests:
+  - description: Hemingway sober prompt preserves the rewrite contract
+    vars:
+      mode: author
+      author: hemingway
+      mood: 0
+      input: Keep the factual content unchanged.
+    assert:
+      - type: contains
+        value: "Contract version:\nsingle-rewrite-v1"
+      - type: contains
+        value: "Return only the rewritten passage."
+      - type: contains
+        value: "Preserve the core message, facts, and point of view."
+      - type: contains
+        value: "short declarative sentences"
+      - type: contains
+        value: "Band: stone sober."
+
+  - description: Tolkien maximum mood stays bounded by the same hard rules
+    vars:
+      mode: author
+      author: tolkien
+      mood: 100
+      input: Keep the factual content unchanged.
+    assert:
+      - type: contains
+        value: "Contract version:\nsingle-rewrite-v1"
+      - type: contains
+        value: "Return only the rewritten passage."
+      - type: contains
+        value: "Preserve the core message, facts, and point of view."
+      - type: contains
+        value: "luminous, old-world cadence"
+      - type: contains
+        value: "Band: full legendarium."
+
+  - description: Outcome mode forbids author imitation and invented claims
+    vars:
+      mode: outcome
+      outcome: clarity
+      input: Clarify this without adding facts.
+    assert:
+      - type: contains
+        value: "You are an outcome-driven rewrite engine."
+      - type: contains
+        value: "Do not imitate a famous author or literary style."
+      - type: contains
+        value: "Never invent details, claims, promises, or emotional stakes"
+      - type: contains
+        value: "Keep the rewrite natural, human, and close to the user's voice."
+
+  - description: Concise outcome keeps factual preservation explicit
+    vars:
+      mode: outcome
+      outcome: concise
+      input: Make this shorter without changing what it says.
+    assert:
+      - type: contains
+        value: "preserving the original meaning, facts, intent, and point of view."
+      - type: contains
+        value: "Return only the rewritten passage."
+      - type: contains
+        value: "Remove unnecessary filler."

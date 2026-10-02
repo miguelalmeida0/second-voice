@@ -27,9 +27,10 @@ jobs:
         run: |
           set -euo pipefail
           body="$(mktemp)"
-          trap 'rm -f "$body"' EXIT
+          cookies="$(mktemp)"
+          trap 'rm -f "$body" "$cookies"' EXIT
 
-          code="$(curl --silent --show-error --location             --retry 2 --retry-delay 2 --retry-all-errors             --connect-timeout 10 --max-time 45             -o "$body" -w '%{http_code}'             "$SITE_URL/")"
+          code="$(curl --silent --show-error --location --max-redirs 10 --retry 2 --retry-delay 2 --retry-all-errors --connect-timeout 10 --max-time 45 --cookie "$cookies" --cookie-jar "$cookies" -o "$body" -w '%{http_code}' "$SITE_URL/")"
 
           if [[ "$code" != "200" ]]; then
             echo "::error::Production health check returned HTTP $code"
@@ -65,7 +66,7 @@ jobs:
           body="$(mktemp)"
           trap 'rm -f "$body"' EXIT
 
-          code="$(curl --silent --show-error             --retry 2 --retry-delay 2 --retry-all-errors             --connect-timeout 10 --max-time 45             -o "$body" -w '%{http_code}'             -H "Authorization: Bearer $CRON_SECRET"             "$HEALTH_URL")"
+          code="$(curl --silent --show-error --retry 2 --retry-delay 2 --retry-all-errors --connect-timeout 10 --max-time 45 -o "$body" -w '%{http_code}' -H "Authorization: Bearer $CRON_SECRET" "$HEALTH_URL")"
 
           cat "$body"
 

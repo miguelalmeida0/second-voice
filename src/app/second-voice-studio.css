@@ -736,7 +736,7 @@
   width: min(100%, 520px);
   height: 1px;
   margin-top: 44px;
-  overflow: hidden;
+  overflow: clip;
   background: var(--sv-line);
 }
 

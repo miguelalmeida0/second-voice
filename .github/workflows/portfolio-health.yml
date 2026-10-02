@@ -1,28 +1,80 @@
 name: Portfolio Health Watch
+
 permissions:
   contents: read
+
 on:
   schedule:
     - cron: "13 */6 * * *"
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/portfolio-health.yml"
+
+concurrency:
+  group: portfolio-health-watch
+  cancel-in-progress: true
+
 jobs:
   health:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Check live Second Voice and Supabase heartbeat
+      - name: Check public production availability
         env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: https://secondvoice-ai.vercel.app
         shell: bash
         run: |
           set -euo pipefail
-          test "${#CRON_SECRET}" -ge 32 || { echo "CRON_SECRET is missing" >&2; exit 1; }
           body="$(mktemp)"
-          code="$(curl --fail-with-body --silent --show-error \
-            --connect-timeout 10 --max-time 45 \
-            -o "$body" -w '%{http_code}' \
-            -H "Authorization: Bearer $CRON_SECRET" \
-            https://secondvoice-ai.vercel.app/api/internal/portfolio-maintenance)"
+          trap 'rm -f "$body"' EXIT
+
+          code="$(curl --silent --show-error --location             --retry 2 --retry-delay 2 --retry-all-errors             --connect-timeout 10 --max-time 45             -o "$body" -w '%{http_code}'             "$SITE_URL/")"
+
+          if [[ "$code" != "200" ]]; then
+            echo "::error::Production health check returned HTTP $code"
+            cat "$body"
+            exit 1
+          fi
+
+          test -s "$body" || {
+            echo "::error::Production returned an empty response"
+            exit 1
+          }
+
+          echo "Production is reachable (HTTP 200)."
+
+      - name: Check authenticated Supabase heartbeat when configured
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          HEALTH_URL: https://secondvoice-ai.vercel.app/api/internal/portfolio-maintenance
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${CRON_SECRET:-}" ]]; then
+            echo "::notice::CRON_SECRET is not configured in GitHub; skipping the optional internal heartbeat. Vercel Cron owns that authenticated check."
+            exit 0
+          fi
+
+          if [[ "${#CRON_SECRET}" -lt 32 ]]; then
+            echo "::error::CRON_SECRET is configured but shorter than 32 characters"
+            exit 1
+          fi
+
+          body="$(mktemp)"
+          trap 'rm -f "$body"' EXIT
+
+          code="$(curl --silent --show-error             --retry 2 --retry-delay 2 --retry-all-errors             --connect-timeout 10 --max-time 45             -o "$body" -w '%{http_code}'             -H "Authorization: Bearer $CRON_SECRET"             "$HEALTH_URL")"
+
           cat "$body"
-          test "$code" = "200"
-          grep -q '"ok":true' "$body"
+
+          if [[ "$code" != "200" ]]; then
+            echo "::error::Authenticated heartbeat returned HTTP $code"
+            exit 1
+          fi
+
+          grep -q '"ok":true' "$body" || {
+            echo "::error::Authenticated heartbeat did not report ok=true"
+            exit 1
+          }

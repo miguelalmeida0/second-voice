@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import "./ghostwriter-overflow-guard.css";
+import "./duet.css";
 
 const inter = Inter({
   display: "swap",

@@ -2,7 +2,7 @@
 
 import { OUTCOMES, type OutcomeId } from "@/lib/ghostwriter-shared";
 
-function outcomeDescription(label: string): string {
+export function outcomeDescription(label: string): string {
   const normalized = label.toLowerCase();
 
   if (normalized.includes("clarity")) {

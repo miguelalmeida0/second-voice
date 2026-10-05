@@ -26,7 +26,7 @@ export class AppPage {
   }
 
   rewriteButton() {
-    return this.page.getByRole("button", { name: /^Rewrite (as|to)/ });
+    return this.page.getByRole("button", { name: /^Rewrite (my draft|again)$/ });
   }
 
   heroSurpriseButton() {
@@ -38,7 +38,7 @@ export class AppPage {
   }
 
   howItWorksButton() {
-    return this.page.getByRole("button", { name: "How it works" });
+    return this.page.getByRole("button", { name: "How it works", exact: true });
   }
 
   caseStudyLink() {
@@ -58,7 +58,7 @@ export class AppPage {
   }
 
   async chooseOutcome(label: string) {
-    await this.page.getByRole("button", { name: new RegExp(label, "i") }).click();
+    await this.page.getByRole("group", { name: "Outcome options" }).getByRole("button", { name: new RegExp(label, "i") }).click();
   }
 
   async switchToOutcomes() {

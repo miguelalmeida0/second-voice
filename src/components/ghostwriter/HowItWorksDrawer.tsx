@@ -26,12 +26,12 @@ const HOW_TO_USE_STEPS: HowItWorksStep[] = [
   {
     id: "choose",
     title: "Choose your direction",
-    body: "In Authors, pick a writer and tune the mood. In Outcomes, choose what you want your writing to do.",
+    body: "In Authors, pick a writer and its strength. In Outcomes, choose what you want your writing to do. Switching modes keeps your draft and any completed rewrite.",
   },
   {
     id: "rewrite",
     title: "Press rewrite",
-    body: "Read the rewrite beside your original, then copy it when you’re ready. Surprise me runs a rewrite with a random voice or outcome and uses one rewrite from your allowance.",
+    body: "Press Rewrite my draft to use one rewrite from your allowance. Read the result beside your original, then copy it when you’re ready.",
   },
 ];
 
@@ -77,7 +77,7 @@ function useMediaQuery(query: string) {
 }
 
 export function HowItWorksDrawer({ open, onClose, returnFocusRef }: HowItWorksDrawerProps) {
-  const drawerRef = useRef<HTMLElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
@@ -214,7 +214,7 @@ export function HowItWorksDrawer({ open, onClose, returnFocusRef }: HowItWorksDr
             exit={{ opacity: 0 }}
             transition={transition}
           >
-            <motion.aside
+            <motion.div
               id="gw-how-drawer"
               ref={drawerRef}
               className="gw-how-drawer"
@@ -273,7 +273,7 @@ export function HowItWorksDrawer({ open, onClose, returnFocusRef }: HowItWorksDr
                   Close
                 </button>
               </footer>
-            </motion.aside>
+            </motion.div>
           </motion.div>
         </>
       ) : null}

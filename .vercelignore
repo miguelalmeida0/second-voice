@@ -9,3 +9,10 @@ test-results
 playwright-report
 coverage
 *.pem
+# Local design handoffs and browser evidence are not application assets.
+artifacts
+codex-duet-handoff
+.impeccable
+.github
+.serena
+*.tsbuildinfo

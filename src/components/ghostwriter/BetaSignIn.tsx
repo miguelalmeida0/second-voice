@@ -312,12 +312,12 @@ export function BetaSignIn({
     };
   });
 
-  if (headless) { return <>{githubEnabled?<button ref={githubRef} type="button" className="sr-only" disabled={busy} onClick={()=>void act("github")}>Sign in with GitHub</button>:null}{message?<p role="status" className="mx-auto max-w-3xl px-6 py-3 text-sm text-[#eeeae3]">{message}</p>:null}</>; }
+  if (headless) { return <>{githubEnabled?<button ref={githubRef} type="button" className="sr-only" tabIndex={-1} disabled={busy} onClick={()=>void act("github")}>Sign in with GitHub</button>:null}{message?<p role="status" className="duet-auth-message">{message}</p>:null}</>; }
 
   return (
     <details
       ref={detailsRef}
-      className="mx-auto w-full max-w-3xl px-6 py-4 text-sm"
+      className="duet-beta"
     >
       <summary>
         {portfolio

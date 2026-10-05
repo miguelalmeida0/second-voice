@@ -25,7 +25,7 @@ test.describe("rewrite console dashboard", () => {
     await expectPressed(page.getByRole("button", { name: "Choose Stephen King" }), true);
     await expectPressed(page.getByRole("button", { name: "Choose J.R.R. Tolkien" }), false);
     await expect(page.getByLabel(/dread mood dial/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Rewrite as King" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Rewrite my draft" })).toBeVisible();
   });
 
   test("outcome mode swaps the control surface and rewrites the CTA around the chosen outcome", async ({ dashboard, page }) => {
@@ -34,7 +34,7 @@ test.describe("rewrite console dashboard", () => {
     await dashboard.app.chooseOutcome("Be concise");
 
     await expectPressed(page.getByRole("button", { name: /Be concise/ }), true);
-    await expect(page.getByRole("button", { name: "Rewrite to be concise" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Rewrite my draft" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Choose J.R.R. Tolkien" })).toHaveCount(0);
   });
 });

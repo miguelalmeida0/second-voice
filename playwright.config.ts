@@ -81,6 +81,7 @@ export default defineConfig({
         url: `${baseURL}/second-voice`,
       },
   projects: [
+    { name: "mobile-webkit", use: { ...devices["iPhone 13"] } },
     {
       name: "chromium",
       use: {

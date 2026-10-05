@@ -7,11 +7,13 @@ export function MoodDial({
   disabled = false,
   value,
   onChange,
+  preview = false,
 }: {
   author: AuthorId | null;
   disabled?: boolean;
   value: number;
   onChange: (next: number) => void;
+  preview?: boolean;
 }) {
   const labels = author ? MOOD_LABELS[author] : null;
   const moodLabel = author ? moodLabelFor(author, value) : "choose an author";
@@ -20,13 +22,13 @@ export function MoodDial({
     <div className="gw-mood-dock" data-voice={author ?? undefined}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-playfair text-[1.08rem] font-medium tracking-[-0.015em] text-[var(--ghost)] sm:text-[1.14rem]">Tune the mood</h2>
+          <h2 className="font-playfair text-[1.08rem] font-medium tracking-[-0.015em] text-[var(--ghost)] sm:text-[1.14rem]">{preview ? "How strong" : "Tune the mood"}</h2>
           <p className="mt-1 text-[12px] leading-relaxed text-[var(--mist)] sm:text-[13px]">
             {author ? MOOD_NAME[author] : "Choose an author first"}
           </p>
         </div>
         <div className="gw-mood-badge inline-flex items-center rounded-[10px] border px-3 py-1 text-[11px] sm:text-[12px]">
-          {author ? `${value}% · ${moodLabel}` : "Pick an author"}
+          {preview ? "Choose how much the voice comes through." : author ? `${value}% · ${moodLabel}` : "Pick an author"}
         </div>
       </div>
 
@@ -37,7 +39,7 @@ export function MoodDial({
             type="range"
             min={0}
             max={100}
-            step={1}
+            step={preview ? 50 : 1}
             value={value}
             disabled={disabled}
             aria-label={author ? `${MOOD_NAME[author]} mood dial` : "Mood dial"}
@@ -47,8 +49,9 @@ export function MoodDial({
           />
         </div>
         <div className="mt-3 flex items-center justify-between gap-3 text-[12px] text-[var(--whisper)]">
-          <span>{labels?.[0] ?? "first pick"}</span>
-          <span className="text-right">{labels?.[4] ?? "then tune"}</span>
+          <span data-selected={preview && value < 25}>{labels?.[0] ?? "first pick"}</span>
+          {preview && <span className="duet-strength-middle" data-selected={value >= 25 && value < 75}>{labels?.[2]}</span>}
+          <span className="text-right" data-selected={preview && value >= 75}>{labels?.[4] ?? "then tune"}</span>
         </div>
       </div>
     </div>

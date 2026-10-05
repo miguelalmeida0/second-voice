@@ -2,15 +2,14 @@
 
 import dynamic from "next/dynamic";
 
-import Image from "next/image";
 import Link from "next/link";
-import { Feather } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
+import { DuetControls } from "./DuetControls";
+import { RewriteGuide } from "./RewriteGuide";
 import { QuickStartsPanel } from "@/components/ghostwriter/QuickStartsPanel";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import { AUTHORS, AuthorOrbital } from "@/components/ghostwriter/AuthorOrbital";
-import { MoodDial } from "@/components/ghostwriter/MoodDial";
-import { OutcomeOptions } from "@/components/ghostwriter/OutcomeOptions";
+import { AUTHORS } from "@/components/ghostwriter/AuthorOrbital";
 import {
   openPortfolioSignIn,
   usePortfolioAccess,
@@ -34,11 +33,9 @@ import type { RewriteLabWinnerSelection } from "@/lib/ghostwriter-lab-shared";
 import { portfolioAccessView } from "@/lib/portfolio-access";
 import { PUBLIC_REWRITE_SHARE_CONSENT } from "@/lib/ghostwriter-share";
 import {
-  DEMO_PRESETS,
   DEFAULT_OUTCOME_ID,
   DEFAULT_REWRITE_MODE,
   OUTCOMES,
-  SAMPLES,
   moodLabelFor,
   outcomeLabelFor,
   type AuthorId,
@@ -161,8 +158,10 @@ function resizeComposer(node: HTMLTextAreaElement) {
 
 export function GhostwriterPage({
   features = DEFAULT_FEATURES,
+  identity,
 }: {
   features?: GhostwriterFeatureAvailability;
+  identity?: ReactNode;
 }) {
   const portfolioAccess = usePortfolioAccess();
 
@@ -175,9 +174,9 @@ export function GhostwriterPage({
 
   const [preferencesReady, setPreferencesReady] = useState(false);
 
-  const [mood, setMood] = useState(52);
+  const [mood, setMood] = useState(50);
 
-  const [input, setInput] = useState(SAMPLES[1]?.text ?? "");
+  const [input, setInput] = useState("");
 
   const [loading, setLoading] = useState(false);
 
@@ -200,6 +199,8 @@ export function GhostwriterPage({
   const [error, setError] = useState<RewriteErrorState | null>(null);
 
   const [howItWorksOpen, setHowItWorksOpen] = useState(false);
+  const [promptsOpen, setPromptsOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(true);
 
   const [latestRun, setLatestRun] = useState<RewriteRun>(EMPTY_RUN);
 
@@ -224,7 +225,10 @@ export function GhostwriterPage({
   const outputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!loading || !window.matchMedia("(max-width: 1100px)").matches) return;
+    if (!loading || !window.matchMedia("(max-width: 767px)").matches) return;
+    // Short screens, enlarged text and keyboard users keep the in-flow action
+    // in place; only a docked action can accompany an automatic result scroll.
+    if (!studioRef.current?.querySelector('.duet-action-primary[data-docked="true"]')) return;
     outputRef.current?.scrollIntoView({
       block: "start",
       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
@@ -295,11 +299,6 @@ export function GhostwriterPage({
     [activeId],
   );
 
-  const activeOutcome = useMemo(
-    () => OUTCOMES.find((entry) => entry.id === outcome) ?? OUTCOMES[0],
-    [outcome],
-  );
-
   const displayedAuthor =
     (requestContext?.author
       ? AUTHORS.find((author) => author.id === requestContext.author)
@@ -342,11 +341,6 @@ export function GhostwriterPage({
   const canRewrite =
     !loading &&
     (accessView?.signIn || (generationEnabled && input.trim().length > 0));
-
-  const rewriteCta =
-    rewriteMode === "outcome"
-      ? `Rewrite to ${activeOutcome.label.toLowerCase()}`
-      : `Rewrite as ${active.cardTitle}`;
 
   function scrollToRewriteStudio() {
     window.requestAnimationFrame(() => {
@@ -612,7 +606,9 @@ export function GhostwriterPage({
       }
     } catch (caughtError) {
       if (caughtError instanceof GhostwriterRequestError && caughtError.retryAfterSeconds) {
-        startCooldown(Math.min(300, caughtError.retryAfterSeconds));
+        // The server may require more than five minutes. Never enable the
+        // action before its Retry-After window has actually elapsed.
+        startCooldown(Math.ceil(caughtError.retryAfterSeconds));
       }
 
       setError(
@@ -911,204 +907,18 @@ export function GhostwriterPage({
     throw new Error("Feedback could not be saved.");
   }
 
-  function handleSurpriseMe() {
-    if (loading) {
-      return;
-    }
-
-    if (!generationEnabled) {
-      setError({
-        message: rewriteUnavailableMessage,
-
-        requestId: null,
-      });
-
-      scrollToRewriteStudio();
-
-      return;
-    }
-
-    const userSource = input.trim();
-
-    const presetsWithNewMood = DEMO_PRESETS.filter(
-      (preset) => preset.mood !== mood,
-    );
-
-    const presetPool =
-      presetsWithNewMood.length > 0 ? presetsWithNewMood : DEMO_PRESETS;
-
-    const preset = presetPool[Math.floor(Math.random() * presetPool.length)];
-
-    const source = userSource || preset.text;
-
-    if (rewriteMode === "outcome") {
-      const outcomes = OUTCOMES.filter((entry) => entry.id !== outcome);
-
-      const outcomePool = outcomes.length > 0 ? outcomes : OUTCOMES;
-
-      const nextOutcome =
-        outcomePool[Math.floor(Math.random() * outcomePool.length)]?.id ??
-        DEFAULT_OUTCOME_ID;
-
-      setOutcome(nextOutcome);
-
-      if (!userSource) {
-        setInput(preset.text);
-      }
-
-      void handleRewrite({
-        author: active.id,
-
-        mode: "outcome",
-
-        mood,
-
-        outcome: nextOutcome,
-
-        text: source,
-      });
-
-      scrollToRewriteStudio();
-
-      return;
-    }
-
-    setActiveId(preset.author);
-
-    setMood(preset.mood);
-
-    if (!userSource) {
-      setInput(preset.text);
-    }
-
-    void handleRewrite({
-      author: preset.author,
-
-      mode: "author",
-
-      mood: preset.mood,
-
-      outcome,
-
-      text: source,
-    });
-
-    scrollToRewriteStudio();
-  }
-
   return (
-    <div
-      className="ghostwriter gw-studio relative min-h-dvh overflow-x-clip bg-[#050505] text-[var(--ghost)]"
+    <main
+      className="ghostwriter gw-studio relative min-h-dvh overflow-x-clip "
       data-app-ready={preferencesReady ? "true" : "false"}
       data-voice={active.id}
     >
+      {identity}
       <div className="gw-studio-shell">
-        {/* ====================================================
-            TOP BRAND / HERO
-           ==================================================== */}
-        <header className="gw-studio-hero">
-          <div className="gw-studio-intro">
-            <div className="gw-studio-brand">
-              <Feather aria-hidden="true" />
-              <h1>Second Voice</h1>
-            </div>
-
-            <p>Your words, another voice.</p>
-          </div>
-          <Image
-            src="/ghostwriter/second-voice-mascot.png"
-            alt="The Second Voice writer, in his black beanie, thinking with a fountain pen"
-            width={1248}
-            height={1248}
-            preload
-            unoptimized
-            className="gw-studio-mascot"
-          />
+        <header className="duet-header">
+          <div className="duet-brand"><svg aria-hidden="true" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M10 7h11l-6 21H4z"/><path d="M19 3h10l-6 21H13z"/></svg><h1>Second Voice</h1></div>
+          <nav aria-label="Workspace"><button ref={howItWorksTriggerRef} type="button" aria-haspopup="dialog" aria-expanded={howItWorksOpen} aria-controls="gw-how-drawer" onClick={() => setHowItWorksOpen(true)}>How it works <ArrowUpRight aria-hidden="true" /></button><a href="/second-voice/account">Account <ArrowUpRight aria-hidden="true" /></a></nav>
         </header>
-
-        {/* ====================================================
-            MODE SWITCH
-           ==================================================== */}
-        <section className="gw-studio-mode">
-          <button
-            ref={howItWorksTriggerRef}
-            type="button"
-            aria-haspopup="dialog"
-            aria-expanded={howItWorksOpen}
-            aria-controls="gw-how-drawer"
-            onClick={() => setHowItWorksOpen(true)}
-            className="gw-studio-help"
-          >How it works</button>
-          <div
-            className="gw-studio-mode-switch"
-            role="group"
-            aria-label="Rewrite mode"
-          >
-            <button
-              type="button"
-              aria-pressed={rewriteMode === "author"}
-              disabled={loading}
-              onClick={() => setRewriteMode("author")}
-              className={[
-                "gw-studio-mode-button",
-                rewriteMode === "author"
-                  ? "border border-[#9bcaff]/75 bg-[#9bcaff]/12 text-[#cde5ff] shadow-[0_0_0_1px_rgba(155,202,255,0.12)]"
-                  : "text-[var(--mist)] hover:bg-white/[0.025] hover:text-[var(--ghost)]",
-              ].join(" ")}
-            >
-              Authors
-            </button>
-
-            <button
-              type="button"
-              aria-pressed={rewriteMode === "outcome"}
-              disabled={loading}
-              onClick={() => setRewriteMode("outcome")}
-              className={[
-                "gw-studio-mode-button",
-                rewriteMode === "outcome"
-                  ? "border border-[#9bcaff]/75 bg-[#9bcaff]/12 text-[#cde5ff] shadow-[0_0_0_1px_rgba(155,202,255,0.12)]"
-                  : "text-[var(--mist)] hover:bg-white/[0.025] hover:text-[var(--ghost)]",
-              ].join(" ")}
-            >
-              Outcomes
-            </button>
-          </div>
-        </section>
-
-        {/* ====================================================
-            AUTHOR / OUTCOME CONTROL
-           ==================================================== */}
-        <section className="gw-studio-controls" aria-label={rewriteMode === "author" ? "Author and mood" : "Writing outcome"}>
-          {rewriteMode === "author" ? (
-            <div className="gw-studio-author-controls">
-              <AuthorOrbital
-                active={active.id}
-                disabled={loading}
-                onSelect={setActiveId}
-              />
-
-              <MoodDial
-                author={active.id}
-                disabled={loading}
-                value={mood}
-                onChange={setMood}
-              />
-            </div>
-          ) : (
-            <div className="gw-studio-outcome-controls">
-              <OutcomeOptions
-                disabled={loading}
-                onChange={setOutcome}
-                value={outcome}
-              />
-            </div>
-          )}
-        </section>
-
-        {/* ====================================================
-            MAIN WORKSPACE
-           ==================================================== */}
         <section
           id="ghostwriter-studio"
           ref={studioRef}
@@ -1116,26 +926,10 @@ export function GhostwriterPage({
         >
           {/* INPUT */}
           <div className="gw-studio-input">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="gw-studio-panel-title">Your text</h2>
-                <p className="gw-studio-panel-note">Paste or write up to 2,000 characters.</p>
-              </div>
-
-              <span className="text-[10px] tracking-[0.04em] text-[var(--whisper)] sm:text-[11px]">
-                {input.length} / 2000
-              </span>
-            </div>
-
-            <p className="mt-3 text-[11px] leading-relaxed text-[var(--whisper)]">
-              Rewrites use generative AI and may send your text to the configured model provider.
-              Do not paste secrets or sensitive data you are not authorised to share.{" "}
-              <Link href="/second-voice/privacy" className="underline underline-offset-4 hover:text-[var(--mist)]">
-                Privacy details
-              </Link>
-            </p>
-
-            <div className="gw-composer-field mt-4 rounded-[13px] border border-white/10 bg-black/20">
+            <div className="duet-column-heading duet-input-heading"><p className="duet-index">01 / Your draft</p>
+            <h2 className="duet-title">Your words.</h2></div>
+            <p className="duet-note">Paste a sentence, a paragraph or a messy draft.</p>
+            <div className="gw-composer-field">
               <label
                 htmlFor="second-voice-input"
                 className="sr-only"
@@ -1152,35 +946,49 @@ export function GhostwriterPage({
 
                   setInput(event.target.value.slice(0, 2000));
                 }}
-                rows={4}
+                rows={2}
                 maxLength={2000}
                 placeholder="Paste your sentence, paragraph, or messy draft here."
                 className="min-h-[120px] w-full resize-none overflow-hidden bg-transparent px-4 py-4 font-playfair text-[1.05rem] leading-[1.65] text-[var(--ghost)] outline-none placeholder:text-[var(--whisper)]"
               />
             </div>
 
+            <div className="duet-input-support">
+            <div className="duet-editor-meta"><span>{input.length} / 2000 characters</span><button type="button" onClick={() => setInput("")} disabled={!input || loading} aria-label="Clear text">Clear</button></div>
+            <QuickStartsPanel promptsOnly input={input} onSelect={setInput} promptsOpen={promptsOpen} onPromptsOpenChange={setPromptsOpen} />
+            </div>
+            <div className="duet-draft-footer">
+        <p className="duet-privacy">Rewrites use generative AI and may send your text to the configured model provider. Do not paste secrets or sensitive data you are not authorised to share. <Link href="/second-voice/privacy">Privacy details</Link></p>
+        <footer className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-white/10 pb-8 pt-6 text-xs text-[var(--whisper)]">
+          <Link href="/second-voice/legal#imprint" className="transition-colors hover:text-[var(--mist)]">
+            Imprint
+          </Link>
+          <Link href="/second-voice/privacy" className="transition-colors hover:text-[var(--mist)]">
+            Privacy
+          </Link>
+          <Link href="/second-voice/legal#ai-notice" className="transition-colors hover:text-[var(--mist)]">
+            AI notice
+          </Link>
+        </footer>
+            </div>
           </div>
 
-          <QuickStartsPanel
-            input={input}
-            mode={rewriteMode}
-            onSelect={setInput}
-            onSurprise={handleSurpriseMe}
-            onRewrite={() => accessView?.signIn ? openPortfolioSignIn() : void handleRewrite()}
-            loading={loading}
-            canRewrite={canRewrite}
-            surpriseDisabled={loading || !generationEnabled}
-            label={accessView?.signIn ? "Sign in with GitHub" : rewriteCta}
-            status={accessView || !features.rewriteEnabled
-              ? cooldownSeconds > 0
-                ? "Next rewrite in " + cooldownSeconds + "s. Your free-rewrite allowance is unchanged."
-                : rewriteUnavailableMessage
-              : null}
-          />
-
-          {/* OUTPUT */}
           <div ref={outputRef} className="gw-studio-output">
-            <RewritePlayback
+            <div className="duet-column-heading duet-output-heading">
+            <p className="duet-index">02 / Their voice</p>
+            <h2 className="duet-title">Another voice.</h2>
+            </div>
+        <DuetControls mode={rewriteMode} author={active.id} mood={mood} outcome={outcome} disabled={loading} modeSwitch={
+          <div className="duet-mode" data-mode={rewriteMode} role="group" aria-label="Rewrite mode">
+            <button type="button" aria-label="Authors" aria-pressed={rewriteMode === "author"} disabled={loading} onClick={() => { setRewriteMode("author"); setError(null); }}><span className="duet-mode-name">Authors</span><small>Match a writer’s voice</small></button>
+            <button type="button" aria-label="Outcomes" aria-pressed={rewriteMode === "outcome"} disabled={loading} onClick={() => { setRewriteMode("outcome"); setError(null); }}><span className="duet-mode-name">Outcomes</span><small>Improve your message</small></button>
+          </div>
+        } onAuthor={(value) => { setActiveId(value); setError(null); }} onMood={(value) => { setMood(value); setError(null); }} onOutcome={(value) => { setOutcome(value); setError(null); }} preview={
+          <div className="duet-canvas">
+          {previewOpen && !loading && !error && <RewriteGuide hasDraft={Boolean(input.trim())} mode={rewriteMode} />}
+            <div className="duet-result" hidden={previewOpen && !loading && !error}><RewritePlayback
+              onRewriteAgain={() => void handleRewrite()}
+              rewriteAgainDisabled={!canRewrite}
               author={displayedAuthor}
               error={error?.message ?? null}
               errorRequestId={error?.requestId ?? null}
@@ -1212,21 +1020,35 @@ export function GhostwriterPage({
               result={latestRun.rewrite}
               runId={latestRun.runId}
               source={displayedSource}
-            />
+            /></div>
           </div>
+        }>
+          <QuickStartsPanel actionsOnly
+            input={input}
+            onSelect={setInput}
+            onRewrite={() => {
+              setPromptsOpen(false);
+              setPreviewOpen(false);
+              if (accessView?.signIn) openPortfolioSignIn();
+              else void handleRewrite();
+            }}
+            loading={loading}
+            canRewrite={canRewrite}
+            completed={Boolean(latestRun.rewrite) && !error}
+            status={accessView || !features.rewriteEnabled
+              ? cooldownSeconds > 0
+                ? "Next rewrite in " + cooldownSeconds + "s. Your free-rewrite allowance is unchanged."
+                : rewriteUnavailableMessage
+              : null}
+          />
+        </DuetControls>
+        {previewOpen && latestRun.rewrite && !loading && <button type="button" className="duet-return-result" onClick={() => setPreviewOpen(false)}>Back to your rewrite</button>}
+          </div>
+
+
+
         </section>
 
-        <footer className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-white/10 pb-8 pt-6 text-xs text-[var(--whisper)]">
-          <Link href="/second-voice/legal#imprint" className="transition-colors hover:text-[var(--mist)]">
-            Imprint
-          </Link>
-          <Link href="/second-voice/privacy" className="transition-colors hover:text-[var(--mist)]">
-            Privacy
-          </Link>
-          <Link href="/second-voice/legal#ai-notice" className="transition-colors hover:text-[var(--mist)]">
-            AI notice
-          </Link>
-        </footer>
       </div>
 
       <HowItWorksDrawer
@@ -1234,6 +1056,6 @@ export function GhostwriterPage({
         onClose={() => setHowItWorksOpen(false)}
         returnFocusRef={howItWorksTriggerRef}
       />
-    </div>
+    </main>
   );
 }

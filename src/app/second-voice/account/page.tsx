@@ -29,7 +29,7 @@ export default function AccountPage() {
       setMessage("Cleanup could not be confirmed. Try again. If the response was lost after access was revoked, owner-assisted recovery may be needed; no allowance is reset.");
     } finally { setBusy(false); }
   }
-  return <main className="mx-auto max-w-2xl px-6 py-16 text-[#eeeae3]">
+  return <main className="duet-account mx-auto max-w-2xl px-6 py-16">
     <a href="/second-voice" className="underline underline-offset-4">Back to Second Voice</a>
     <h1 className="mt-10 text-3xl">Account &amp; deletion</h1>
     <p className="mt-6">Deletion revokes access, removes your account and clears private stored rewrites. Minimal trial and recovery records follow the seven-day content and 90-day recovery policy in <a href="/second-voice/privacy" className="underline">Privacy &amp; contact</a>; they are not anonymous. Unresolved charges or incomplete cleanup need reconciliation. Previously copied text cannot be recalled.</p>

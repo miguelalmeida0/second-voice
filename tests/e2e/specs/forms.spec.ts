@@ -70,16 +70,19 @@ test.describe("composer forms and rewrite submissions", () => {
     await app.expectRewriteVisible(apiResponses.rewrite);
   });
 
-  test("surprise me submits a deterministic demo payload when the composer is empty", async ({ app, page }) => {
+  test("switching rewrite directions preserves the empty draft and guidance without generating", async ({ app, page }) => {
     const api = await mockGhostwriterApi(page);
 
     await app.goto();
     await app.fillDraft("");
-    await app.composerSurpriseButton().click();
-
-    await app.expectRewriteVisible(apiResponses.rewrite);
-    expect(typeof api.rewriteRequests[0]?.body.text).toBe("string");
-    expect((api.rewriteRequests[0]?.body.text as string).length).toBeGreaterThan(20);
-    expect(api.rewriteRequests[0]?.body.mode).toBe("author");
+    await expect(page.getByRole("region", { name: "How to start your rewrite" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Free sample preview" })).toHaveCount(0);
+    await app.switchToOutcomes();
+    await expect(page.getByRole("region", { name: "How to start your rewrite" })).toContainText("Choose a goal for your writing.");
+    await page.getByRole("button", { name: "Authors", exact: true }).click();
+    await expect(page.getByRole("region", { name: "How to start your rewrite" })).toContainText("Choose an author and strength.");
+    await expect(app.draftInput()).toHaveValue("");
+    await expect(app.rewriteButton()).toBeDisabled();
+    expect(api.rewriteRequests).toHaveLength(0);
   });
 });

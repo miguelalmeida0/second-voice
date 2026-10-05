@@ -12,7 +12,9 @@ import { fileURLToPath } from "node:url";
 process.chdir(fileURLToPath(new URL("../../", import.meta.url)));
 const image = "postgres:16@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94";
 const name = `secondvoice-cap-test-${randomUUID()}`;
-const migrationNames = ["202609160001_ghostwriter_combined_global_cap.sql","202609160002_secondvoice_provider_failure_accounting.sql"];
+// Apply the dispatch-entitlement correction after the cap/accounting migrations,
+// matching production order while exercising forward migration of existing usage.
+const migrationNames = ["202609160001_ghostwriter_combined_global_cap.sql","202609160002_secondvoice_provider_failure_accounting.sql","202609160003_ghostwriter_mark_dispatched_portfolio_entitlement.sql"];
 const latestMigrationName = migrationNames.at(-1);
 const results = [];
 let started = false;

@@ -89,7 +89,7 @@ try {
       return route.continue();
     });
     const signIn=page.getByRole("button",{name:"Sign in with GitHub",exact:true}).and(page.locator(":not(.sr-only)"));
-    const primary=page.getByRole("button",{name:/^Rewrite (text|again)$/});
+    const primary=page.getByRole("button",{name:/^Rewrite (my draft|again)$/});
     const input=page.getByLabel("Write or paste here");
     const message=page.locator(".duet-actions").getByRole("status");
     const capture=async name=>{await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:`.tmp/release/portfolio-ui/${name}-${viewport.width}.png`,fullPage:true});};
@@ -114,7 +114,7 @@ try {
     await capture("ready");
     const second=await context.newPage();await second.goto(origin+"/second-voice");
     await expect(second.getByRole("button",{name:"Sign out",exact:true})).toBeVisible();
-    await expect(second.getByRole("button",{name:/^Rewrite (text|again)$/})).toBeDisabled();
+    await expect(second.getByRole("button",{name:/^Rewrite (my draft|again)$/})).toBeDisabled();
     await second.close();
     await page.getByRole("button",{name:"Outcomes",exact:true}).click();
     await page.getByRole("group",{name:"Outcome options"}).getByRole("button",{name:/Be concise/}).click();

@@ -641,7 +641,7 @@ test("release gate covers lint, typecheck, security, scroll integrity, and E2E",
   assert.match(packageJson, /"verify:portfolio": "node scripts\/release\/verify.mjs --portfolio"/);
   assert.match(workflow, /npm run security:check/);
   assert.match(workflow, /npm run build -- --webpack/);
-  assert.match(workflow, /npm audit --audit-level=moderate/);
+  assert.match(workflow, /npm audit --omit=dev --audit-level=high/);
 });
 
 test("audited contrast fixes stay tokenized", () => {

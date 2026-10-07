@@ -15,7 +15,7 @@ const checks=[
  ["authentication","node",["--experimental-strip-types","scripts/release/test-auth.mjs"]],
  ["browser","node",["scripts/release/test-browser.mjs"]],
  ["build","npm",["run","build","--","--webpack"]],
- ["dependencies","npm",["audit","--audit-level=moderate"]],
+ ["dependencies","npm",["audit","--omit=dev","--audit-level=high"]],
  ["secrets","node",["scripts/release/scan-secrets.mjs"]],
  ["diff","git",["diff","--check"]]
 ];

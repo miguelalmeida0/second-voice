@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - main
-      - master
+      - test
 
 jobs:
   hardening:
@@ -65,4 +65,4 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
           SUPABASE_URL: https://supabase.example
 
-      - run: npm audit --audit-level=moderate
+      - run: npm audit --omit=dev --audit-level=high

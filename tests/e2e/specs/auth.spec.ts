@@ -29,6 +29,8 @@ test.describe("public session and request shield", () => {
     await auth.goto();
 
     await expect(page.getByLabel("Write or paste here")).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Rewrite as Tolkien$/ })).toBeEnabled();
+    await expect(page.getByRole("button", { name: /^Rewrite my draft$/ })).toBeDisabled();
+    await page.getByLabel("Write or paste here").fill("An explicit draft enables rewriting.");
+    await expect(page.getByRole("button", { name: /^Rewrite my draft$/ })).toBeEnabled();
   });
 });

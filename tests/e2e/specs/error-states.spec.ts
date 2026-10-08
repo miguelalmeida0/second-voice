@@ -3,6 +3,25 @@ import { apiResponses, drafts, labPayload } from "../fixtures/testData";
 import { errorResponse, mockGhostwriterApi } from "../utils/mockApi";
 
 test.describe("error, retry, and empty states", () => {
+  for (const endpoint of ["challenge", "rewrite"] as const) {
+    test(`${endpoint} cooldown honors a server wait longer than five minutes`, async ({ app, page }) => {
+      const api = await mockGhostwriterApi(page, {
+        [endpoint]: {
+          status: 429,
+          headers: { "Retry-After": "900" },
+          json: { error: "Please wait a moment before trying another rewrite.", reasonCode: "ABUSE_COOLDOWN" },
+        },
+      });
+      await app.goto();
+      await app.fillDraft(drafts.default);
+      await app.runRewrite();
+      await expect(page.locator(".gw-inspiration-status")).toContainText(/Next rewrite in (900|89\d)s/);
+      await expect(app.rewriteButton()).toBeDisabled();
+      await expect(app.draftInput()).toHaveValue(drafts.default);
+      expect(api.rewriteRequests).toHaveLength(endpoint === "challenge" ? 0 : 1);
+    });
+  }
+
   test("rewrite API error shows request id and retry recovers the last attempt", async ({ app, page }) => {
     let rewriteAttempts = 0;
 
@@ -88,7 +107,8 @@ test.describe("error, retry, and empty states", () => {
       page.getByRole("alert").filter({ hasText: "The public link could not be created." }),
     ).toContainText("The public link could not be created.");
     await page.getByRole("button", { name: "Try again" }).click();
-    await expect(page.getByText("Public link copied.")).toBeVisible();
+    await expect(page.getByText(/Public link (copied\.|ready\.)/)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open link" })).toHaveAttribute("href", `/g/${apiResponses.shareId}`);
     expect(shareAttempts).toBe(2);
   });
 

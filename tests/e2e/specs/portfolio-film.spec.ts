@@ -5,6 +5,13 @@ test("portfolio film replays the real Tolkien workflow without provider traffic"
 }) => {
   const apiRequests: string[] = [];
   const consoleErrors: string[] = [];
+  // The film activates Copy programmatically. WebKit correctly requires a
+  // trusted gesture for the real clipboard, so keep this synthetic film local.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
+      writeText: async (text: string) => { Object.assign(window, { filmCopiedText: text }); },
+    } });
+  });
 
   page.on("request", (request) => {
     if (request.url().includes("/api/ghostwriter")) {
@@ -44,4 +51,5 @@ test("portfolio film replays the real Tolkien workflow without provider traffic"
 
   expect(apiRequests).toEqual([]);
   expect(consoleErrors).toEqual([]);
+  expect(await page.evaluate(() => (window as Window & { filmCopiedText?: string }).filmCopiedText)).toContain("Elias kept the last lantern burning");
 });

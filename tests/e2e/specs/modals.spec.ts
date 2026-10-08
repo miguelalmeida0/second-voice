@@ -42,7 +42,7 @@ test.describe("drawers, confirmations, and modal-like panels", () => {
     await expect(page.getByText(/This will create a public permalink/)).toHaveCount(0);
 
     await app.createPublicLink();
-    await expect(page.getByText("Public link copied.")).toBeVisible();
+    await expect(page.getByText(/Public link (copied\.|ready\.)/)).toBeVisible();
     await expect(page.getByRole("link", { name: "Open link" })).toHaveAttribute("href", `/g/${apiResponses.shareId}`);
     expect(api.shareRequests[0]?.body).toMatchObject({
       author: "tolkien",

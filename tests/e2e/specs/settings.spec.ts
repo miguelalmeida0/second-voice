@@ -13,7 +13,7 @@ test.describe("local user preferences", () => {
     await expectPressed(app.outcomeModeButton(), true);
     await expect(page.getByRole("group", { name: "Outcome options" })).toBeVisible();
     await expectPressed(page.getByRole("button", { name: /Be persuasive/ }), true);
-    await expect(page.getByRole("button", { name: "Rewrite to be persuasive" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Rewrite my draft" })).toBeVisible();
   });
 
   test("ignores invalid stored preferences and returns to safe defaults", async ({ page }) => {
@@ -26,6 +26,6 @@ test.describe("local user preferences", () => {
 
     await expectPressed(page.getByRole("button", { name: "Authors" }), true);
     await expect(page.getByRole("group", { name: "Choose an author" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Rewrite as Tolkien$/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Rewrite my draft$/ })).toBeVisible();
   });
 });

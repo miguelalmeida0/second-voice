@@ -25,13 +25,13 @@ test.describe("filters, tabs, and segmented controls", () => {
 
     await expectPressed(page.getByRole("button", { name: /Get a reply/ }), true);
     await expectPressed(page.getByRole("button", { name: /Improve clarity/ }), false);
-    await expect(page.getByRole("button", { name: "Rewrite to get a reply" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Rewrite my draft" })).toBeVisible();
 
     // Outcome helper copy is decorative desktop/tablet explanatory text
     // (display:none under 1000px, see .gw-outcome-choice-description); the
     // outcome title alone carries the selected state on narrow viewports.
     if (testInfo.project.name !== "mobile-chrome") {
-      await expect(page.getByText("Warm, direct, easy to answer.", { exact: true })).toBeVisible();
+      await expect(page.locator(".duet-outcome-note").getByText("Warm, direct, easy to answer.", { exact: true })).toBeVisible();
     }
   });
 

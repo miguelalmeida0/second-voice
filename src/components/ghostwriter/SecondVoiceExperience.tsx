@@ -42,11 +42,10 @@ export function SecondVoiceExperience({
       />
 
       <div className="relative" data-session-status={sessionStatus}>
-        {portfolio && sessionStatus === "authenticated" ? <LogoutButton /> : null}
-        {portfolio && sessionStatus === "anonymous" && githubEnabled ? (
-          <SignInButton />
-        ) : null}
-        <GhostwriterPage features={features} />
+        <GhostwriterPage features={features} identity={
+          portfolio && sessionStatus === "authenticated" ? <LogoutButton /> :
+          portfolio && sessionStatus === "anonymous" && githubEnabled ? <SignInButton /> : null
+        } />
       </div>
     </>
   );
@@ -67,7 +66,7 @@ function IdentityButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="absolute right-5 top-5 z-10 flex h-11 items-center justify-center rounded-full border border-white/10 bg-[#0b0b0b]/90 px-4 text-xs font-semibold tracking-[0.02em] text-[#9bcaff] transition duration-200 hover:border-[#9bcaff]/40 hover:bg-[#111] hover:text-[#b8dcff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9bcaff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505]"
+      className="duet-identity"
     >
       {children}
     </button>

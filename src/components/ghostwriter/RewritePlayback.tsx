@@ -53,7 +53,7 @@ type RewriteShareStatus =
   | { kind: "idle" }
   | { kind: "confirming" }
   | { kind: "saving" }
-  | { href: string; kind: "ready"; shortId: string }
+  | { href: string; kind: "ready"; shortId: string; copied: boolean }
   | { kind: "error"; message: string };
 
 type PlaybackUnit = {
@@ -205,10 +205,12 @@ async function writeClipboardText(text: string) {
     textarea.setAttribute("readonly", "");
     textarea.style.position = "fixed";
     textarea.style.left = "-9999px";
+    const previousFocus = document.activeElement;
     document.body.append(textarea);
     textarea.select();
-    document.execCommand("copy");
-    textarea.remove();
+    let copied = false;
+    try { copied = document.execCommand("copy"); } finally { textarea.remove(); if (previousFocus instanceof HTMLElement) previousFocus.focus({ preventScroll: true }); }
+    if (!copied) throw new Error("Copy failed. Select the rewrite and copy it manually.");
   }
 }
 
@@ -224,10 +226,7 @@ function playbackMessage(
 
   switch (phase) {
     case "requesting":
-      if (mode === "outcome") {
-        return `Reading for ${outcomeLabel.toLowerCase()} while preserving your meaning.`;
-      }
-      return `Locking the draft and reading for ${author?.first.toLowerCase() ?? "the selected voice"} rhythm.`;
+      return "Waiting for your rewrite. Your original stays in the editor.";
     case "prelude":
       if (mode === "outcome") {
         return "Second Voice is tightening the line around the goal.";
@@ -255,6 +254,8 @@ export function RewritePlayback({
   mode = "author",
   mood,
   moodLabel,
+  onRewriteAgain,
+  rewriteAgainDisabled,
   onApplyRewrite,
   onPhaseChange,
   playbackRate = 1,
@@ -267,6 +268,8 @@ export function RewritePlayback({
   runId,
   source,
 }: {
+  onRewriteAgain?: () => void;
+  rewriteAgainDisabled?: boolean;
   author: Author | null;
   error: string | null;
   errorRequestId?: string | null;
@@ -288,6 +291,8 @@ export function RewritePlayback({
   source: string;
 }) {
   const reducedMotion = useReducedMotion();
+  const [copyFailure, setCopyFailure] = useState<{ runId: number; message: string } | null>(null);
+  const copyError = copyFailure?.runId === runId ? copyFailure.message : "";
   const [phase, setPhase] = useState<RewritePlaybackPhase>("idle");
   const [units, setUnits] = useState<PlaybackUnit[]>([]);
   const [copiedRunId, setCopiedRunId] = useState<number | null>(null);
@@ -404,7 +409,13 @@ export function RewritePlayback({
       return;
     }
 
-    await writeClipboardText(result);
+    setCopyFailure(null);
+    try {
+      await writeClipboardText(result);
+    } catch {
+      setCopyFailure({ runId, message: "Copy failed. Select the rewrite and copy it manually." });
+      return;
+    }
     setCopiedRunId(runId);
 
     if (copyTimerRef.current) {
@@ -425,8 +436,9 @@ export function RewritePlayback({
       const link = await onShareRewrite();
       const absoluteUrl = new URL(link.href, window.location.origin).toString();
 
-      await writeClipboardText(absoluteUrl);
-      setShareState({ runId, status: { ...link, kind: "ready" } });
+      let copied = false;
+      try { await writeClipboardText(absoluteUrl); copied = true; } catch { /* The link still exists if clipboard permission expires during the request. */ }
+      setShareState({ runId, status: { ...link, kind: "ready", copied } });
     } catch (shareError) {
       setShareState({
         runId,
@@ -460,7 +472,7 @@ export function RewritePlayback({
 
   return (
     <div className="gw-card-strong p-6 sm:p-7 lg:p-8" data-mode={mode} data-voice={author?.id} data-phase={visiblePhase}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="duet-playback-toolbar flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="gw-voice-text font-playfair text-[1.08rem] font-medium tracking-[-0.015em] sm:text-[1.14rem]">
             {visiblePhase === "complete" && mode === "outcome"
@@ -492,6 +504,8 @@ export function RewritePlayback({
         </div>
       </div>
 
+      {copyError ? <p role="alert" className="duet-copy-error">{copyError}</p> : null}
+      <span className="sr-only" aria-live="polite">{copied ? "Rewrite copied" : ""}</span>
       <div
         className="gw-playback-panel relative mt-5 min-h-[15rem] rounded-[12px] border p-4 pr-14 text-[17px] leading-[1.7] sm:p-5 sm:pr-16 sm:text-[18px]"
         aria-busy={loading}
@@ -508,7 +522,7 @@ export function RewritePlayback({
               <Check className="h-4 w-4" aria-hidden />
             ) : (
               <Copy className="h-4 w-4" aria-hidden />
-            )}
+            )}<span>{copied ? "Copied" : "Copy rewrite"}</span>
           </button>
         ) : null}
         {!error && visiblePhase === "requesting" ? (
@@ -516,12 +530,6 @@ export function RewritePlayback({
             className="gw-playback-panel gw-loading-panel relative overflow-hidden rounded-[10px] border p-4 sm:p-5"
             role="status"
           >
-            <motion.div
-              aria-hidden
-              className="gw-rewrite-scan pointer-events-none absolute inset-x-4 top-2 h-20 rounded-full blur-3xl"
-              animate={{ y: ["-10%", "250%"], opacity: [0, 0.2, 0.12, 0] }}
-              transition={{ duration: 2.1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
-            />
             <div className="gw-loading-status">
               <LoaderCircle className="gw-loading-spinner h-5 w-5 animate-spin" aria-hidden />
               <div className="min-w-0">
@@ -536,17 +544,6 @@ export function RewritePlayback({
                   {playbackMessage("requesting", author, mode, outcomeLabel)}
                 </p>
               </div>
-            </div>
-            <div className="gw-loading-bars" aria-hidden>
-              <span />
-              <span />
-              <span />
-            </div>
-            <div className="gw-loading-source whitespace-pre-wrap text-[var(--ghost)]/88">
-              {source ||
-                `${loadingLabel} ${
-                  mode === "outcome" ? outcomeLabel.toLowerCase() : (author?.first ?? "an author")
-                }...`}
             </div>
           </div>
         ) : (
@@ -596,29 +593,6 @@ export function RewritePlayback({
                 exit={{ opacity: 0 }}
                 className="gw-playback-panel relative overflow-hidden rounded-[10px] border p-4 sm:p-5"
               >
-                <motion.div
-                  aria-hidden
-                  className="gw-rewrite-glow pointer-events-none absolute -left-24 top-1/2 h-28 w-44 -translate-y-1/2 rounded-full blur-3xl"
-                  animate={{
-                    x: visiblePhase === "prelude" ? ["0%", "230%"] : ["8%", "18%", "8%"],
-                    opacity:
-                      visiblePhase === "prelude" ? [0, 0.2, 0.12, 0] : [0.08, 0.12, 0.08],
-                    scale: visiblePhase === "prelude" ? [0.96, 1.02, 0.98] : [1, 1.02, 1],
-                  }}
-                  transition={{
-                    duration: visiblePhase === "prelude" ? 1.9 : 2.8,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: "linear",
-                  }}
-                />
-                {visiblePhase === "prelude" && (
-                  <motion.div
-                    aria-hidden
-                    className="gw-rewrite-line pointer-events-none absolute inset-x-6 top-7 h-px"
-                    animate={{ scaleX: [0.35, 1, 0.5], opacity: [0, 0.26, 0.08] }}
-                    transition={{ duration: 1.9, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-                  />
-                )}
                 <p className="mb-4 text-[12px] leading-relaxed text-[var(--mist)] sm:text-[13px]">
                   {playbackMessage(visiblePhase, author, mode, outcomeLabel)}
                 </p>
@@ -669,7 +643,7 @@ export function RewritePlayback({
                     : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }
                 }
               >
-                <p className="mb-4 text-[12px] leading-relaxed text-[var(--mist)] sm:text-[13px]">
+                <p className="duet-completion-note mb-4 text-[12px] leading-relaxed text-[var(--mist)] sm:text-[13px]">
                   {playbackMessage("complete", author, mode, outcomeLabel)}
                 </p>
                 {provenance?.source === "rewrite-lab" ? (
@@ -748,7 +722,7 @@ export function RewritePlayback({
                     {shareStatus.kind === "ready" ? (
                       <div className="gw-share-status">
                         <Check className="h-4 w-4" aria-hidden />
-                        <span>Public link copied.</span>
+                        <span role="status">{shareStatus.copied ? "Public link copied." : "Public link ready. Open the link to copy its address."}</span>
                         <a href={shareStatus.href} className="gw-share-open">
                           Open link
                           <ExternalLink className="h-3.5 w-3.5" aria-hidden />
@@ -773,6 +747,7 @@ export function RewritePlayback({
         )}
       </div>
 
+      {visiblePhase === "complete" && onRewriteAgain ? <button type="button" className="duet-rewrite-again" disabled={rewriteAgainDisabled} onClick={onRewriteAgain}>Try another rewrite</button> : null}
       {author && mode === "author" ? (
         <RewriteLabPanel
           author={author.id}

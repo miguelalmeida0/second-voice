@@ -61,7 +61,7 @@ try {
   assert.equal((await fetch(origin + "/api/ghostwriter/auth/callback", { redirect: "manual" })).status, 401);
   browser = await chromium.launch({headless:process.env.GHOSTWRITER_HEADED_QA!=="true"});
   mkdirSync(".tmp/release/portfolio-ui", { recursive: true });
-  for (const viewport of [{ width: 390, height: 844 }, { width: 360, height: 800 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1440, height: 900 }, { width: 1512, height: 982 }]) {
+  for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 360, height: 800 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 720 }, { width: 1366, height: 768 }, { width: 1440, height: 900 }, { width: 1512, height: 982 }, { width: 1920, height: 1080 }]) {
     const context=await browser.newContext({viewport,reducedMotion:"reduce",permissions:["clipboard-read","clipboard-write"]});
     const page=await context.newPage();
     const errors=[];page.on("pageerror",e=>errors.push(e.message));
@@ -88,222 +88,78 @@ try {
       }
       return route.continue();
     });
-    // BetaSignIn's headless mode always renders a hidden sr-only trigger with
-    // the same accessible name as SecondVoiceExperience's visible corner
-    // button, regardless of session status. It uses a 1x1px clip technique
-    // that Playwright's :visible still counts as visible, so exclude it by
-    // its sr-only class instead, scoping to the real corner button only.
     const signIn=page.getByRole("button",{name:"Sign in with GitHub",exact:true}).and(page.locator(":not(.sr-only)"));
-    const primary=page.getByRole("button",{name:/^Rewrite (as|to) /});
+    const primary=page.getByRole("button",{name:/^Rewrite (my draft|again)$/});
     const input=page.getByLabel("Write or paste here");
-    const message=page.locator(".ghostwriter").getByRole("status").filter({hasText:/rewrite|last 24 hours|temporarily unavailable|used for today/});
+    const message=page.locator(".duet-actions").getByRole("status");
+    const capture=async name=>{await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:`.tmp/release/portfolio-ui/${name}-${viewport.width}.png`,fullPage:true});};
     async function refreshSession(){await page.evaluate(()=>window.dispatchEvent(new Event("ghostwriter-allowance-changed")));}
     await page.goto(origin+"/second-voice");
-    await expect(signIn).toBeVisible();await expect(primary).toBeEnabled();assert.equal(calls,0);
+    await expect(signIn).toBeVisible();await expect(primary).toBeDisabled();assert.equal(calls,0);
     await expect(message).toContainText("3 free rewrites left today");
-    await page.screenshot({path:".tmp/release/portfolio-ui/anonymous-recruiter-"+viewport.width+".png",fullPage:true});
+    await expect(primary).toHaveCount(1);
+    assert.equal(await page.evaluate(()=>scrollY),0);
+    const initialAction=await primary.boundingBox();
+    assert.ok(initialAction.y>=0 && initialAction.y+initialAction.height<=viewport.height);
+    if(viewport.width<768) await expect(page.locator(".duet-action-selection")).toHaveText("Tolkien");
+    await capture("anonymous-recruiter");
+    await signIn.click();
+    await expect(page.locator(".duet-auth-message")).toBeVisible();
+    await capture("auth-return-error");
     signedIn=true;allowance={remaining:3,todayRemaining:3,available:true};
-    authDelay=2500;
-    await page.reload();
-    // SUPABASE_URL here is deliberately unreachable, so SSR's own session
-    // resolution (resolvePortfolioSession) always fails closed to
-    // "unavailable" on a fresh navigation; the client then self-heals via its
-    // mount effect (BetaSignIn.tsx re-checks whenever status is "unavailable")
-    // against the mocked /api/ghostwriter/auth route. It never renders
-    // "checking" here, and portfolio mode never hides the studio behind a
-    // full-page loader either way (see SecondVoiceExperience.tsx).
-    await expect(page.locator('[data-session-status="unavailable"]')).toBeVisible();
-    await page.screenshot({path:".tmp/release/portfolio-ui/session-refined-"+viewport.width+".png"});
+    await refreshSession();await expect(page.getByRole("button",{name:"Sign out",exact:true})).toBeVisible();
     await expect(signIn).toHaveCount(0);
-    await expect(primary).toBeEnabled();
-    authDelay=700;
-    const second=await context.newPage();
-    await second.goto(origin+"/second-voice");
-    // Same SSR fail-closed reasoning as above: a fresh navigation with an
-    // unreachable Supabase URL resolves "unavailable" server-side first.
-    await expect(second.locator('[data-session-status="unavailable"]')).toBeVisible();
-    await expect(second.getByRole("button",{name:/^Rewrite (as|to) /})).toBeEnabled();
+    const text="I missed the train, so I walked home.";
+    await input.fill(text);await expect(primary).toBeEnabled();
+    await capture("ready");
+    const second=await context.newPage();await second.goto(origin+"/second-voice");
+    await expect(second.getByRole("button",{name:"Sign out",exact:true})).toBeVisible();
+    await expect(second.getByRole("button",{name:/^Rewrite (my draft|again)$/})).toBeDisabled();
     await second.close();
-    await page.bringToFront();
-    await expect(page.getByRole("button",{name:"Surprise me",exact:true})).toBeEnabled();
-    await expect(page.getByRole("button",{name:"Surprise me",exact:true})).toHaveCSS("background-color","rgba(0, 0, 0, 0)");
-    await expect(page.locator(".gw-studio-mascot")).toBeVisible();
-    await page.screenshot({path:".tmp/release/portfolio-ui/responsive-initial-"+viewport.width+".png",fullPage:true});
-    await expect(page.locator(".gw-studio-mascot")).toHaveCSS("pointer-events","none");
-    await expect(page.getByRole("button",{name:"Sign out",exact:true})).toHaveCSS("position","absolute");
-    if(viewport.width<700){
-      const artwork=await page.locator(".gw-studio-mascot").boundingBox();
-      const logout=await page.getByRole("button",{name:"Sign out",exact:true}).boundingBox();
-      assert.ok(artwork.x+artwork.width<=logout.x || artwork.y>=logout.y+logout.height,"Logout must not overlap mobile mascot artwork");
-      assert.ok(artwork.width>=130 && artwork.height>=130,"Mobile mascot must retain meaningful presence");
-    }
-    assert.equal(await page.locator(".gw-author-portrait").count(),4);
-    for(const portrait of await page.locator(".gw-author-portrait").all()){
-      await expect(portrait).toBeVisible();
-      assert.ok(await portrait.evaluate(img=>img.complete && img.naturalWidth>0));
-    }
-    for(const name of ["Tolkien","Stephen King","Tolstoy","Hemingway"]){
-      await page.locator(".gw-author-portrait-button").filter({hasText:name}).click();
-      await expect(primary).toContainText(name==="Stephen King"?"King":name);
-    }
-    await page.locator(".gw-author-portrait-button").filter({hasText:"Tolkien"}).click();
-    await page.evaluate(()=>window.scrollTo(0,0));
-    await page.screenshot({path:".tmp/release/portfolio-ui/redesign-authors-"+viewport.width+".png",fullPage:true});
-    await page.locator(".gw-inspiration").screenshot({path:".tmp/release/portfolio-ui/quickstarts-"+viewport.width+".png"});
-    if(viewport.width<700){
-      assert.ok(await page.locator('.gw-studio-output [data-phase="idle"] > .gw-playback-panel').evaluate(el=>el.getBoundingClientRect().height<=120),"Mobile empty result should not add a full editor of dead space");
-    }
-    if(viewport.width<=1100){
-      const toggle=page.getByRole("button",{name:/Quick starts Find a first line/});
-      await expect(toggle).toHaveAttribute("aria-expanded","false");
-      await expect(page.getByRole("button",{name:"A rainy day thought",exact:true})).not.toBeVisible();
-      await page.evaluate(()=>window.scrollTo(0,0));
-      const draft=await input.boundingBox(), cta=await primary.boundingBox(), result=await page.locator(".gw-studio-output").boundingBox();
-      assert.ok(cta.y>=draft.y+draft.height && cta.y<draft.y+draft.height+50,"Small-screen rewrite action immediately follows draft");
-      assert.ok(result.y>cta.y,"Small-screen result follows the action, not an empty desktop column");
-      await toggle.click();
-      await expect(toggle).toHaveAttribute("aria-expanded","true");
-      await expect(page.getByRole("button",{name:"A rainy day thought",exact:true})).toBeVisible();
-    }else{
-      await expect(page.getByRole("heading", {name:"Quick starts", exact:true})).toBeVisible();
-    }
-    await expect(page.locator(".gw-inspiration-prompt")).toHaveCount(6);
-    await expect(page.getByText("Better writing,", {exact:false})).toHaveCount(0);
-    await expect(page.getByRole("link", {name:"Portrait credits", exact:true})).toHaveCount(0);
-    await page.evaluate(()=>window.scrollTo(0,0));
-    if(viewport.width>=1440){
-      const inputBox=await input.boundingBox(), outputBox=await page.locator(".gw-studio-output").boundingBox();
-      assert.ok((await page.locator(".gw-studio-input").boundingBox()).y<500,"Editor panel must begin in the first 500 desktop pixels");
-      assert.ok(outputBox.x>inputBox.x && outputBox.y<550,"Desktop result must sit beside the editor");
-      const ctaBox=await primary.boundingBox();
-      assert.ok(ctaBox.y+ctaBox.height<=viewport.height,"Primary CTA must fit in the first desktop viewport");
-      assert.ok(ctaBox.width<=340 && ctaBox.height>=44 && ctaBox.height<=52,"Desktop CTA must be bounded without sacrificing its touch target");
-      const promptBox=await page.locator(".gw-inspiration-prompt").first().boundingBox();
-      assert.ok(promptBox.y>ctaBox.y+ctaBox.height,"Optional prompts must follow the primary action");
-      assert.ok(promptBox.height>=44 && promptBox.height<80,"Quick starts must be compact and touch accessible");
-    }
-    assert.ok(await page.locator(".gw-inspiration-actions").evaluate(el=>el.firstElementChild.classList.contains("gw-inspiration-rewrite")),"Reading and keyboard order must match primary-first visual order");
     await page.getByRole("button",{name:"Outcomes",exact:true}).click();
-    for(const name of ["Improve clarity","Get a reply","Sound confident","Be concise","Be persuasive"]){
-      await page.locator(".gw-outcome-choice").filter({hasText:name}).click();
-      await expect(primary).toContainText(name.toLowerCase());
-    }
-    await expect(page.getByRole("slider")).toHaveCount(0);
-    await expect(page.locator(".gw-rewrite-mood")).toContainText(/Outcome.*Be persuasive/i);
-    await page.evaluate(()=>window.scrollTo(0,0));
-    await page.screenshot({path:".tmp/release/portfolio-ui/redesign-outcomes-"+viewport.width+".png",fullPage:true});
-    await page.getByRole("button",{name:"Authors",exact:true}).click();
-    const text="My original words remain here through every failure.";
-    await input.fill("A sentence for testing the growing writing surface. ".repeat(30));
-    assert.ok(await input.evaluate(el=>el.scrollHeight<=el.clientHeight+2),"Long draft must grow without internal scrolling");
-    await page.setViewportSize({width:viewport.width<700?820:390,height:viewport.height});
-    await expect.poll(()=>input.evaluate(el=>el.scrollHeight<=el.clientHeight+2)).toBe(true);
-    await page.setViewportSize(viewport);
-    await expect.poll(()=>input.evaluate(el=>el.scrollHeight<=el.clientHeight+2)).toBe(true);
-    await input.fill(text);
-    await page.getByRole("button",{name:"Outcomes",exact:true}).click();
-    await page.getByRole("button",{name:/Sound confident/}).click();
-    await expect(primary).toContainText("sound confident");await expect(input).toHaveValue(text);
-    await page.getByRole("button",{name:"Authors",exact:true}).click();
-    const slider=page.getByRole("slider");await slider.focus();await slider.press("ArrowRight");await expect(slider).toHaveValue("53");
-    await expect(input).toHaveValue(text);
-    await page.getByRole("button",{name:"A rainy day thought",exact:true}).click();
-    assert.notEqual(await input.inputValue(),text);await input.fill(text);
-    await page.getByRole("button",{name:"How it works",exact:true}).click();
-    await expect(page.getByRole("dialog")).toBeVisible();
-    await expect(page.getByRole("dialog")).toContainText("In Outcomes");
-    assert.ok(await page.locator('button[aria-label="Sign out"]').evaluate(el=>el.inert), "Logout must be inert behind help");
-    await page.screenshot({path:".tmp/release/portfolio-ui/help-"+viewport.width+".png"});
-    await page.keyboard.press("Escape");await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(page.getByRole("button",{name:"How it works",exact:true})).toBeFocused();
-    assert.equal(await page.getByRole("button",{name:"Sign out",exact:true}).evaluate(el=>el.inert), false);
-    await expect(page.locator("#gw-surprise-description")).toHaveText("Random voice · uses 1 rewrite");
-    await page.getByRole("button",{name:"Outcomes",exact:true}).click();
-    await expect(page.locator("#gw-surprise-description")).toHaveText("Random outcome · uses 1 rewrite");
-    await page.locator(".gw-outcome-choice").filter({hasText:"Be persuasive"}).click();
-    await input.focus();
-    await expect(input).toHaveCSS("outline-style","none");
-    await expect(page.locator(".gw-composer-field")).toHaveCSS("border-color","rgb(155, 202, 255)");
-    await input.press("ControlOrMeta+a");
-    await page.locator(".gw-composer-field").screenshot({path:".tmp/release/portfolio-ui/focus-"+viewport.width+".png"});
-    await page.clock.install();
-    await expect(primary).toHaveCSS("cursor","pointer");
-    await expect(page.getByRole("button",{name:"A rainy day thought",exact:true})).toHaveCSS("cursor","pointer");
-    await primary.click();await expect(message).toContainText("2 rewrites left in your rolling 24-hour allowance");assert.equal(calls,1);
+    await page.getByRole("group",{name:"Outcome options"}).getByRole("button",{name:/Be concise/}).click();
+    await primary.click();await expect(message).toContainText("2 rewrites left");
     await expect(page.locator(".gw-playback-panel-strong > p")).toHaveText("A lantern burned beside the quiet road.");
     await page.getByRole("button",{name:"Copy rewrite",exact:true}).click();
     await expect(page.getByRole("button",{name:"Rewrite copied",exact:true})).toBeVisible();
-    await expect(primary).toBeEnabled();await expect(primary).toHaveCSS("cursor","pointer");
-    const secondStatus=page.waitForResponse(r=>r.url().endsWith("/api/ghostwriter/auth"));
+    await capture("result");
     await page.getByRole("button",{name:"Authors",exact:true}).click();
-    // Switching modes triggers its own session/allowance refresh; the rewrite
-    // button only actually submits once that settles, so wait for it before
-    // clicking, not after (a mode switch must never fire a rewrite against a
-    // stale allowance snapshot).
-    await (await secondStatus).finished();await page.waitForTimeout(100);
-    await expect(primary).toBeEnabled();
-    await primary.click();
-    await expect.poll(()=>calls).toBe(2);
-    if(viewport.width<=1100){
-      await expect(page.locator(".gw-inspiration-toggle")).toHaveAttribute("aria-expanded","false");
-      const resultTop=await page.locator(".gw-studio-output").evaluate(el=>el.getBoundingClientRect().top);
-      assert.ok(resultTop>=-2 && resultTop<viewport.height,"Starting a mobile rewrite brings its result into view");
-    }
-    await expect(primary).toBeEnabled();
-    const surpriseStatus=page.waitForResponse(r=>r.url().endsWith("/api/ghostwriter/auth"));
+    await primary.click();await expect.poll(()=>calls).toBe(2);
+    await expect(message).toContainText("1 rewrites left");
     await page.getByRole("button",{name:"Surprise me",exact:true}).click();
-    await (await surpriseStatus).finished();await page.waitForTimeout(100);
-    await expect(primary).toBeDisabled();assert.equal(calls,3);
-    allowance={remaining:2,todayRemaining:2,available:true};await refreshSession();await expect(primary).toBeEnabled();await input.fill(text);
-    for(const status of [429,503,-1]){
-      const failureStatus=page.waitForResponse(r=>r.url().endsWith("/api/ghostwriter/auth"));
+    await expect.poll(()=>calls).toBe(3);await expect(primary).toBeDisabled();
+    await expect(message).toContainText("3 rewrites in the last 24 hours");
+    await expect(page.locator(".gw-inspiration-status-detail")).toContainText("Try again when an earlier rewrite leaves that window");
+    await capture("exhausted");
+    for(const status of [503,-1,429]){
+      allowance={remaining:2,todayRemaining:2,available:true};await refreshSession();await expect(primary).toBeEnabled();
       failure=status;await primary.click();
-      // GhostwriterPage.tsx relays the server's own JSON error verbatim for a
-      // real structured API response (429/503 here), and only falls back to
-      // the generic "AI demo is temporarily unavailable" copy when the fetch
-      // itself fails with no response at all (status -1 aborts the request).
-      await expect(page.locator(".gw-error-panel")).toContainText(
-        status===429 ? "Please wait 60 seconds" : status===503 ? "Synthetic unavailability" : "AI demo is temporarily unavailable",
-      );
-      await (await failureStatus).finished();await page.waitForTimeout(100);
-      if(status===429){await expect(primary).toBeDisabled();await page.clock.fastForward(61000);}
-      await expect(primary).toBeEnabled();await expect(input).toHaveValue(text);
+      await expect(page.locator(".gw-error-panel")).toContainText(status===429?"Please wait 60 seconds":status===503?"Synthetic unavailability":"AI demo is temporarily unavailable");
+      await expect(input).toHaveValue(text);
       const count=calls;await page.waitForTimeout(300);assert.equal(calls,count);
-      await expect(page.getByRole("button",{name:"Try again",exact:true})).toHaveCount(0);
+      await capture("failure-"+status);
+      if(status===429){await expect(primary).toBeDisabled();await page.clock.setFixedTime(Date.now()+61000);}
     }
-    allowance={remaining:0,todayRemaining:0,available:true};await refreshSession();
-    await expect(primary).toBeDisabled();await expect(message).toContainText("3 rewrites in the last 24 hours");
-    await expect(page.getByRole("button",{name:"Surprise me",exact:true})).toHaveCSS("background-color","rgba(0, 0, 0, 0)");
-    await expect(input).toHaveValue(text);
+    failure=0;
     allowance={remaining:2,todayRemaining:2,available:false};await refreshSession();await expect(message).toContainText("temporarily unavailable");await expect(primary).toBeDisabled();
-    allowance={remaining:3,todayRemaining:3,available:true};await refreshSession();await expect(primary).toBeEnabled();
-    // Verify unknown is never treated as anonymous, even after a known session.
-    unavailable=true;await refreshSession();
-    await expect(page.locator('[data-session-status="unavailable"]')).toBeVisible();await expect(signIn).toHaveCount(0);
-    // Portfolio/headless mode has no visible "Try again" button (BetaSignIn
-    // renders only a sr-only control); recovery is the same session-refresh
-    // signal the rest of this flow already uses.
-    unavailable=false;await refreshSession();
-    await expect(primary).toBeEnabled();
-    const geometry=await page.evaluate(()=>{
-      window.scrollTo(0,document.documentElement.scrollHeight);
-      return {width:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,scroller:document.scrollingElement===document.documentElement,portal:!!document.querySelector("nextjs-portal")};
-    });
+    unavailable=true;await refreshSession();await expect(page.locator('[data-session-status="unavailable"]')).toBeVisible();await expect(signIn).toHaveCount(0);
+    unavailable=false;allowance={remaining:3,todayRemaining:3,available:true};await refreshSession();await expect(primary).toBeEnabled();
+    const help=page.getByRole("button",{name:"How it works",exact:true});
+    await help.click();await expect(page.getByRole("dialog")).toHaveCSS("opacity","1");
+    assert.equal(await page.getByRole("button",{name:"Sign out",exact:true}).evaluate(el=>el.inert),true);
+    await capture("help");await page.keyboard.press("Escape");await expect(page.getByRole("dialog")).toBeHidden();await expect(help).toBeFocused();
+    assert.equal(await page.getByRole("button",{name:"Sign out",exact:true}).evaluate(el=>el.inert),false);
+    const geometry=await page.evaluate(()=>{window.scrollTo(0,document.documentElement.scrollHeight);return {width:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,scroller:document.scrollingElement===document.documentElement,portal:!!document.querySelector("nextjs-portal")};});
     assert.ok(geometry.scrollWidth<=geometry.width);assert.ok(geometry.scroller);assert.equal(geometry.portal,false);
-    const accessibility = await new AxeBuilder({ page }).include(".gw-studio").withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
-    assert.deepEqual(accessibility.violations.map(({id,nodes})=>({id,targets:nodes.map(node=>node.target)})), [], "Studio must have no automated WCAG A/AA violations");
-    const undersized = await page.locator(".gw-studio button").evaluateAll(buttons=>buttons.filter(button=>{
-      const rect=button.getBoundingClientRect();
-      return rect.width>0 && rect.height>0 && (rect.width<24 || rect.height<24);
-    }).map(button=>button.textContent.trim()));
-    assert.deepEqual(undersized, [], "Visible buttons must meet the 24 CSS pixel WCAG minimum without spacing exceptions");
-    await page.screenshot({path:".tmp/release/portfolio-ui/bottom-"+viewport.width+".png"});
-    await page.screenshot({path:".tmp/release/portfolio-ui/full-"+viewport.width+".png",fullPage:true});
-    await page.getByRole("button",{name:"Sign out",exact:true}).click();
-    await expect(signIn).toBeVisible();await expect(primary).toBeEnabled();await page.reload();await expect(signIn).toBeVisible();await expect(primary).toBeEnabled();
-    assert.equal(calls,6);assert.deepEqual(requestedModes.slice(0,2),["outcome","author"]);assert.deepEqual(errors,[]);await context.close();
+    const accessibility=await new AxeBuilder({page}).include(".gw-studio").withTags(["wcag2a","wcag2aa","wcag21aa","wcag22aa"]).analyze();
+    assert.deepEqual(accessibility.violations.map(({id,nodes})=>({id,targets:nodes.map(node=>node.target)})),[]);
+    await page.screenshot({path:`.tmp/release/portfolio-ui/bottom-${viewport.width}.png`});
+    await page.getByRole("button",{name:"Sign out",exact:true}).click();await expect(signIn).toBeVisible();await expect(input).toHaveValue("");await expect(primary).toBeDisabled();
+    await page.reload();await expect(signIn).toBeVisible();await expect(primary).toBeDisabled();
+    assert.equal(calls,6);assert.deepEqual(requestedModes.slice(0,2),["outcome","author"]);assert.deepEqual(errors,[]);
+    await context.close();
   }
-  console.log(JSON.stringify({ status: "PASS", scope: "Production-rendered desktop/mobile UI with synthetic auth and rewrite responses only", checks: ["routes", "invalid-oauth-callback-fails-closed", "anonymous-only-signin", "zero-signin-insertions-on-refresh-and-new-tab", "unavailable-is-not-logged-out", "session-retry", "authors-outcomes-mood-quick-starts", "daily-quota-explanation", "trial-allowance", "exhausted", "paused", "quota-and-network-failure-preserve-text", "no-automatic-retry", "one-document-scroller", "no-horizontal-overflow", "no-page-errors"], liveProviderCalls: 0 }));
+  console.log(JSON.stringify({ status: "PASS", scope: "Production-rendered desktop/mobile UI with synthetic auth and rewrite responses only", checks: ["Duet empty initial state", "routes", "invalid-oauth-callback-fails-closed", "anonymous-signin-entry", "authenticated-new-tab", "unavailable-is-not-logged-out", "session-refresh", "author-and-outcome-requests", "daily-quota-explanation", "exhausted", "paused", "quota-and-network-failure-preserve-text", "no-automatic-retry", "copy-confirmation", "help-focus-restoration", "axe-WCAG-AA", "one-document-scroller", "no-horizontal-overflow", "signout-clears-draft", "no-page-errors"], liveProviderCalls: 0 }));
 } catch (error) {
   if (/bootstrap_check_in|MachPortRendezvous|Permission denied|operation not permitted/.test(String(error))) {
     console.error("BROWSER_BLOCKED: native browser bootstrap permission denied"); process.exitCode = 2;

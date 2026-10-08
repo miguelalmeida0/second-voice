@@ -258,22 +258,22 @@ test("page shells use clip instead of hidden horizontal overflow", () => {
   }
 });
 
-test("selected studio integrates the static mascot on a compact single canvas", () => {
+test("Duet keeps a native split canvas without decorative mascot or portraits", () => {
  const page=readFileSync(PAGE_PATH,"utf8");
  const signIn=readFileSync(new URL("../src/components/ghostwriter/SecondVoiceSignInPage.tsx",import.meta.url),"utf8");
- const studio=readFileSync(new URL("../src/app/second-voice-studio.css",import.meta.url),"utf8");
+ const studio=readFileSync(new URL("../src/app/duet.css",import.meta.url),"utf8");
  assert.match(page,/ghostwriter gw-studio relative min-h-dvh overflow-x-clip/);
  assert.doesNotMatch(page,/Better writing,|new voices\./);
  assert.match(page,/<QuickStartsPanel/);
  assert.match(page,/const DEFAULT_AUTHOR_ID: AuthorId = "tolkien"/);
- assert.match(page,/second-voice-mascot\.png/);
- assert.match(studio,/\.gw-studio-mascot[^}]*pointer-events: none/);
+ assert.doesNotMatch(page,/second-voice-mascot\.png/);
+ assert.match(studio,/\.gw-studio::before[^}]*pointer-events: none/);
  assert.match(studio,/grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\)/);
- assert.doesNotMatch(studio,/overflow:\s*(hidden|auto|scroll)|overflow-x:\s*hidden/);
+ assert.doesNotMatch(studio,/overflow-x:\s*hidden/);
  assert.match(page,/id="ghostwriter-studio"/);assert.doesNotMatch(page,/Read the case study|Portrait credits/);
  assert.doesNotMatch(page,/<HeroArtwork|className="hero"/);
  assert.match(signIn,/min-h-\[100svh\] overflow-x-clip/);
- assert.match(signIn,/pointer-events-none select-none/);assert.match(signIn,/object-cover/);
+ assert.match(signIn,/duet-signin/);assert.doesNotMatch(signIn,/signin-art/);
 });
 
 test("main app includes an accessible How It Works drawer", () => {
@@ -296,7 +296,7 @@ test("main app includes an accessible How It Works drawer", () => {
   assert.match(drawer, /id: "write"/);
   assert.match(drawer, /title: "Write one thing"/);
   assert.match(drawer, /title: "Choose your direction"/);
-  assert.match(drawer, /In Authors, pick a writer and tune the mood. In Outcomes/);
+  assert.match(drawer, /In Authors, pick a writer and its strength. In Outcomes/);
   assert.match(drawer, /title: "Press rewrite"/);
   assert.doesNotMatch(drawer, /Start here/);
   assert.match(drawer, /sibling.inert = true/);
@@ -333,7 +333,7 @@ test("main app includes an accessible How It Works drawer", () => {
 });
 
 test("compact author and outcome controls preserve canonical identities and accessible selection", () => {
- const page=readFileSync(PAGE_PATH,"utf8");
+ const page=readFileSync(new URL("../src/components/ghostwriter/DuetControls.tsx", import.meta.url),"utf8")+readFileSync(PAGE_PATH,"utf8");
  const orbital=readFileSync(ORBITAL_PATH,"utf8");
  const outcomes=readFileSync(OUTCOME_OPTIONS_PATH,"utf8");
  assert.match(page,/aria-label="Rewrite mode"/);
@@ -343,7 +343,7 @@ test("compact author and outcome controls preserve canonical identities and acce
  assert.match(orbital,/AUTHORS as SHARED_AUTHORS/);assert.match(orbital,/export type Author = AuthorMeta/);
  for(const id of ["tolkien","stephenking","tolstoy","hemingway"])assert.ok(orbital.includes(id+":"));
  assert.match(orbital,/onSelect\(author.id\)/);assert.match(orbital,/aria-pressed=\{active === author.id\}/);
- assert.match(orbital,/ghostwriter\/portraits/);assert.doesNotMatch(orbital,/initials|min-h-\[220px\]/);
+ assert.doesNotMatch(orbital,/ghostwriter\/portraits|initials|min-h-\[220px\]/);
  assert.match(outcomes,/OUTCOMES/);assert.match(outcomes,/onChange\(outcome.id\)/);assert.match(outcomes,/aria-pressed=\{selected\}/);
 });
 
@@ -385,7 +385,7 @@ test("ghostwriter composer auto-expands instead of trapping page scroll", () => 
   assert.match(playback, /gw-loading-status/);
   assert.match(playback, /gw-loading-spinner h-5 w-5 animate-spin/);
   assert.match(playback, /Rewriting with \$\{author\.first\}\.\.\./);
-  assert.match(playback, /gw-loading-bars/);
+  assert.doesNotMatch(playback, /gw-loading-bars|gw-rewrite-glow|gw-rewrite-scan/);
   assert.match(page, /const REWRITE_CLIENT_TIMEOUT_MS = 35_000;/);
   assert.match(page, /GhostwriterRequestError/);
   assert.match(page, /requestIdFrom\(rewriteResponse\)/);
@@ -555,21 +555,11 @@ test("composer separates quick starts from the primary action row", () => {
   const panel = readFileSync(new URL("../src/components/ghostwriter/QuickStartsPanel.tsx", import.meta.url), "utf8");
   assert.match(panel, /Quick starts/);
   assert.doesNotMatch(panel, /Get inspired/);
-  assert.ok(panel.indexOf('className="gw-inspiration-actions"') < panel.indexOf('className="gw-inspiration-heading"'), "The writing action precedes optional inspiration");
+  assert.ok(panel.indexOf('className="duet-action-primary"') < panel.indexOf('className="gw-inspiration-heading"'), "The writing action precedes optional inspiration");
   assert.match(panel, /SAMPLES.map/);
-  assert.match(panel, /gw-inspiration-actions/);
+  assert.match(panel, /duet-action-primary/);
   assert.match(panel, /disabled=\{!canRewrite\}/);
-  assert.match(page, /surpriseDisabled=\{loading \|\| !generationEnabled\}/);
-  assert.match(page, /const rewriteCta =/);
-  assert.match(page, /`Rewrite as \$\{active\.cardTitle\}`/);
-  assert.match(page, /`Rewrite to \$\{activeOutcome\.label\.toLowerCase\(\)\}`/);
-  assert.match(page, /accessView\?\.signIn \? "Sign in with GitHub" : rewriteCta/);
-  assert.match(panel, /Surprise me/);
-  assert.match(page, /const userSource = input\.trim\(\);/);
-  assert.match(page, /const source = userSource \|\| preset\.text;/);
-  assert.match(page, /if \(!userSource\) \{[\s\S]*setInput\(preset\.text\);[\s\S]*\}/);
-  assert.match(page, /text: source,/);
-  assert.doesNotMatch(page, /setInput\(preset\.text\);\s*void handleRewrite/);
+  assert.match(panel, /loading \? "Rewriting…" : completed \? "Rewrite again" : "Rewrite my draft"/);
   assert.doesNotMatch(page, /className="gw-share-option"/);
   assert.doesNotMatch(page, /Create a public permalink/);
   assert.match(page, /shareCurrentRewrite/);

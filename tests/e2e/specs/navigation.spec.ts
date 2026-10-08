@@ -40,7 +40,7 @@ test.describe("navigation and route coverage", () => {
 
     await expect(page.getByRole("button", { name: "How it works" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Surprise me" })).toHaveCount(1);
-    await expect(page.getByRole("button", { name: /^Rewrite as Tolkien$/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Rewrite my draft$/ })).toBeVisible();
 
     await app.openHowItWorks();
     await expect(app.caseStudyLink()).toHaveAttribute("href", "/second-voice/case-study");

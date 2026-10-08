@@ -21,7 +21,7 @@ test.describe("comparative data surfaces", () => {
     await expect(page.getByLabel("Keep the meaning rubric scores")).toContainText("Risk");
 
     await page.getByText("Trace").click();
-    await expect(page.getByText("Provider")).toBeVisible();
+    await expect(page.getByText("Provider", { exact: true })).toBeVisible();
     await expect(page.getByText("Playwright", { exact: true })).toBeVisible();
     expect(api.labRequests[0]?.body).toMatchObject({
       author: "tolkien",

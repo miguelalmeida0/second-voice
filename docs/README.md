@@ -11,3 +11,7 @@
 | Current engineering rules | [Agent instructions](../AGENTS.md) · [Contributing](../CONTRIBUTING.md) |
 
 The release and QA folders are historical evidence. Do not treat an old successful visual review as proof of a current provider, migration or authentication gate.
+
+## Test-branch design records
+
+The active Duet direction remains in [`DESIGN.md`](../DESIGN.md) and the [`PRODUCT.md`](../PRODUCT.md) product contract on `test`. Historical acceptance records are archived in [design reports](quality/reports/README.md). These are not independent release approvals.

@@ -116,7 +116,7 @@ The user's new screenshot supersedes the shared sage control plane described bel
 
 The sample preview is explicitly labeled and never uses the draft or an API. Surprise me changes only its voice/strength or outcome, without changing the draft or spending allowance. “Rewrite my draft” is the explicit generation action. A completed result remains mounted while previews are explored, with “Back to your rewrite” restoring it. The six original quick starts remain under “More quick starts,” alongside the new Team update, Birthday card, and Apology choices. Outcomes, account, help, legal links, recovery, and optional result features remain available.
 
-The following original Duet notes describe the preceding design where they conflict with this section. Current implementation is in the final “Preview first” block of `src/app/duet.css`; verification is recorded in `PREVIEW-FIRST-REPORT.md`.
+The following original Duet notes describe the preceding design where they conflict with this section. Current implementation is in the final “Preview first” block of `src/app/duet.css`; verification is recorded in `docs/quality/reports/PREVIEW-FIRST-REPORT.md`.
 
 ## Overview
 

@@ -23,3 +23,17 @@ For every UI, layout, asset, animation, or CSS change, preserve one native docum
 - Hero artwork must be `pointer-events: none`, must not use animated full-viewport compositor layers, and must render as one responsive image/picture at a time.
 - Run `npm run test:scroll` after any change that touches UI, layout, CSS, assets, images, animation, or interaction code. If a visual check is possible, scroll to the page end and verify there is no horizontal scrollbar/thumb at the bottom edge. If the change intentionally alters scroll behavior, update the scroll tests and explain the tradeoff.
 <!-- END:ghostwriter-scroll-integrity -->
+
+<!-- BEGIN: owner-branch-policy -->
+## Mandatory repository branch and attribution policy
+
+These instructions apply to coding agents, local automation, and repository maintenance.
+
+- Only `main` and `test` are permitted development branches.
+- `test` is the working/integration branch; `main` is for reviewed, verified production changes.
+- Do not create or push other branches (including feature, fix, release, PR, bot or deployment branches). Work using the permitted refs. If branch protection makes this impossible, stop and request a compliant plan rather than inventing another branch.
+- Do not promote unrelated, unverified work from `test` into `main`. Verify and ship a focused change only.
+- Never rewrite shared history, reset, force-push, or delete a ref without explicit owner approval and verified preservation of unique work.
+- For locally authored changes, set both Git author and committer to `Miguel Almeida <94702822+miguelalmeida0@users.noreply.github.com>`. Do not add automated-agent co-author trailers.
+- Preserve real contributor provenance when it differs from this single-owner assumption; stop for review rather than silently misattributing another human's work.
+<!-- END: owner-branch-policy -->

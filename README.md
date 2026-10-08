@@ -40,8 +40,11 @@ npx tsc --noEmit
 npm run test:unit
 npm run test:security
 npm run test:scroll
+npm run security:check
 npm run verify:release
 ```
+
+Local `npm run security:check` reads `.env.local`. CI runs `npm run security:check` with explicit production environment variables.
 
 Integration and end-to-end tests have additional runtime prerequisites; follow the [technical reference](docs/security/TECHNICAL_REFERENCE.md) rather than inferring coverage from a partial run. Do not enable paid inference based solely on passing local checks.
 

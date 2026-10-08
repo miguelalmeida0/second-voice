@@ -1,0 +1,158 @@
+name: Private security review 2026-10-08
+
+on:
+  push:
+    branches: [test]
+    paths: [.github/workflows/security-review-20261008.yml]
+
+permissions: {}
+
+concurrency:
+  group: private-security-review-20261008
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    name: Inspect ${{ matrix.repository }}
+    if: github.repository == 'miguelalmeida0/second-voice'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        repository: [leu, needle-portfolio-release, second-voice, portfolio, flow]
+    env:
+      REVIEW_REPOSITORY: ${{ matrix.repository }}
+    steps:
+      - name: Inspect public refs without executing repository code
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          ROOT="$RUNNER_TEMP/review"
+          mkdir -p "$ROOT/evidence" "$ROOT/tools" "$ROOT/empty" "$ROOT/export"
+          cd "$ROOT"
+          # Public read-only clone: no account token, checkout credentials or secrets.
+          git clone --quiet --mirror "https://github.com/miguelalmeida0/${REVIEW_REPOSITORY}.git" source.git
+          git -C source.git for-each-ref --format='%(refname) %(objectname)' > evidence/refs.txt
+          git -C source.git rev-list --all --count > evidence/commit-count.txt
+          git -C source.git rev-list --objects --all > evidence/object-paths.txt
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz \
+            --output tools/gitleaks.tar.gz
+          printf '%s\n' '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  tools/gitleaks.tar.gz' | sha256sum --check --status
+          tar -xzf tools/gitleaks.tar.gz -C tools gitleaks
+          tools/gitleaks version > evidence/scanner-version.txt
+          printf '[extend]\nuseDefault = true\n' > tools/full-rules.toml
+          : > empty/.gitleaksignore
+          set +e
+          tools/gitleaks git source.git --config tools/full-rules.toml \
+            --log-opts='--all --full-history -m' --ignore-gitleaks-allow \
+            --gitleaks-ignore-path empty/.gitleaksignore --max-decode-depth 3 \
+            --max-archive-depth 2 --max-target-megabytes 25 --timeout 900 \
+            --no-banner --log-level error --report-format json \
+            --report-path evidence/history-findings.json > evidence/history-scanner.log 2>&1
+          echo "$?" > evidence/history-exit.txt
+          set -e
+          # Export bounded UTF-8 snapshots as DATA only. Never import or execute source.
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])/'review'
+          git=['git','-C',str(root/'source.git')]
+          refs=subprocess.check_output(git+['for-each-ref','--format=%(refname)','refs/heads']).decode().splitlines()
+          coverage=[]
+          for ref in refs:
+              branch=ref.removeprefix('refs/heads/')
+              if branch not in ('main','test','dev'):
+                  coverage.append({'ref':ref,'snapshot':'not exported; included in history scan'})
+                  continue
+              dest=root/'export'/branch
+              dest.mkdir(parents=True,exist_ok=True)
+              records=[]
+              rows=subprocess.check_output(git+['ls-tree','-rlz',ref]).split(b'\0')
+              for row in rows:
+                  if not row: continue
+                  meta,name=row.split(b'\t',1)
+                  mode,kind,oid,size=meta.split()
+                  path=name.decode('utf-8','replace')
+                  record={'path':path,'oid':oid.decode(),'mode':mode.decode(),'size':size.decode()}
+                  records.append(record)
+                  if kind!=b'blob' or mode not in (b'100644',b'100755'): continue
+                  if int(size)>3_000_000:
+                      record['snapshot']='size limit; history scan limit is 25 MB'
+                      continue
+                  if path.startswith('/') or '..' in pathlib.PurePosixPath(path).parts: continue
+                  data=subprocess.check_output(git+['cat-file','blob',oid.decode()])
+                  if b'\0' in data[:8192]: continue
+                  try: data.decode('utf-8')
+                  except UnicodeDecodeError: continue
+                  target=dest/path
+                  target.parent.mkdir(parents=True,exist_ok=True)
+                  target.write_bytes(data)
+                  record['snapshot']='exported'
+              (root/'evidence'/f'{branch}-files.json').write_text(json.dumps(records,indent=2))
+              coverage.append({'ref':ref,'files':len(records),'exported':sum(x.get('snapshot')=='exported' for x in records)})
+          (root/'evidence'/'coverage.json').write_text(json.dumps(coverage,indent=2))
+          PY
+          for branch in main test dev; do
+            [ -d "export/$branch" ] || continue
+            set +e
+            tools/gitleaks dir "export/$branch" --config tools/full-rules.toml \
+              --ignore-gitleaks-allow --gitleaks-ignore-path empty/.gitleaksignore \
+              --max-decode-depth 3 --max-archive-depth 2 --timeout 180 \
+              --no-banner --log-level error --report-format json \
+              --report-path "evidence/$branch-findings.json" > "evidence/$branch-scanner.log" 2>&1
+            echo "$?" > "evidence/$branch-exit.txt"
+            set -e
+            for sub in . web; do
+              [ -f "export/$branch/$sub/package-lock.json" ] || continue
+              label="$branch-root"
+              [ "$sub" = . ] || label="$branch-$sub"
+              set +e
+              (cd "export/$branch/$sub" && timeout 180 npm audit --ignore-scripts --package-lock-only --json) \
+                > "evidence/$label-npm-audit.json" 2> "evidence/$label-npm-audit.log"
+              echo "$?" > "evidence/$label-npm-exit.txt"
+              set -e
+            done
+          done
+          # Only a one-use PUBLIC encryption certificate is present on the runner.
+          cat > tools/recipient.crt <<'CERT'
+          -----BEGIN CERTIFICATE-----
+          MIIEQTCCAqmgAwIBAgIUUbmBUXc04BpOBFc7oAXkW2i+rr8wDQYJKoZIhvcNAQEL
+          BQAwMDEuMCwGA1UEAwwlUmVwb3NpdG9yeSBTZWN1cml0eSBSZXZpZXcgMjAyNi0x
+          MC0wODAeFw0yNjEwMDgxMDA5MzFaFw0yNjEwMTUxMDA5MzFaMDAxLjAsBgNVBAMM
+          JVJlcG9zaXRvcnkgU2VjdXJpdHkgUmV2aWV3IDIwMjYtMTAtMDgwggGiMA0GCSqG
+          SIb3DQEBAQUAA4IBjwAwggGKAoIBgQDNFj2UhfZYstPuxEF2+ziyV9vMVUbzjqEc
+          nqEP4iP44/LGpxF/LqKtdpdEEswHlRQZ2BfAvDWT4sOMc06cRPvfEn79hhDUL8wq
+          hrYYMkR+wuM9bmsvtIbd5V+yURs9sMkuekax9TP7dIxUz1y3v+bdqHLucAwqj2Ec
+          4baMNxdwfmbhEO7BmcPL8iiolyho8OSLq5EBYb0VQkc/pKyxoofyS++Uixf1sGPk
+          HH6zYzKQwGktUc7TTIOdJw6TW3TB3xdO/lgG//83uya2X91Xj0h1uumeIEn5CFzh
+          ntK8gBVxqUhlpjn11/IVbcvuINSM1jErWwNIM/Rxivx/8dmg+9buTdY6FuHfVO43
+          98/9nZ1ym5Piq1B1Qhiw5/T6kbSlKCWSDPIwJ5ug/GjiCrrZDyMaANgpx0/AjInn
+          +xn1TNR512DtxlqVxepARaqXNGsSj8A5ZiiqySkImPMPpeUHaeMT50PYzJPlMQo/
+          PlEWWFgAxmNDFFP3dE1mBcE+NI56cRcCAwEAAaNTMFEwHQYDVR0OBBYEFPuarFjT
+          aZPh/xi3+39hYfgQBM7AMB8GA1UdIwQYMBaAFPuarFjTaZPh/xi3+39hYfgQBM7A
+          MA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggGBAB6Pprt+WMRTHzqP
+          HDD5Hfndwj90n4clgi29V/bKr9a8ISGUHpay7mgqLmuAb99oNqGC/jbSWKofVocw
+          EU8ixFR7fQDjbSmtfXIXbM9Fwf0ugkD+6P7TgLRjMDpScEOvwdRbm1wlHLx7skIj
+          tXq1TfGcgvLiYrJpGXU3cDeu+QqQhqDx3KCDX3Zectm6VS8smJ03NApNU1pfjjPI
+          /24DDMdtgBJVZP5pbRWpmnCXtBucT0oWtnF5a83Snn4bG2n58UxUMbjEr7wYcDmh
+          pomfZgTX2NN32Zu5+jVFGNrU9b3Lj92wwaEBWOFcw1ZLXRS0RNeVtxe3/Exq1r3x
+          S5EyMXzzy/BZIcxAX9tKgmtyyErE4W53dtJIaKjmb5WHDjw32YWkYZ8zloEaJEXC
+          wWKzyIsX//ryBOI2EDnx4w3UR+Ye/M+7WDapZSWIhqxZ3gsmgw1DXsJN4Y6A7AT4
+          BEJNXFI7uQwNyhc03w+8bo3ZX2Iuw2CU+msBtlTUFoXbiDSjhg==
+          -----END CERTIFICATE-----
+          CERT
+          tar -czf evidence.tar.gz evidence export
+          openssl cms -encrypt -binary -aes-256-gcm -in evidence.tar.gz \
+            -out evidence.cms -outform DER tools/recipient.crt
+          printf 'Review collected for %s. Findings are encrypted; no plaintext evidence is published.\n' "$REVIEW_REPOSITORY"
+      - name: Retain encrypted evidence for owner review
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: encrypted-review-${{ matrix.repository }}
+          path: ${{ runner.temp }}/review/evidence.cms
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error

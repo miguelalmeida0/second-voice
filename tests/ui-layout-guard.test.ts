@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 
 const GLOBALS_PATH = new URL("../src/app/globals.css", import.meta.url);
 const GUARD_PATH = new URL("../src/app/ghostwriter-overflow-guard.css", import.meta.url);
@@ -144,6 +145,26 @@ test("ghostwriter global font import includes the required local font families",
   }
   for (const notice of ["LICENSE-Inter.txt", "LICENSE-JetBrainsMono.txt", "LICENSE-SourceSerif4.md"]) {
     assert.ok(existsSync(new URL("../public/fonts/" + notice, import.meta.url)), `Missing OFL notice: ${notice}`);
+  }
+});
+
+test("self-hosted fonts preserve every approved font subset byte for byte", () => {
+  const directory = new URL("../public/fonts/", import.meta.url);
+  const manifest = JSON.parse(readFileSync(new URL("manifest.json", directory), "utf8")) as {
+    sourceCommit: string;
+    fonts: { path: string; sha256: string; bytes: number }[];
+  };
+
+  assert.equal(manifest.sourceCommit, "1de89d6f07cf780a4aa2c4a43565b0a6db0bac95");
+  assert.equal(manifest.fonts.length, 25);
+  assert.deepEqual(
+    readdirSync(directory).filter((path) => path.endsWith(".woff2")).sort(),
+    manifest.fonts.map((font) => font.path).sort(),
+  );
+  for (const font of manifest.fonts) {
+    const bytes = readFileSync(new URL(font.path, directory));
+    assert.equal(bytes.length, font.bytes, `Font size changed: ${font.path}`);
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), font.sha256, `Font bytes changed: ${font.path}`);
   }
 });
 

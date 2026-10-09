@@ -1,0 +1,231 @@
+{
+  "sourceCommit": "1de89d6f07cf780a4aa2c4a43565b0a6db0bac95",
+  "source": "Production build emitted by the approved next/font/google layout; retained locally before cleanup.",
+  "fonts": [
+    {
+      "path": "Inter-Normal-CyrillicExt.woff2",
+      "family": "Inter",
+      "style": "normal",
+      "unicodeRange": "U+460-52F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F",
+      "sourceBuildFile": "2c55a0e60120577a-s.0-dom-5bn10r2.woff2",
+      "sha256": "fccca918fea40089dacadc7045861314d1a6bc91f1f323cc1eeb22ebcdb321b5",
+      "bytes": 25844
+    },
+    {
+      "path": "Inter-Normal-Cyrillic.woff2",
+      "family": "Inter",
+      "style": "normal",
+      "unicodeRange": "U+301,U+400-45F,U+490-491,U+4B0-4B1,U+2116",
+      "sourceBuildFile": "9c72aa0f40e4eef8-s.1y4-pdgsjb-pw.woff2",
+      "sha256": "aebf2ab4a4ce6810d73c1ac7be7cafb4e5ec4cee2d6db5fb3e09691747ec4bd6",
+      "bytes": 18744
+    },
+    {
+      "path": "Inter-Normal-GreekExt.woff2",
+      "family": "Inter",
+      "style": "normal",
+      "unicodeRange": "U+1F??",
+      "sourceBuildFile": "ad66f9afd8947f86-s.3lvt2whj97whp.woff2",
+      "sha256": "a2e2c783ca6f9c20486e81e72a279203e86730bbf8f01ff6a5ee9dbd09e1c271",
+      "bytes": 11272
+    },
+    {
+      "path": "Inter-Normal-Greek.woff2",
+      "family": "Inter",
+      "style": "normal",
+      "unicodeRange": "U+370-377,U+37A-37F,U+384-38A,U+38C,U+38E-3A1,U+3A3-3FF",
+      "sourceBuildFile": "5476f68d60460930-s.2uwcyprjm3xu3.woff2",
+      "sha256": "46dd4cdca58c26ae87cc6927657bf83b2e8abfc39ffd0ab176e301a8d28d22bf",
+      "bytes": 19044
+    },
+    {
+      "path": "Inter-Normal-Vietnamese.woff2",
+      "family": "Inter",
+      "style": "normal",
+      "unicodeRange": "U+102-103,U+110-111,U+128-129,U+168-169,U+1A0-1A1,U+1AF-1B0,U+300-301,U+303-304,U+308-309,U+323,U+329,U+1EA0-1EF9,U+20AB",
+      "sourceBuildFile": "2bbe8d2671613f1f-s.0k62hbripvv8p.woff2",
+      "sha256": "8db00ff46c67b22cda8bed865acf7077651cac8d2841d5b40980556b48961931",
+      "bytes": 10280
+    },
+    {
+      "path": "Inter-Normal-LatinExt.woff2",
+      "family": "Inter",
+      "style": "normal",
+      "unicodeRange": "U+100-2BA,U+2BD-2C5,U+2C7-2CC,U+2CE-2D7,U+2DD-2FF,U+304,U+308,U+329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF",
+      "sourceBuildFile": "1bffadaabf893a1e-s.3-6t-g6q0vh0a.woff2",
+      "sha256": "a28eb6d3ccb534ae0c94ca999371df024aab60b08c3c8a5720ee9e32fa0faaa2",
+      "bytes": 85272
+    },
+    {
+      "path": "InterVariable.woff2",
+      "family": "Inter",
+      "style": "normal",
+      "unicodeRange": "U+??,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+304,U+308,U+329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD",
+      "sourceBuildFile": "83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2",
+      "sha256": "c940764593d0fe5d596be327ca7558855e018039fb78509aa21921fd3644c3e4",
+      "bytes": 48432
+    },
+    {
+      "path": "JetBrainsMono-Normal-CyrillicExt.woff2",
+      "family": "JetBrains Mono",
+      "style": "normal",
+      "unicodeRange": "U+460-52F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F",
+      "sourceBuildFile": "04c5164763c40239-s.1kd-r_s9smv5m.woff2",
+      "sha256": "9343de2ca5d9549f792e7962375af8efb0f320c7643bfd36c884b5a30e5c396f",
+      "bytes": 1664
+    },
+    {
+      "path": "JetBrainsMono-Normal-Cyrillic.woff2",
+      "family": "JetBrains Mono",
+      "style": "normal",
+      "unicodeRange": "U+301,U+400-45F,U+490-491,U+4B0-4B1,U+2116",
+      "sourceBuildFile": "26f284dcc38c84c0-s.3hlisc-pwq13z.woff2",
+      "sha256": "4995a9a43ac659ec32fcd8b463755cd6a07b31a6e6b3894a6a153b661cf490e2",
+      "bytes": 8892
+    },
+    {
+      "path": "JetBrainsMono-Normal-Greek.woff2",
+      "family": "JetBrains Mono",
+      "style": "normal",
+      "unicodeRange": "U+370-377,U+37A-37F,U+384-38A,U+38C,U+38E-3A1,U+3A3-3FF",
+      "sourceBuildFile": "7e7f32a39836f228-s.0-oo9_1x_xmvg.woff2",
+      "sha256": "49c3da6c9a2b279b0f1f860f5cfb1f5dc38d88a5c7be9c9b1837bbc4e3db6111",
+      "bytes": 6800
+    },
+    {
+      "path": "JetBrainsMono-Normal-Vietnamese.woff2",
+      "family": "JetBrains Mono",
+      "style": "normal",
+      "unicodeRange": "U+102-103,U+110-111,U+128-129,U+168-169,U+1A0-1A1,U+1AF-1B0,U+300-301,U+303-304,U+308-309,U+323,U+329,U+1EA0-1EF9,U+20AB",
+      "sourceBuildFile": "fa39153a3fc630ba-s.36fqqi66-3tjb.woff2",
+      "sha256": "d44eb1936043a56038eb02dd70b243f379bef65783f94ec12f277550720411f1",
+      "bytes": 5872
+    },
+    {
+      "path": "JetBrainsMono-Normal-LatinExt.woff2",
+      "family": "JetBrains Mono",
+      "style": "normal",
+      "unicodeRange": "U+100-2BA,U+2BD-2C5,U+2C7-2CC,U+2CE-2D7,U+2DD-2FF,U+304,U+308,U+329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF",
+      "sourceBuildFile": "6a5386fd6038edbe-s.3_z45zcoc-xoz.woff2",
+      "sha256": "9c38cb2d0d2d93c1ee6e21fa78db76f13ea7e15e15cc64214c7ca89b6aaa35c4",
+      "bytes": 11596
+    },
+    {
+      "path": "JetBrainsMono-Variable.woff2",
+      "family": "JetBrains Mono",
+      "style": "normal",
+      "unicodeRange": "U+??,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+304,U+308,U+329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD",
+      "sourceBuildFile": "051742360c26797e-s.1bkzbscqrt8rl.woff2",
+      "sha256": "2c32b9b3ee358c119e210f6f5195f9bd34894d78a785ff2e95d60e718e400af4",
+      "bytes": 31340
+    },
+    {
+      "path": "SourceSerif4-Italic-CyrillicExt.woff2",
+      "family": "Source Serif 4",
+      "style": "italic",
+      "unicodeRange": "U+460-52F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F",
+      "sourceBuildFile": "62492e45f348cf87-s.0vqmbwhmasd3s.woff2",
+      "sha256": "f8aaac46e6d197fd86953210c7b8ed0d7c3340f7c15c352a24fc1854d887fe6f",
+      "bytes": 18456
+    },
+    {
+      "path": "SourceSerif4-Italic-Cyrillic.woff2",
+      "family": "Source Serif 4",
+      "style": "italic",
+      "unicodeRange": "U+301,U+400-45F,U+490-491,U+4B0-4B1,U+2116",
+      "sourceBuildFile": "8f9704ed0c18c9e0-s.3z3r2tlv4w3ci.woff2",
+      "sha256": "151591aa1815c5ee1fed06b928a248973daf3b99cf6b2483e0335f543da30e4d",
+      "bytes": 35096
+    },
+    {
+      "path": "SourceSerif4-Italic-Greek.woff2",
+      "family": "Source Serif 4",
+      "style": "italic",
+      "unicodeRange": "U+370-377,U+37A-37F,U+384-38A,U+38C,U+38E-3A1,U+3A3-3FF",
+      "sourceBuildFile": "c73d4b34880585a8-s.1kfk2fgmve45d.woff2",
+      "sha256": "5e867cebca3a8f7f702aaaa31684c0a7d9f863670c46b70f182173b858262fc2",
+      "bytes": 20520
+    },
+    {
+      "path": "SourceSerif4-Italic-Vietnamese.woff2",
+      "family": "Source Serif 4",
+      "style": "italic",
+      "unicodeRange": "U+102-103,U+110-111,U+128-129,U+168-169,U+1A0-1A1,U+1AF-1B0,U+300-301,U+303-304,U+308-309,U+323,U+329,U+1EA0-1EF9,U+20AB",
+      "sourceBuildFile": "f00b8cc54454926d-s.279r3nznpjtnk.woff2",
+      "sha256": "25f97f6bfa24dac3c3680d072a529e22d3f0ffd6b1767c87c65bb821889d8796",
+      "bytes": 13940
+    },
+    {
+      "path": "SourceSerif4-Italic-LatinExt.woff2",
+      "family": "Source Serif 4",
+      "style": "italic",
+      "unicodeRange": "U+100-2BA,U+2BD-2C5,U+2C7-2CC,U+2CE-2D7,U+2DD-2FF,U+304,U+308,U+329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF",
+      "sourceBuildFile": "741805f5bd1ef272-s.11fkykdv8-rjr.woff2",
+      "sha256": "fa851a3159c26f5c3eebbeb0c247d6499168feef25aec7d31e7c33195d26c83a",
+      "bytes": 44356
+    },
+    {
+      "path": "SourceSerif4Variable-Italic.woff2",
+      "family": "Source Serif 4",
+      "style": "italic",
+      "unicodeRange": "U+??,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+304,U+308,U+329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD",
+      "sourceBuildFile": "ea3421846039b7f3-s.p.0l4a8qxfzwpm8.woff2",
+      "sha256": "4dbf6638832394945c054a76dee4f9ced221d1c52a4ce6a29ecc4195232f966b",
+      "bytes": 51720
+    },
+    {
+      "path": "SourceSerif4-Normal-CyrillicExt.woff2",
+      "family": "Source Serif 4",
+      "style": "normal",
+      "unicodeRange": "U+460-52F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F",
+      "sourceBuildFile": "20aee433927f7d4b-s.22-vwy_zcz7be.woff2",
+      "sha256": "4d72739b0e43d64e6b2a086a66f62df1ef90f34d6f109b279c557a64eae5d23d",
+      "bytes": 18036
+    },
+    {
+      "path": "SourceSerif4-Normal-Cyrillic.woff2",
+      "family": "Source Serif 4",
+      "style": "normal",
+      "unicodeRange": "U+301,U+400-45F,U+490-491,U+4B0-4B1,U+2116",
+      "sourceBuildFile": "256e1f7f180674ba-s.3_q_pmj-3v7pv.woff2",
+      "sha256": "7683b72ed39c9fc64c626ae0ed611e7dc0121af71cde73fd060bd7a4a83c0d7c",
+      "bytes": 36628
+    },
+    {
+      "path": "SourceSerif4-Normal-Greek.woff2",
+      "family": "Source Serif 4",
+      "style": "normal",
+      "unicodeRange": "U+370-377,U+37A-37F,U+384-38A,U+38C,U+38E-3A1,U+3A3-3FF",
+      "sourceBuildFile": "be3bf58b83159894-s.0kupvvif_223v.woff2",
+      "sha256": "303d60869ffd404c141fa90d87ba574cd26ade348dd4659ea4b9caeadf72c183",
+      "bytes": 20164
+    },
+    {
+      "path": "SourceSerif4-Normal-Vietnamese.woff2",
+      "family": "Source Serif 4",
+      "style": "normal",
+      "unicodeRange": "U+102-103,U+110-111,U+128-129,U+168-169,U+1A0-1A1,U+1AF-1B0,U+300-301,U+303-304,U+308-309,U+323,U+329,U+1EA0-1EF9,U+20AB",
+      "sourceBuildFile": "753b6407f468151f-s.11jlrhjosin9v.woff2",
+      "sha256": "752875b4c33f07a3dda7c8f0be846fef059cb0f4e85211b855aa93dd85d45a22",
+      "bytes": 13400
+    },
+    {
+      "path": "SourceSerif4-Normal-LatinExt.woff2",
+      "family": "Source Serif 4",
+      "style": "normal",
+      "unicodeRange": "U+100-2BA,U+2BD-2C5,U+2C7-2CC,U+2CE-2D7,U+2DD-2FF,U+304,U+308,U+329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF",
+      "sourceBuildFile": "292081311a6a8abc-s.3z1vcboutudqk.woff2",
+      "sha256": "231f594ad829d45f905a8a6cdce704f659615e00f1a9db2699320e6e315c1d1f",
+      "bytes": 42040
+    },
+    {
+      "path": "SourceSerif4Variable-Roman.woff2",
+      "family": "Source Serif 4",
+      "style": "normal",
+      "unicodeRange": "U+??,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+304,U+308,U+329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD",
+      "sourceBuildFile": "68d403cf9f2c68c5-s.p.012bmydply3go.woff2",
+      "sha256": "8e38e3fbd74dea20aabe0831ffef04c9f30bf6fc5b99b7a2649be0dd8c6d859c",
+      "bytes": 50952
+    }
+  ]
+}

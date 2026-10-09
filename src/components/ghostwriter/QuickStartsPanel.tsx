@@ -1,7 +1,7 @@
 import { ArrowRight, Cat, ChevronDown, CloudRain, Feather, FileText, LoaderCircle, Mountain, PenLine } from "lucide-react";
 import { SAMPLES } from "@/lib/ghostwriter-shared";
 import { useDuetActionDock } from "./useDuetActionDock";
-import { QUICK_DRAFTS } from "@/lib/voice-preview";
+import { QUICK_DRAFTS } from "@/lib/quick-drafts";
 
 const DETAILS = [
   { icon: CloudRain, description: "Turn a moment into meaning" },

@@ -57,3 +57,5 @@ Integration and end-to-end tests have additional runtime prerequisites; follow t
 - [Visual QA evidence](docs/quality/design-qa.md) — retained historical acceptance record
 
 Development happens on `test`; only validated changes reach `main`. See [`AGENTS.md`](AGENTS.md) for the repository's two-branch policy.
+
+[Cleanup and preservation record](docs/CLEANUP_2026-10-09.md)

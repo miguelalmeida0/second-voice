@@ -260,7 +260,7 @@ test("page shells use clip instead of hidden horizontal overflow", () => {
 
 test("Duet keeps a native split canvas without decorative mascot or portraits", () => {
  const page=readFileSync(PAGE_PATH,"utf8");
- const signIn=readFileSync(new URL("../src/components/ghostwriter/SecondVoiceSignInPage.tsx",import.meta.url),"utf8");
+ const signIn=readFileSync(new URL("../src/components/ghostwriter/SecondVoiceExperience.tsx",import.meta.url),"utf8");
  const studio=readFileSync(new URL("../src/app/duet.css",import.meta.url),"utf8");
  assert.match(page,/ghostwriter gw-studio relative min-h-dvh overflow-x-clip/);
  assert.doesNotMatch(page,/Better writing,|new voices\./);
@@ -272,8 +272,8 @@ test("Duet keeps a native split canvas without decorative mascot or portraits", 
  assert.doesNotMatch(studio,/overflow-x:\s*hidden/);
  assert.match(page,/id="ghostwriter-studio"/);assert.doesNotMatch(page,/Read the case study|Portrait credits/);
  assert.doesNotMatch(page,/<HeroArtwork|className="hero"/);
- assert.match(signIn,/min-h-\[100svh\] overflow-x-clip/);
- assert.match(signIn,/duet-signin/);assert.doesNotMatch(signIn,/signin-art/);
+ assert.match(signIn,/<BetaSignIn/);assert.match(signIn,/headless=\{portfolio\}/);
+ assert.match(signIn,/duet-identity/);assert.doesNotMatch(signIn,/signin-art/);
 });
 
 test("main app includes an accessible How It Works drawer", () => {

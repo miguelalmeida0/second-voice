@@ -101,7 +101,14 @@ try {
     assert.equal(await page.evaluate(()=>scrollY),0);
     const initialAction=await primary.boundingBox();
     assert.ok(initialAction.y>=0 && initialAction.y+initialAction.height<=viewport.height);
-    if(viewport.width<768) await expect(page.locator(".duet-action-selection")).toHaveText("Tolkien");
+    if (viewport.width < 768) {
+      // Check the actual selected author, not a presentation-only mobile label.
+      const authors = page.getByRole("group", { name: "Choose an author" });
+      const tolkien = authors.getByRole("button", { name: /Tolkien/i });
+      await expect(tolkien).toBeVisible();
+      await expect(tolkien).toHaveAttribute("aria-pressed", "true");
+      await expect(authors.getByRole("button", { name: /Hemingway/i })).toHaveAttribute("aria-pressed", "false");
+    }
     await capture("anonymous-recruiter");
     await signIn.click();
     await expect(page.locator(".duet-auth-message")).toBeVisible();

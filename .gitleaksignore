@@ -3,3 +3,10 @@
 b64424983bef27d708506fa151377a04dd7224a8:.github/workflows/security.yml:generic-api-key:33
 b64424983bef27d708506fa151377a04dd7224a8:.github/workflows/security.yml:generic-api-key:46
 b64424983bef27d708506fa151377a04dd7224a8:tests/security-abuse.test.ts:generic-api-key:39
+# Exact Oct 2026 historical test-vector findings: a fixed, publicly known 32-hex
+# deterministic CI signing fixture, not an externally issued credential.
+# These three commit/path/rule/line fingerprints only; full-history scanning
+# and all other secret detections remain blocking. Reassess if reused outside CI.
+7732a721d70fc6e255b369916ded069a6d062a45:.github/workflows/security.yml:generic-api-key:33
+7732a721d70fc6e255b369916ded069a6d062a45:.github/workflows/security.yml:generic-api-key:46
+7732a721d70fc6e255b369916ded069a6d062a45:tests/security-abuse.test.ts:generic-api-key:39

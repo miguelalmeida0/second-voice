@@ -133,7 +133,7 @@ try {
     await page.getByRole("button",{name:"Authors",exact:true}).click();
     await primary.click();await expect.poll(()=>calls).toBe(2);
     await expect(message).toContainText("1 rewrites left");
-    await page.getByRole("button",{name:"Surprise me",exact:true}).click();
+    await primary.click(); // The Duet redesign uses the persistent primary rewrite action, not a removed "Surprise me" button.
     await expect.poll(()=>calls).toBe(3);await expect(primary).toBeDisabled();
     await expect(message).toContainText("3 rewrites in the last 24 hours");
     await expect(page.locator(".gw-inspiration-status-detail")).toContainText("Try again when an earlier rewrite leaves that window");

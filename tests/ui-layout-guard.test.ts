@@ -126,13 +126,25 @@ test("ghostwriter global font import includes the required local font families",
   assert.match(globals, /--color-background:\s*var\(--background\)/);
   assert.match(globals, /--color-card:\s*var\(--card\)/);
   assert.match(globals, /--success:\s*oklch\(0\.75 0\.18 145\)/);
-  assert.match(layout, /next\/font\/google/);
-  assert.doesNotMatch(layout, /Instrument_Serif/);
-  assert.match(layout, /Source_Serif_4/);
-  assert.match(layout, /JetBrains_Mono/);
+  assert.match(layout, /next\/font\/local/);
+  assert.doesNotMatch(layout, /next\/font\/google|Instrument_Serif/);
   assert.match(layout, /preload:\s*false/);
   assert.match(layout, /sourceSerif\.variable/);
   assert.doesNotMatch(layout, /fonts\.googleapis\.com|fonts\.gstatic\.com/);
+  for (const file of [
+    "InterVariable.woff2",
+    "JetBrainsMono-Variable.woff2",
+    "SourceSerif4Variable-Roman.woff2",
+    "SourceSerif4Variable-Italic.woff2",
+  ]) {
+    const filePath = new URL("../public/fonts/" + file, import.meta.url);
+    assert.ok(existsSync(filePath), `Missing self-hosted font: ${file}`);
+    assert.equal(readFileSync(filePath).subarray(0, 4).toString("ascii"), "wOF2", `Invalid WOFF2: ${file}`);
+    assert.ok(layout.includes(file), `Font missing from layout: ${file}`);
+  }
+  for (const notice of ["LICENSE-Inter.txt", "LICENSE-JetBrainsMono.txt", "LICENSE-SourceSerif4.md"]) {
+    assert.ok(existsSync(new URL("../public/fonts/" + notice, import.meta.url)), `Missing OFL notice: ${notice}`);
+  }
 });
 
 test("public UI surfaces use the Second Voice AI product name", () => {

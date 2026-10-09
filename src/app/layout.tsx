@@ -1,30 +1,31 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import "./ghostwriter-overflow-guard.css";
 import "./duet.css";
 
-const inter = Inter({
+const inter = localFont({
+  src: "../../public/fonts/InterVariable.woff2",
   display: "swap",
-  subsets: ["latin"],
   variable: "--font-inter",
-  weight: ["400", "500", "600"],
+  weight: "100 900",
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const jetbrainsMono = localFont({
+  src: "../../public/fonts/JetBrainsMono-Variable.woff2",
   display: "swap",
   preload: false,
-  subsets: ["latin"],
   variable: "--font-jetbrains-mono",
-  weight: ["400", "500"],
+  weight: "100 800",
 });
 
-const sourceSerif = Source_Serif_4({
+const sourceSerif = localFont({
+  src: [
+    { path: "../../public/fonts/SourceSerif4Variable-Roman.woff2", weight: "200 900", style: "normal" },
+    { path: "../../public/fonts/SourceSerif4Variable-Italic.woff2", weight: "200 900", style: "italic" },
+  ],
   display: "swap",
-  subsets: ["latin"],
-  style: ["normal", "italic"],
   variable: "--font-source-serif",
-  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {

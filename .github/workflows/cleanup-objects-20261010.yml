@@ -1,0 +1,65 @@
+name: Temporary prepare reviewed cleanup objects
+on:
+  push:
+    branches: [test]
+    paths: [.github/workflows/cleanup-objects-20261010.yml]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 7ba42e6488a9a22fa4cd0ede865c13849a274ea1
+          path: app
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: miguelalmeida0/needle-portfolio-release
+          ref: 9be41620b58315ab13b7f0b53b7421f5ee651f60
+          path: control
+          persist-credentials: false
+      - name: Reproduce the exact candidate in a disposable checkout
+        working-directory: app
+        run: python3 ../control/.github/cleanup-20261010/apply.py second-voice
+      - name: Store only hash-verified Git blobs; no ref, commit, release or deployment writes
+        working-directory: app
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, urllib.request
+          expected = {
+            'src/app/g/[id]/not-found.tsx': 'c598db0c60ae1becc19a292777cc56aa690c22524dae1085189e44547ea05cf7',
+            'src/app/g/[id]/page.tsx': 'b880817c6c03563f31a4ad955408d6027b439bb395bff1b06be0e3f2384f5af6',
+            'src/components/ghostwriter/BlurOrbs.tsx': None,
+            'src/components/ghostwriter/GhostwriterPage.tsx': 'ea77c65117ac1cb58a2babf5e675322753f57e0456b2bd2eb8702c3b9e336a85',
+            'src/components/ghostwriter/RewriteLabPanel.tsx': '87a522a28847e41d41efd867c7f7ff5e0f3dca06c98f0541b75421d66c1cd400',
+            'src/lib/ghostwriter-client-guard.ts': 'b06c471902e17b3eec41c2f81e90c8fecccd01b5a62a189ed7e3df50e5d3434d',
+            'tests/ui-layout-guard.test.ts': '348d11de5df03e7a6dcb71f78270fadd3c97b79ef660fdaf068d0fdccefc905b',
+            'tests/ghostwriter-client-session.test.ts': '597b39be0a09a86c54211955d56d3ff9ce3c893d4f7690a0bfa312abbf713b31',
+          }
+          for name, digest in expected.items():
+              file = pathlib.Path(name)
+              if digest is None:
+                  assert not file.exists(), name
+              else:
+                  assert hashlib.sha256(file.read_bytes()).hexdigest() == digest, name
+          objects = {}
+          for name, digest in expected.items():
+              if digest is None:
+                  objects[name] = None
+                  continue
+              data = pathlib.Path(name).read_bytes()
+              request = urllib.request.Request('https://api.github.com/repos/miguelalmeida0/second-voice/git/blobs', data=json.dumps({'content': data.decode(), 'encoding': 'utf-8'}).encode(), headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json'}, method='POST')
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  result = json.load(response)
+              assert result['sha'] == hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+              objects[name] = result['sha']
+          print(json.dumps(objects, indent=2))
+          PY

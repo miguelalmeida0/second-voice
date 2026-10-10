@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { ArrowLeft, ArrowUpRight, FlaskConical } from "lucide-react";
-import { BlurOrbs } from "@/components/ghostwriter/BlurOrbs";
 import { diffWords } from "@/components/ghostwriter/diff";
 import { fetchRewriteById } from "@/server/ghostwriter-fetch";
 import {
@@ -116,7 +115,6 @@ export default async function GhostwriterPermalinkPage({ params }: PageProps) {
 
   return (
     <div className="ghostwriter relative min-h-dvh overflow-x-clip" data-voice={author}>
-      <BlurOrbs />
 
       <div className="relative z-10 mx-auto max-w-5xl px-5 pb-24 pt-8 sm:px-8">
         <div className="flex flex-wrap gap-2">

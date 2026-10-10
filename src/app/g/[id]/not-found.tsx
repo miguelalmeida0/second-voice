@@ -1,10 +1,8 @@
 import Link from "next/link";
-import { BlurOrbs } from "@/components/ghostwriter/BlurOrbs";
 
 export default function GhostwriterNotFound() {
   return (
     <div className="ghostwriter relative min-h-dvh overflow-x-clip">
-      <BlurOrbs />
 
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-3xl flex-col items-center justify-center px-6 text-center">
         <div className="gw-chip">Second Voice AI permalink</div>

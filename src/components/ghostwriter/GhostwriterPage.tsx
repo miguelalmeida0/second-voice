@@ -23,10 +23,8 @@ import type { RewriteFeedbackSubmission } from "@/components/ghostwriter/Rewrite
 
 import {
   GhostwriterRequestError,
-  isRecoverableSessionError,
   issueGhostwriterChallenge,
-  readGhostwriterCsrfToken,
-  refreshGhostwriterShieldSession,
+  withGhostwriterSession,
   requestIdFrom,
 } from "@/lib/ghostwriter-client-guard";
 import type { RewriteLabWinnerSelection } from "@/lib/ghostwriter-lab-shared";
@@ -445,165 +443,138 @@ export function GhostwriterPage({
     );
 
     try {
-      let csrfToken = readGhostwriterCsrfToken();
+      return await withGhostwriterSession(abortController.signal, async (csrfToken) => {
+        const challenge = await issueGhostwriterChallenge(csrfToken, {
+          signal: abortController.signal,
+        });
 
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        try {
-          if (!csrfToken) {
-            throw new Error(
-              "Protection cookies are missing. Refresh the page and try again.",
-            );
-          }
-
-          const challenge = await issueGhostwriterChallenge(csrfToken, {
-            signal: abortController.signal,
-          });
-
-          const rewriteResponse = await fetch("/api/ghostwriter", {
-            body: JSON.stringify({
-              author: authorId,
-
-              challengeNonce: challenge.challengeNonce,
-
-              challengeToken: challenge.challengeToken,
-
-              mode: nextMode,
-
-              mood: nextMood,
-
-              outcome: nextOutcome,
-
-              share: false,
-
-              text: source,
-            }),
-
-            headers: {
-              "content-type": "application/json",
-
-              "idempotency-key": idempotencyKey,
-
-              "x-ghostwriter-csrf": csrfToken,
-            },
-
-            method: "POST",
-
-            signal: abortController.signal,
-          });
-
-          const payload = (await rewriteResponse.json().catch(() => ({}))) as {
-            artifactToken?: string | null;
-
-            error?: string | null;
-
-            reasonCode?: string | null;
-
-            moodLabel?: string | null;
-
-            rewrite?: string;
-          };
-
-          if (
-            !rewriteResponse.ok ||
-            payload.error ||
-            !payload.rewrite ||
-            !payload.artifactToken
-          ) {
-            const retryAfter = Number(rewriteResponse.headers.get("Retry-After"));
-            if (rewriteResponse.status === 429 && retryAfter > 0 && retryAfter <= 60) startCooldown(Math.ceil(retryAfter));
-            throw new GhostwriterRequestError(
-              payload.error ||
-                (portfolioAccess && rewriteResponse.status >= 500
-                  ? "AI demo is temporarily unavailable. Your text stays here. No automatic retry was made."
-                  : "The rewrite could not be completed. Your text stays here."),
-              requestIdFrom(rewriteResponse),
-              {
-                reasonCode: payload.reasonCode ?? null,
-                retryAfterSeconds:
-                  Number.isFinite(retryAfter) && retryAfter > 0 ? Math.ceil(retryAfter) : null,
-              },
-            );
-          }
-
-          const rewrite = payload.rewrite;
-
-          setLatestRun((previous) => ({
-            artifactToken: payload.artifactToken ?? null,
-
+        const rewriteResponse = await fetch("/api/ghostwriter", {
+          body: JSON.stringify({
             author: authorId,
+
+            challengeNonce: challenge.challengeNonce,
+
+            challengeToken: challenge.challengeToken,
 
             mode: nextMode,
 
-            moodLabel: payload.moodLabel || nextMoodLabel,
-
             mood: nextMood,
 
-            outcome: nextMode === "outcome" ? nextOutcome : null,
+            outcome: nextOutcome,
 
-            outcomeLabel:
-              nextMode === "outcome" ? outcomeLabelFor(nextOutcome) : null,
+            share: false,
 
-            provenance: null,
+            text: source,
+          }),
 
-            rewrite,
+          headers: {
+            "content-type": "application/json",
 
-            runId: previous.runId + 1,
+            "idempotency-key": idempotencyKey,
 
-            source,
-          }));
+            "x-ghostwriter-csrf": csrfToken,
+          },
 
-          /*
-           * A successful governed rewrite has already consumed exactly one
-           * portfolio reservation. Reflect that authoritative mutation in the
-           * visible allowance immediately instead of making the CTA depend on
-           * a second client status request. The server remains the final
-           * arbiter on every subsequent rewrite and a page reload rehydrates
-           * the exact allowance from Postgres.
-           */
-          portfolioAccess?.setSession((current) => {
-            if (
-              (current.status !== "anonymous" &&
-                current.status !== "authenticated") ||
-              !current.allowance
-            ) {
-              return current;
-            }
+          method: "POST",
 
-            const currentRemaining =
-              current.allowance.todayRemaining ?? current.allowance.remaining;
-            const nextRemaining = Math.max(0, currentRemaining - 1);
+          signal: abortController.signal,
+        });
 
-            return {
-              ...current,
-              allowance: {
-                ...current.allowance,
-                remaining: nextRemaining,
-                todayRemaining: nextRemaining,
-                available: current.allowance.available && nextRemaining > 0,
-              },
-            };
-          });
+        const payload = (await rewriteResponse.json().catch(() => ({}))) as {
+          artifactToken?: string | null;
 
-          return;
-        } catch (attemptError) {
-          const message =
-            attemptError instanceof Error
-              ? attemptError.message
-              : "The rewrite could not be completed.";
+          error?: string | null;
 
-          if (attempt === 0 && isRecoverableSessionError(message)) {
-            csrfToken = await refreshGhostwriterShieldSession({
-              signal: abortController.signal,
-            });
+          reasonCode?: string | null;
 
-            if (csrfToken) {
-              continue;
-            }
+          moodLabel?: string | null;
+
+          rewrite?: string;
+        };
+
+        if (
+          !rewriteResponse.ok ||
+          payload.error ||
+          !payload.rewrite ||
+          !payload.artifactToken
+        ) {
+          const retryAfter = Number(rewriteResponse.headers.get("Retry-After"));
+          if (rewriteResponse.status === 429 && retryAfter > 0 && retryAfter <= 60) startCooldown(Math.ceil(retryAfter));
+          throw new GhostwriterRequestError(
+            payload.error ||
+              (portfolioAccess && rewriteResponse.status >= 500
+                ? "AI demo is temporarily unavailable. Your text stays here. No automatic retry was made."
+                : "The rewrite could not be completed. Your text stays here."),
+            requestIdFrom(rewriteResponse),
+            {
+              reasonCode: payload.reasonCode ?? null,
+              retryAfterSeconds:
+                Number.isFinite(retryAfter) && retryAfter > 0 ? Math.ceil(retryAfter) : null,
+            },
+          );
+        }
+
+        const rewrite = payload.rewrite;
+
+        setLatestRun((previous) => ({
+          artifactToken: payload.artifactToken ?? null,
+
+          author: authorId,
+
+          mode: nextMode,
+
+          moodLabel: payload.moodLabel || nextMoodLabel,
+
+          mood: nextMood,
+
+          outcome: nextMode === "outcome" ? nextOutcome : null,
+
+          outcomeLabel:
+            nextMode === "outcome" ? outcomeLabelFor(nextOutcome) : null,
+
+          provenance: null,
+
+          rewrite,
+
+          runId: previous.runId + 1,
+
+          source,
+        }));
+
+        /*
+         * A successful governed rewrite has already consumed exactly one
+         * portfolio reservation. Reflect that authoritative mutation in the
+         * visible allowance immediately instead of making the CTA depend on
+         * a second client status request. The server remains the final
+         * arbiter on every subsequent rewrite and a page reload rehydrates
+         * the exact allowance from Postgres.
+         */
+        portfolioAccess?.setSession((current) => {
+          if (
+            (current.status !== "anonymous" &&
+              current.status !== "authenticated") ||
+            !current.allowance
+          ) {
+            return current;
           }
 
-          throw attemptError;
-        }
-      }
+          const currentRemaining =
+            current.allowance.todayRemaining ?? current.allowance.remaining;
+          const nextRemaining = Math.max(0, currentRemaining - 1);
+
+          return {
+            ...current,
+            allowance: {
+              ...current.allowance,
+              remaining: nextRemaining,
+              todayRemaining: nextRemaining,
+              available: current.allowance.available && nextRemaining > 0,
+            },
+          };
+        });
+
+        return;
+      });
     } catch (caughtError) {
       if (caughtError instanceof GhostwriterRequestError && caughtError.retryAfterSeconds) {
         // The server may require more than five minutes. Never enable the
@@ -706,92 +677,65 @@ export function GhostwriterPage({
     );
 
     try {
-      let csrfToken = readGhostwriterCsrfToken();
+      return await withGhostwriterSession(abortController.signal, async (csrfToken) => {
+        const challenge = await issueGhostwriterChallenge(csrfToken, {
+          signal: abortController.signal,
+        });
 
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        try {
-          if (!csrfToken) {
-            throw new Error(
-              "Protection cookies are missing. Refresh the page and try again.",
-            );
-          }
+        const shareResponse = await fetch("/api/ghostwriter/share", {
+          body: JSON.stringify({
+            author: latestRun.author,
 
-          const challenge = await issueGhostwriterChallenge(csrfToken, {
-            signal: abortController.signal,
-          });
+            artifactToken: latestRun.artifactToken,
 
-          const shareResponse = await fetch("/api/ghostwriter/share", {
-            body: JSON.stringify({
-              author: latestRun.author,
+            challengeNonce: challenge.challengeNonce,
 
-              artifactToken: latestRun.artifactToken,
+            challengeToken: challenge.challengeToken,
 
-              challengeNonce: challenge.challengeNonce,
+            mode: latestRun.mode,
 
-              challengeToken: challenge.challengeToken,
+            mood: latestRun.mood,
 
-              mode: latestRun.mode,
+            outcome: latestRun.outcome ?? DEFAULT_OUTCOME_ID,
 
-              mood: latestRun.mood,
+            rewrite: latestRun.rewrite,
 
-              outcome: latestRun.outcome ?? DEFAULT_OUTCOME_ID,
+            shareConsent: PUBLIC_REWRITE_SHARE_CONSENT,
 
-              rewrite: latestRun.rewrite,
+            text: latestRun.source,
+          }),
 
-              shareConsent: PUBLIC_REWRITE_SHARE_CONSENT,
+          headers: {
+            "content-type": "application/json",
 
-              text: latestRun.source,
-            }),
+            "x-ghostwriter-csrf": csrfToken,
+          },
 
-            headers: {
-              "content-type": "application/json",
+          method: "POST",
 
-              "x-ghostwriter-csrf": csrfToken,
-            },
+          signal: abortController.signal,
+        });
 
-            method: "POST",
+        const payload = (await shareResponse.json().catch(() => ({}))) as {
+          error?: string | null;
 
-            signal: abortController.signal,
-          });
+          shortId?: string | null;
+        };
 
-          const payload = (await shareResponse.json().catch(() => ({}))) as {
-            error?: string | null;
+        if (!shareResponse.ok || payload.error || !payload.shortId) {
+          throw new GhostwriterRequestError(
+            payload.error || "The public link could not be created.",
 
-            shortId?: string | null;
-          };
-
-          if (!shareResponse.ok || payload.error || !payload.shortId) {
-            throw new GhostwriterRequestError(
-              payload.error || "The public link could not be created.",
-
-              requestIdFrom(shareResponse),
-            );
-          }
-
-          return {
-            href: `/g/${payload.shortId}`,
-
-            shortId: payload.shortId,
-          };
-        } catch (attemptError) {
-          const message =
-            attemptError instanceof Error
-              ? attemptError.message
-              : "The public link could not be created.";
-
-          if (attempt === 0 && isRecoverableSessionError(message)) {
-            csrfToken = await refreshGhostwriterShieldSession({
-              signal: abortController.signal,
-            });
-
-            if (csrfToken) {
-              continue;
-            }
-          }
-
-          throw attemptError;
+            requestIdFrom(shareResponse),
+          );
         }
-      }
+
+        return {
+          href: `/g/${payload.shortId}`,
+
+          shortId: payload.shortId,
+        };
+      });
     } finally {
       window.clearTimeout(timeoutId);
     }
@@ -820,86 +764,59 @@ export function GhostwriterPage({
     );
 
     try {
-      let csrfToken = readGhostwriterCsrfToken();
+      return await withGhostwriterSession(abortController.signal, async (csrfToken) => {
+        const challenge = await issueGhostwriterChallenge(csrfToken, {
+          signal: abortController.signal,
+        });
 
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        try {
-          if (!csrfToken) {
-            throw new Error(
-              "Protection cookies are missing. Refresh the page and try again.",
-            );
-          }
+        const feedbackResponse = await fetch("/api/ghostwriter/feedback", {
+          body: JSON.stringify({
+            author: latestRun.author,
 
-          const challenge = await issueGhostwriterChallenge(csrfToken, {
-            signal: abortController.signal,
-          });
+            artifactToken: latestRun.artifactToken,
 
-          const feedbackResponse = await fetch("/api/ghostwriter/feedback", {
-            body: JSON.stringify({
-              author: latestRun.author,
+            challengeNonce: challenge.challengeNonce,
 
-              artifactToken: latestRun.artifactToken,
+            challengeToken: challenge.challengeToken,
 
-              challengeNonce: challenge.challengeNonce,
+            mode: latestRun.mode,
 
-              challengeToken: challenge.challengeToken,
+            mood: latestRun.mood,
 
-              mode: latestRun.mode,
+            outcome: latestRun.outcome ?? DEFAULT_OUTCOME_ID,
 
-              mood: latestRun.mood,
+            rating: submission.rating,
 
-              outcome: latestRun.outcome ?? DEFAULT_OUTCOME_ID,
+            reason: submission.reason,
 
-              rating: submission.rating,
+            rewrite: latestRun.rewrite,
+          }),
 
-              reason: submission.reason,
+          headers: {
+            "content-type": "application/json",
 
-              rewrite: latestRun.rewrite,
-            }),
+            "x-ghostwriter-csrf": csrfToken,
+          },
 
-            headers: {
-              "content-type": "application/json",
+          method: "POST",
 
-              "x-ghostwriter-csrf": csrfToken,
-            },
+          signal: abortController.signal,
+        });
 
-            method: "POST",
+        const payload = (await feedbackResponse.json().catch(() => ({}))) as {
+          error?: string | null;
+        };
 
-            signal: abortController.signal,
-          });
+        if (!feedbackResponse.ok || payload.error) {
+          throw new GhostwriterRequestError(
+            payload.error || "Feedback could not be saved.",
 
-          const payload = (await feedbackResponse.json().catch(() => ({}))) as {
-            error?: string | null;
-          };
-
-          if (!feedbackResponse.ok || payload.error) {
-            throw new GhostwriterRequestError(
-              payload.error || "Feedback could not be saved.",
-
-              requestIdFrom(feedbackResponse),
-            );
-          }
-
-          return;
-        } catch (attemptError) {
-          const message =
-            attemptError instanceof Error
-              ? attemptError.message
-              : "Feedback could not be saved.";
-
-          if (attempt === 0 && isRecoverableSessionError(message)) {
-            csrfToken = await refreshGhostwriterShieldSession({
-              signal: abortController.signal,
-            });
-
-            if (csrfToken) {
-              continue;
-            }
-          }
-
-          throw attemptError;
+            requestIdFrom(feedbackResponse),
+          );
         }
-      }
+
+        return;
+      });
     } finally {
       window.clearTimeout(timeoutId);
     }

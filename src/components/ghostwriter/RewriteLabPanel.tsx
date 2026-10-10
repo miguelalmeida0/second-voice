@@ -6,10 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { RewriteLabScoreCard } from "@/components/ghostwriter/RewriteLabScoreCard";
 import { RewriteLabTrace } from "@/components/ghostwriter/RewriteLabTrace";
 import {
-  isRecoverableSessionError,
   issueGhostwriterChallenge,
-  readGhostwriterCsrfToken,
-  refreshGhostwriterShieldSession,
+  withGhostwriterSession,
 } from "@/lib/ghostwriter-client-guard";
 import type { AuthorId } from "@/lib/ghostwriter-shared";
 import type {
@@ -58,54 +56,32 @@ async function requestRewriteLab({
   signal: AbortSignal;
   source: string;
 }): Promise<RewriteLabPayload> {
-  let csrfToken = readGhostwriterCsrfToken();
+  return await withGhostwriterSession(signal, async (csrfToken) => {
+    const challenge = await issueGhostwriterChallenge(csrfToken, { signal });
+    const response = await fetch("/api/ghostwriter/lab", {
+      body: JSON.stringify({
+        author,
+        baselineRewrite,
+        challengeNonce: challenge.challengeNonce,
+        challengeToken: challenge.challengeToken,
+        mood,
+        source,
+      }),
+      headers: {
+        "content-type": "application/json",
+        "x-ghostwriter-csrf": csrfToken,
+      },
+      method: "POST",
+      signal,
+    });
+    const payload = (await response.json()) as RewriteLabResponse;
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      if (!csrfToken) {
-        throw new Error("Protection cookies are missing. Refresh the page and try again.");
-      }
-
-      const challenge = await issueGhostwriterChallenge(csrfToken, { signal });
-      const response = await fetch("/api/ghostwriter/lab", {
-        body: JSON.stringify({
-          author,
-          baselineRewrite,
-          challengeNonce: challenge.challengeNonce,
-          challengeToken: challenge.challengeToken,
-          mood,
-          source,
-        }),
-        headers: {
-          "content-type": "application/json",
-          "x-ghostwriter-csrf": csrfToken,
-        },
-        method: "POST",
-        signal,
-      });
-      const payload = (await response.json()) as RewriteLabResponse;
-
-      if (!response.ok || payload.error || !payload.lab) {
-        throw new Error(payload.error || "Rewrite Lab could not finish this run.");
-      }
-
-      return payload.lab;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Rewrite Lab could not finish.";
-
-      if (attempt === 0 && isRecoverableSessionError(message)) {
-        csrfToken = await refreshGhostwriterShieldSession({ signal });
-
-        if (csrfToken) {
-          continue;
-        }
-      }
-
-      throw error;
+    if (!response.ok || payload.error || !payload.lab) {
+      throw new Error(payload.error || "Rewrite Lab could not finish this run.");
     }
-  }
 
-  throw new Error("Rewrite Lab could not finish this run.");
+    return payload.lab;
+  });
 }
 
 function getLabErrorMessage(error: unknown) {

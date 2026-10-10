@@ -220,7 +220,8 @@ test("Second Voice AI keeps canonical second-voice URLs while legacy ghostwriter
   const proxy = readFileSync(PROXY_PATH, "utf8");
 
   assert.match(home, /permanentRedirect\("\/second-voice"\)/);
-  assert.match(page, /refreshGhostwriterShieldSession/);
+  assert.match(page, /withGhostwriterSession/);
+  assert.match(readFileSync(CLIENT_GUARD_PATH, "utf8"), /refreshGhostwriterShieldSession/);
   assert.match(readFileSync(HOW_IT_WORKS_DRAWER_PATH, "utf8"), /href="\/second-voice\/case-study"/);
   assert.match(topBar, /href="\/second-voice"/);
   assert.match(footer, /href="\/second-voice"/);
@@ -528,7 +529,8 @@ test("Rewrite Lab is explicit, protected, and inspectable after playback", () =>
   assert.match(panel, /Use this version/);
   assert.match(panel, /Copy winner/);
   assert.match(panel, /issueGhostwriterChallenge/);
-  assert.match(panel, /readGhostwriterCsrfToken/);
+  assert.match(panel, /withGhostwriterSession/);
+  assert.match(readFileSync(CLIENT_GUARD_PATH, "utf8"), /readGhostwriterCsrfToken/);
   assert.match(panel, /fetch\("\/api\/ghostwriter\/lab"/);
   assert.match(panel, /RewriteLabScoreCard/);
   assert.match(panel, /RewriteLabTrace/);
@@ -821,7 +823,8 @@ test("ghostwriter client can refresh stale shield cookies before giving up", () 
   assert.match(clientGuard, /fetch\("\/second-voice\?shield=refresh"/);
   assert.match(clientGuard, /signal: options\.signal/);
   assert.match(clientGuard, /throwIfAborted\(signal\)/);
-  assert.match(page, /isRecoverableSessionError\(message\)/);
+  assert.match(page, /withGhostwriterSession/);
+  assert.match(clientGuard, /isRecoverableSessionError\(message\)/);
 });
 
 test("case study polish avoids placeholder links and motion traps", () => {

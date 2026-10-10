@@ -156,3 +156,25 @@ export async function issueGhostwriterChallenge(
 export function readGhostwriterCsrfToken() {
   return readGhostwriterCookie(CSRF_COOKIE);
 }
+
+/** Renew a rejected shield session once; never retry unrelated operation failures. */
+export async function withGhostwriterSession<T>(
+  signal: AbortSignal,
+  request: (csrfToken: string) => Promise<T>,
+): Promise<T> {
+  let csrfToken = readGhostwriterCsrfToken();
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      if (!csrfToken) throw new Error(RECOVERABLE_SESSION_ERRORS[0]);
+      return await request(csrfToken);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (attempt === 0 && isRecoverableSessionError(message)) {
+        csrfToken = await refreshGhostwriterShieldSession({ signal });
+        if (csrfToken) continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error(RECOVERABLE_SESSION_ERRORS[0]);
+}

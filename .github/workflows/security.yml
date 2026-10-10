@@ -5,10 +5,11 @@ permissions:
 
 on:
   pull_request:
+  # Experimental test commits are verified by PR or on demand.
   push:
     branches:
       - main
-      - test
+  workflow_dispatch:
 
 jobs:
   hardening:

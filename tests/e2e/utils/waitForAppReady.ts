@@ -3,10 +3,8 @@ import { expect, type Page } from "@playwright/test";
 export async function waitForAppReady(page: Page) {
   await expect(page.getByRole("heading", { name: "Second Voice", level: 1 })).toBeVisible();
   await expect(page.getByLabel("Write or paste here")).toBeVisible();
-  // second-voice/loading.tsx's Suspense fallback also carries the bare
-  // "ghostwriter" class, so it can still be attached (mid-streaming-swap)
-  // alongside the real app root. Only the hydrated studio root ever sets
-  // data-app-ready, so scope to it directly instead of the shared class.
+  // The editor is server-rendered before preferences hydrate. Interaction
+  // tests wait for preferences without treating this as a visibility gate.
   await expect(page.locator(".ghostwriter[data-app-ready]")).toHaveAttribute("data-app-ready", "true");
   await page.waitForFunction(
     () => {

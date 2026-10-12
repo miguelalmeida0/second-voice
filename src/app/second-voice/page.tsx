@@ -6,7 +6,6 @@ import { PortfolioAccess } from "@/components/ghostwriter/PortfolioAccess";
 import { SecondVoiceExperience } from "@/components/ghostwriter/SecondVoiceExperience";
 import { localAuthPageRedirect } from "@/server/auth-origin";
 import { getGhostwriterFeatureAvailability } from "@/server/ghostwriter-feature-flags";
-import { resolvePortfolioSession } from "@/server/portfolio-session";
 
 export const metadata: Metadata = {
   title: "Second Voice AI — Rewrite anything with a great author",
@@ -50,19 +49,14 @@ export default async function SecondVoiceRoute() {
 
   const emailEnabled = process.env.GHOSTWRITER_EMAIL_LOGIN_ENABLED === "true";
 
-  const initialSession = portfolio
-    ? await resolvePortfolioSession(
-        new Request("http://localhost/", {
-          headers: requestHeaders,
-        }),
-      )
-    : { status: "checking" as const };
-
+  // Render the real studio before any identity/allowance network work.
+  // BetaSignIn owns the authoritative status handshake (including refresh,
+  // shield recovery and timeout). PortfolioAccess starts fail-closed.
   return (
     <PortfolioAccess
       enabled={portfolio}
       githubEnabled={githubEnabled}
-      initialSession={initialSession}
+      initialSession={{ status: "checking" }}
     >
       <SecondVoiceExperience
         emailEnabled={emailEnabled}

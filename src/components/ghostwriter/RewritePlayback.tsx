@@ -531,7 +531,7 @@ export function RewritePlayback({
             role="status"
           >
             <div className="gw-loading-status">
-              <LoaderCircle className="gw-loading-spinner h-5 w-5 animate-spin" aria-hidden />
+              <span className="duet-writing-signal" aria-hidden="true" />
               <div className="min-w-0">
                 <p className="gw-loading-title">
                   {mode === "outcome"

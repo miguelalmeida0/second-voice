@@ -419,7 +419,7 @@ test("ghostwriter composer auto-expands instead of trapping page scroll", () => 
   assert.match(playback, /gw-loading-panel/);
   assert.match(playback, /role="status"/);
   assert.match(playback, /gw-loading-status/);
-  assert.match(playback, /gw-loading-spinner h-5 w-5 animate-spin/);
+  assert.match(playback, /className="duet-writing-signal" aria-hidden="true"/);
   assert.match(playback, /Rewriting with \$\{author\.first\}\.\.\./);
   assert.doesNotMatch(playback, /gw-loading-bars|gw-rewrite-glow|gw-rewrite-scan/);
   assert.match(page, /const REWRITE_CLIENT_TIMEOUT_MS = 35_000;/);

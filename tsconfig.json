@@ -41,7 +41,9 @@
     ".next-playwright-3211/types/**/*.ts",
     ".next-playwright-3211/dev/types/**/*.ts",
     ".tmp/next-playwright-3211/types/**/*.ts",
-    ".tmp/next-playwright-3211/dev/types/**/*.ts"
+    ".tmp/next-playwright-3211/dev/types/**/*.ts",
+    ".tmp/next-first-paint/types/**/*.ts",
+    ".tmp/next-first-paint/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

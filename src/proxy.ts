@@ -91,17 +91,10 @@ export function proxy(request: NextRequest) {
   };
 
   /*
-   * A brand-new portfolio visitor must reach the React tree with a durable
-   * anonymous identity already present. Redirect once after issuing the
-   * signed identity so the second SSR request can resolve the authoritative
-   * allowance directly from Postgres instead of waiting on a client effect.
+   * Issue the same signed identity and shield on the studio response. The
+   * browser sends them with BetaSignIn's status request after hydration;
+   * rendering no longer needs a second document request to read allowance.
    */
-  if (anonymousVisitor?.isNew) {
-    const bootstrap = NextResponse.redirect(request.nextUrl, 307);
-    applyBootstrapCookies(bootstrap);
-    return bootstrap;
-  }
-
   applyBootstrapCookies(response);
   return response;
 }

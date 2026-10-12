@@ -288,12 +288,11 @@
 
 
 /* ============================================================
-   SECOND VOICE — legal + loading surfaces
+   SECOND VOICE — legal surfaces
    Flat, editorial, and aligned with the studio palette.
    ============================================================ */
 .sv-legal-page,
-.sv-privacy-page,
-.sv-loading-page {
+.sv-privacy-page {
   --sv-bg: #050505;
   --sv-surface: #0b0e11;
   --sv-ink: #f4f0e8;
@@ -627,153 +626,6 @@
   font: 400 15px/1.72 var(--font-sans);
 }
 
-.sv-loading-page {
-  display: grid;
-  min-height: 100svh;
-  place-items: center;
-  padding: 36px 24px;
-}
-
-.sv-loading-shell {
-  display: grid;
-  width: min(100%, 860px);
-  justify-items: center;
-  text-align: center;
-}
-
-.sv-loading-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 11px;
-  color: var(--sv-ink);
-  font: 400 28px/1.2 var(--font-serif);
-  letter-spacing: -.025em;
-}
-
-.sv-loading-brand svg {
-  width: 30px;
-  height: 30px;
-  color: var(--sv-accent);
-  stroke-width: 1.5;
-}
-
-.sv-loading-mark {
-  position: relative;
-  display: grid;
-  width: 116px;
-  height: 116px;
-  place-items: center;
-  margin: 56px 0 42px;
-  border: 1px solid var(--sv-line);
-  border-radius: 50%;
-}
-
-.sv-loading-mark::before {
-  position: absolute;
-  inset: -1px;
-  border: 1.5px solid transparent;
-  border-top-color: var(--sv-accent);
-  border-right-color: #9bcaff55;
-  border-radius: 50%;
-  content: "";
-  animation: sv-loading-spin 1.8s linear infinite;
-}
-
-.sv-loading-mark::after {
-  position: absolute;
-  top: -4px;
-  left: 50%;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--sv-accent);
-  content: "";
-  transform: translateX(-50%);
-}
-
-.sv-loading-wave {
-  display: flex;
-  height: 30px;
-  align-items: center;
-  gap: 4px;
-}
-
-.sv-loading-wave span {
-  width: 2px;
-  border-radius: 99px;
-  background: var(--sv-ink);
-  animation: sv-loading-wave 1.15s ease-in-out infinite alternate;
-}
-
-.sv-loading-wave span:nth-child(1),
-.sv-loading-wave span:nth-child(5) { height: 10px; animation-delay: -.4s; }
-.sv-loading-wave span:nth-child(2),
-.sv-loading-wave span:nth-child(4) { height: 20px; animation-delay: -.2s; }
-.sv-loading-wave span:nth-child(3) { height: 30px; }
-
-.sv-loading-kicker {
-  margin: 0;
-  color: var(--sv-accent);
-  font: 500 11px/1.2 var(--font-sans);
-  letter-spacing: .16em;
-  text-transform: uppercase;
-}
-
-.sv-loading-copy h1 {
-  margin: 14px 0 0;
-  color: var(--sv-ink);
-  font: 400 clamp(38px, 5vw, 58px)/1.02 var(--font-serif);
-  letter-spacing: -.04em;
-}
-
-.sv-loading-copy > p:last-child {
-  margin: 18px 0 0;
-  color: var(--sv-muted);
-  font: 400 16px/1.6 var(--font-sans);
-}
-
-.sv-loading-progress {
-  width: min(100%, 520px);
-  height: 1px;
-  margin-top: 44px;
-  overflow: clip;
-  background: var(--sv-line);
-}
-
-.sv-loading-progress span {
-  display: block;
-  width: 38%;
-  height: 100%;
-  background: var(--sv-accent);
-  animation: sv-loading-progress 1.65s ease-in-out infinite;
-}
-
-.sv-loading-meta {
-  display: grid;
-  width: min(100%, 620px);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-  margin-top: 16px;
-  color: var(--sv-faint);
-  font: 500 11px/1.35 var(--font-sans);
-  letter-spacing: .035em;
-}
-
-@keyframes sv-loading-spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes sv-loading-wave {
-  from { transform: scaleY(.5); opacity: .55; }
-  to { transform: scaleY(1); opacity: 1; }
-}
-
-@keyframes sv-loading-progress {
-  0% { transform: translateX(-105%); }
-  55% { transform: translateX(155%); }
-  100% { transform: translateX(280%); }
-}
-
 @media (max-width: 900px) {
   .sv-legal-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -860,35 +712,5 @@
     gap: 18px;
   }
 
-  .sv-loading-page {
-    padding: 28px 20px;
-  }
 
-  .sv-loading-brand {
-    font-size: 24px;
-  }
-
-  .sv-loading-mark {
-    width: 96px;
-    height: 96px;
-    margin: 44px 0 34px;
-  }
-
-  .sv-loading-meta {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 7px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sv-loading-mark::before,
-  .sv-loading-wave span,
-  .sv-loading-progress span {
-    animation: none;
-  }
-
-  .sv-loading-progress span {
-    width: 62%;
-    transform: none;
-  }
 }

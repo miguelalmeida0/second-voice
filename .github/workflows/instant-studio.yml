@@ -26,9 +26,11 @@ jobs:
       - run: npm run test:security
       - run: npm run test:scroll
       - run: npm run test:integration
+      # Fail early if project flags accidentally swallow positional test filters.
+      - run: npx playwright test duet.spec.ts auth.spec.ts error-states.spec.ts --project=chromium --project=mobile-chrome --list
       - run: npx playwright install --with-deps chromium
       - run: npm run test:instant
-      - run: npx playwright test --project chromium --project mobile-chrome tests/e2e/specs/duet.spec.ts tests/e2e/specs/auth.spec.ts tests/e2e/specs/error-states.spec.ts
+      - run: npx playwright test duet.spec.ts auth.spec.ts error-states.spec.ts --project=chromium --project=mobile-chrome
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

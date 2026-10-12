@@ -8,7 +8,7 @@ export function CaseStudyFooter() {
         <SecondVoiceMark className="[&_.second-voice-mark-title]:text-[hsl(var(--cs-foreground))] [&_.second-voice-mark-divider]:bg-[hsl(var(--cs-hairline))] [&_.second-voice-mark-tagline]:text-[hsl(var(--cs-muted-foreground))]" />
 
         <div className="flex items-center gap-6 text-sm text-[hsl(var(--cs-muted-foreground))]">
-          <Link href="/second-voice" className="transition-colors hover:text-[hsl(var(--cs-foreground))]">
+          <Link href="/" className="transition-colors hover:text-[hsl(var(--cs-foreground))]">
             Open Second Voice AI
           </Link>
           <a href="#read" className="transition-colors hover:text-[hsl(var(--cs-foreground))]">

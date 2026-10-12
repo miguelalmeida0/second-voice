@@ -262,10 +262,10 @@ export function HowItWorksDrawer({ open, onClose, returnFocusRef }: HowItWorksDr
               </ol>
 
               <footer className="gw-how-footer">
-                <Link href="/second-voice/account" className="gw-how-case-link" onClick={onClose}>Account &amp; deletion</Link>
-                <Link href="/second-voice/privacy" className="gw-how-case-link" onClick={onClose}>Privacy &amp; contact</Link>
+                <Link href="/account" className="gw-how-case-link" onClick={onClose}>Account &amp; deletion</Link>
+                <Link href="/privacy" className="gw-how-case-link" onClick={onClose}>Privacy &amp; contact</Link>
                 <a href="/ghostwriter/portraits/ATTRIBUTION.md" className="gw-how-case-link">Photography credits</a>
-                <Link href="/second-voice/case-study" className="gw-how-case-link" onClick={onClose}>
+                <Link href="/case-study" className="gw-how-case-link" onClick={onClose}>
                   <BookOpen className="h-4 w-4" aria-hidden />
                   Read the case study
                 </Link>

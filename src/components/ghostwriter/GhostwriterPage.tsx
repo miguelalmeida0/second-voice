@@ -917,7 +917,7 @@ export function GhostwriterPage({
       <div className="gw-studio-shell">
         <header className="duet-header">
           <div className="duet-brand"><svg aria-hidden="true" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M10 7h11l-6 21H4z"/><path d="M19 3h10l-6 21H13z"/></svg><h1>Second Voice</h1></div>
-          <nav aria-label="Workspace"><button ref={howItWorksTriggerRef} type="button" aria-haspopup="dialog" aria-expanded={howItWorksOpen} aria-controls="gw-how-drawer" onClick={() => setHowItWorksOpen(true)}>How it works <ArrowUpRight aria-hidden="true" /></button><a href="/second-voice/account">Account <ArrowUpRight aria-hidden="true" /></a></nav>
+          <nav aria-label="Workspace"><button ref={howItWorksTriggerRef} type="button" aria-haspopup="dialog" aria-expanded={howItWorksOpen} aria-controls="gw-how-drawer" onClick={() => setHowItWorksOpen(true)}>How it works <ArrowUpRight aria-hidden="true" /></button><a href="/account">Account <ArrowUpRight aria-hidden="true" /></a></nav>
         </header>
         <section
           id="ghostwriter-studio"
@@ -958,15 +958,15 @@ export function GhostwriterPage({
             <QuickStartsPanel promptsOnly input={input} onSelect={setInput} promptsOpen={promptsOpen} onPromptsOpenChange={setPromptsOpen} />
             </div>
             <div className="duet-draft-footer">
-        <p className="duet-privacy">Rewrites use generative AI and may send your text to the configured model provider. Do not paste secrets or sensitive data you are not authorised to share. <Link href="/second-voice/privacy">Privacy details</Link></p>
+        <p className="duet-privacy">Rewrites use generative AI and may send your text to the configured model provider. Do not paste secrets or sensitive data you are not authorised to share. <Link href="/privacy">Privacy details</Link></p>
         <footer className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-white/10 pb-8 pt-6 text-xs text-[var(--whisper)]">
-          <Link href="/second-voice/legal#imprint" className="transition-colors hover:text-[var(--mist)]">
+          <Link href="/legal#imprint" className="transition-colors hover:text-[var(--mist)]">
             Imprint
           </Link>
-          <Link href="/second-voice/privacy" className="transition-colors hover:text-[var(--mist)]">
+          <Link href="/privacy" className="transition-colors hover:text-[var(--mist)]">
             Privacy
           </Link>
-          <Link href="/second-voice/legal#ai-notice" className="transition-colors hover:text-[var(--mist)]">
+          <Link href="/legal#ai-notice" className="transition-colors hover:text-[var(--mist)]">
             AI notice
           </Link>
         </footer>

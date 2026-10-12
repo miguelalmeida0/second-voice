@@ -19,18 +19,18 @@ export default function LegalPage() {
     <main className="ghostwriter sv-legal-page">
       <div className="sv-legal-shell">
         <header className="sv-legal-nav">
-          <Link href="/second-voice" className="sv-legal-brand" aria-label="Second Voice home">
+          <Link href="/" className="sv-legal-brand" aria-label="Second Voice home">
             <Feather aria-hidden="true" />
             <span>Second Voice</span>
           </Link>
 
-          <Link href="/second-voice" className="sv-legal-open">
+          <Link href="/" className="sv-legal-open">
             Open app
           </Link>
         </header>
 
         <section className="sv-legal-hero" aria-labelledby="legal-title">
-          <Link href="/second-voice" className="sv-legal-back">
+          <Link href="/" className="sv-legal-back">
             <ArrowLeft aria-hidden="true" />
             Back to Second Voice
           </Link>
@@ -110,7 +110,7 @@ export default function LegalPage() {
               </p>
             </div>
 
-            <Link href="/second-voice/privacy" className="sv-legal-link">
+            <Link href="/privacy" className="sv-legal-link">
               Read the full privacy notice
               <span aria-hidden="true">→</span>
             </Link>
@@ -155,14 +155,14 @@ export default function LegalPage() {
         </section>
 
         <footer className="sv-legal-footer">
-          <Link href="/second-voice" className="sv-legal-footer-brand">
+          <Link href="/" className="sv-legal-footer-brand">
             <Feather aria-hidden="true" />
             <span>Second Voice</span>
           </Link>
 
           <nav aria-label="Legal">
             <a href="#imprint">Imprint</a>
-            <Link href="/second-voice/privacy">Privacy</Link>
+            <Link href="/privacy">Privacy</Link>
             <a href="#ai-notice">AI notice</a>
           </nav>
         </footer>

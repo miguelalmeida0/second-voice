@@ -15,10 +15,10 @@ export default function GhostwriterNotFound() {
           That rewrite does not exist, or storage is not configured in this environment yet.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-2">
-          <Link href="/second-voice" className="gw-chip">
+          <Link href="/" className="gw-chip">
             Back to Second Voice AI
           </Link>
-          <Link href="/second-voice/case-study" className="gw-chip">
+          <Link href="/case-study" className="gw-chip">
             Read the case study
           </Link>
         </div>

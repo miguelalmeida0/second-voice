@@ -1,5 +1,1 @@
-import { permanentRedirect } from "next/navigation";
-
-export default function Home() {
-  permanentRedirect("/second-voice");
-}
+export { default, metadata } from "./second-voice/page";

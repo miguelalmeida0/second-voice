@@ -14,7 +14,8 @@ import {
 } from "@/server/anonymous-visitor";
 
 function isShieldedPagePath(pathname: string) {
-  return pathname === "/second-voice" || pathname === "/second-voice/" || pathname === "/second-voice/account";
+  return pathname === "/" || pathname === "/account" || pathname === "/account/" ||
+    pathname === "/second-voice" || pathname === "/second-voice/" || pathname === "/second-voice/account";
 }
 
 function isNonceCspPath(pathname: string) {

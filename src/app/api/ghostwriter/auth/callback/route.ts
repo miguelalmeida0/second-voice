@@ -27,7 +27,7 @@ export async function GET(request:Request){
   const identity=await authenticateAiRequest(new Request(origin,{headers:{authorization:"Bearer "+session.access_token}}));
   if(!identity.ok)return unavailable();
   await freeTrial(identity.identity.accountId,identity.identity.sessionId!,true);
-  const response=NextResponse.redirect(origin+"/second-voice?auth=complete",303);
+  const response=NextResponse.redirect(origin+"/?auth=complete",303);
   response.headers.set("Cache-Control","private, no-store");
   response.headers.set("Referrer-Policy","no-referrer");
   response.cookies.set(authCookieName("pkce"),"",{httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"lax",path:"/",maxAge:0});

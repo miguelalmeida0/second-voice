@@ -75,7 +75,7 @@ export function BetaSignIn({
     if (
       new URLSearchParams(window.location.search).get("auth") === "complete"
     ) {
-      window.history.replaceState(null, "", "/second-voice");
+      window.history.replaceState(null, "", "/");
 
       channel.postMessage("changed");
     }

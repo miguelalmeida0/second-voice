@@ -89,7 +89,7 @@ export async function solveGhostwriterChallenge(
 export async function refreshGhostwriterShieldSession(options: {
   signal?: AbortSignal;
 } = {}): Promise<string | null> {
-  const response = await fetch("/second-voice?shield=refresh", {
+  const response = await fetch("/?shield=refresh", {
     cache: "no-store",
     credentials: "same-origin",
     method: "GET",

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { apiResponses } from "../fixtures/testData";
 import { mockGhostwriterApi } from "../utils/mockApi";
 
 const allowance = { remaining: 3, todayRemaining: 3, available: true };
@@ -68,7 +69,19 @@ test("failed and expired identity stays closed; reload recovers without a splash
 
 test("rewrite feedback stays in output and reduced motion stops its signal", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  const api = await mockGhostwriterApi(page, { rewrite: { delayMs: 1800, json: { rewrite: "The train was gone. I walked home.", moodLabel: "starlit" } } });
+  const rewritten = "The train was gone. I walked home.";
+  const api = await mockGhostwriterApi(page, {
+    rewrite: {
+      delayMs: 1800,
+      json: {
+        artifactToken: apiResponses.artifactToken,
+        error: null,
+        moodLabel: "starlit",
+        rewrite: rewritten,
+        shortId: null,
+      },
+    },
+  });
   await page.route("**/api/ghostwriter/auth", route => route.fulfill({ json: { mode: "anonymous", allowance } }));
   await page.goto("/");
   await page.locator(editorSelector).fill("I missed the train, so I walked home.");
@@ -77,6 +90,7 @@ test("rewrite feedback stays in output and reduced motion stops its signal", asy
   await expect(page.locator(".duet-writing-signal")).toHaveCSS("animation-name", "none");
   await expect(page.locator(editorSelector)).toHaveValue("I missed the train, so I walked home.");
   await expect(page.locator('[data-phase="complete"]')).toBeVisible();
+  await expect(page.locator('[data-phase="complete"] .gw-playback-panel-strong')).toContainText(rewritten);
   expect(api.rewriteRequests).toHaveLength(1);
 });
 

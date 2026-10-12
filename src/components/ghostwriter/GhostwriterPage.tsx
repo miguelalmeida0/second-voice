@@ -952,11 +952,11 @@ export function GhostwriterPage({
             loading={loading}
             canRewrite={canRewrite}
             completed={Boolean(latestRun.rewrite) && !error}
-            status={accessView || !features.rewriteEnabled
-              ? cooldownSeconds > 0
-                ? "Next rewrite in " + cooldownSeconds + "s. Your free-rewrite allowance is unchanged."
-                : rewriteUnavailableMessage
-              : null}
+            status={cooldownSeconds > 0
+              ? "Next rewrite in " + cooldownSeconds + "s. Your free-rewrite allowance is unchanged."
+              : accessView || !features.rewriteEnabled
+                ? rewriteUnavailableMessage
+                : null}
           />
         </DuetControls>
         {previewOpen && latestRun.rewrite && !loading && <button type="button" className="duet-return-result" onClick={() => setPreviewOpen(false)}>Back to your rewrite</button>}

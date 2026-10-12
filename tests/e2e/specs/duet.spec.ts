@@ -19,8 +19,8 @@ test("Duet starts empty and preserves the draft through responsive layouts", asy
   await app.goto();
   await expect(app.draftInput()).toHaveValue("");
   await expect(app.rewriteButton()).toBeDisabled();
-  await expect(page.getByRole("heading", { name: "Your words." })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Another voice." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your words.", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Another voice.", exact: true })).toBeVisible();
   await app.fillDraft("A draft that stays with me.\nAcross every screen.");
   for (const width of [320, 360, 375, 390, 430, 600, 768, 820, 844, 1024, 1280, 1440, 1920, 2560]) {
     await page.setViewportSize({ width, height: width === 844 ? 390 : 900 });

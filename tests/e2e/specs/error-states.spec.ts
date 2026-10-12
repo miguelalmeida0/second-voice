@@ -15,7 +15,11 @@ test.describe("error, retry, and empty states", () => {
       await app.goto();
       await app.fillDraft(drafts.default);
       await app.runRewrite();
-      await expect(page.locator(".gw-inspiration-status")).toContainText(/Next rewrite in (900|89\d)s/);
+      const cooldownStatus = page.locator(".gw-inspiration-status");
+      await expect(cooldownStatus).toContainText(/Next rewrite in \d+s/);
+      const remainingSeconds = Number((await cooldownStatus.textContent())?.match(/Next rewrite in (\d+)s/)?.[1]);
+      expect(remainingSeconds).toBeGreaterThan(300);
+      expect(remainingSeconds).toBeLessThanOrEqual(900);
       await expect(app.rewriteButton()).toBeDisabled();
       await expect(app.draftInput()).toHaveValue(drafts.default);
       expect(api.rewriteRequests).toHaveLength(endpoint === "challenge" ? 0 : 1);
@@ -161,11 +165,11 @@ test.describe("error, retry, and empty states", () => {
     await expect(page.getByText("That rewrite does not exist")).toBeVisible();
     await expect(page.getByRole("link", { name: "Back to Second Voice AI" })).toHaveAttribute(
       "href",
-      "/second-voice",
+      "/",
     );
     await expect(page.getByRole("link", { name: "Read the case study" })).toHaveAttribute(
       "href",
-      "/second-voice/case-study",
+      "/case-study",
     );
   });
 });

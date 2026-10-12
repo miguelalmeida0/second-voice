@@ -16,17 +16,17 @@ export default function PrivacyPage() {
     <main className="ghostwriter sv-privacy-page">
       <div className="sv-privacy-shell">
         <header className="sv-legal-nav">
-          <Link href="/second-voice" className="sv-legal-brand" aria-label="Second Voice home">
+          <Link href="/" className="sv-legal-brand" aria-label="Second Voice home">
             <Feather aria-hidden="true" />
             <span>Second Voice</span>
           </Link>
-          <Link href="/second-voice/legal" className="sv-legal-open">
+          <Link href="/legal" className="sv-legal-open">
             Legal
           </Link>
         </header>
 
         <section className="sv-privacy-hero">
-          <Link href="/second-voice" className="sv-legal-back">
+          <Link href="/" className="sv-legal-back">
             <ArrowLeft aria-hidden="true" />
             Back to Second Voice
           </Link>
@@ -125,7 +125,7 @@ export default function PrivacyPage() {
                 respective provider&apos;s policies, not the browser&apos;s lifetime.
               </p>
               <p>
-                <Link href="/second-voice/account">Delete your account</Link> to revoke app access
+                <Link href="/account">Delete your account</Link> to revoke app access
                 and erase private stored results. Deletion can resume after a service interruption.
                 Contact Miguel if you cannot complete it. Previously copied or externally held text
                 cannot be recalled.
@@ -147,14 +147,14 @@ export default function PrivacyPage() {
         </div>
 
         <footer className="sv-legal-footer">
-          <Link href="/second-voice" className="sv-legal-footer-brand">
+          <Link href="/" className="sv-legal-footer-brand">
             <Feather aria-hidden="true" />
             <span>Second Voice</span>
           </Link>
           <nav aria-label="Legal">
-            <Link href="/second-voice/legal#imprint">Imprint</Link>
+            <Link href="/legal#imprint">Imprint</Link>
             <span aria-current="page">Privacy</span>
-            <Link href="/second-voice/legal#ai-notice">AI notice</Link>
+            <Link href="/legal#ai-notice">AI notice</Link>
           </nav>
         </footer>
       </div>

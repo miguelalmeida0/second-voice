@@ -126,7 +126,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
       <line x1="84" y1="558" x2="1116" y2="558" stroke="rgba(255,255,255,0.12)" />
       <text x="84" y="595" fill="#9b93a8" font-family="Inter, Arial, sans-serif" font-size="22">
-        Private source hidden · try Second Voice AI → /second-voice
+        Private source hidden · try Second Voice AI → /
       </text>
     </svg>
   `.trim();

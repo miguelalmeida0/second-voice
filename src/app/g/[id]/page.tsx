@@ -121,11 +121,11 @@ export default async function GhostwriterPermalinkPage({ params }: PageProps) {
           <div className="gw-chip gw-voice-text">
             Shared rewrite · {row.short_id}
           </div>
-          <Link href="/second-voice" className="gw-chip">
+          <Link href="/" className="gw-chip">
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to Second Voice AI
           </Link>
-          <Link href="/second-voice/case-study" className="gw-chip">
+          <Link href="/case-study" className="gw-chip">
             Read the case study
           </Link>
         </div>
@@ -256,7 +256,7 @@ export default async function GhostwriterPermalinkPage({ params }: PageProps) {
               <p className="text-[14px] leading-relaxed text-[var(--mist)]">
                 Open the main app to try a different author, outcome, mood, or sentence.
               </p>
-              <Link href="/second-voice" className="gw-chip">
+              <Link href="/" className="gw-chip">
                 Open Second Voice AI
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>

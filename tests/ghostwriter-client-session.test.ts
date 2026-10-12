@@ -10,7 +10,7 @@ function browser(t: TestContext, cookie = "gw_csrf=initial", refresh: "ok" | "re
   const requests: RequestInit[] = [];
   const refreshError = new Error("refresh network failure");
   t.mock.method(globalThis, "fetch", async (url: string, options: RequestInit) => {
-    assert.equal(url, "/second-voice?shield=refresh");
+    assert.equal(url, "/?shield=refresh");
     requests.push(options);
     if (refresh === "throws") throw refreshError;
     document.cookie = refresh === "empty" ? "" : "gw_csrf=renewed";

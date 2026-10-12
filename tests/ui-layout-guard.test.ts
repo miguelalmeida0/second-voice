@@ -204,11 +204,11 @@ test("public UI surfaces use the Second Voice AI product name", () => {
   assert.match(sharePage, /Second Voice AI/);
   assert.match(shareNotFound, /Second Voice AI permalink/);
   assert.match(ogRoute, /SECOND VOICE AI/);
-  assert.match(legacyRoute, /permanentRedirect\("\/second-voice"\)/);
-  assert.match(legacyCaseRoute, /permanentRedirect\("\/second-voice\/case-study"\)/);
+  assert.match(legacyRoute, /permanentRedirect\("\/"\)/);
+  assert.match(legacyCaseRoute, /permanentRedirect\("\/case-study"\)/);
 });
 
-test("Second Voice AI keeps canonical second-voice URLs while legacy ghostwriter URLs redirect safely", () => {
+test("Second Voice AI keeps canonical root URLs while legacy routes redirect safely", () => {
   const home = readFileSync(new URL("../src/app/page.tsx", import.meta.url), "utf8");
   const page = readFileSync(PAGE_PATH, "utf8").replace(/\s+/g, " ");
   const topBar = readFileSync(CASE_STUDY_TOP_BAR_PATH, "utf8");
@@ -219,18 +219,20 @@ test("Second Voice AI keeps canonical second-voice URLs while legacy ghostwriter
   const ogRoute = readFileSync(OG_ROUTE_PATH, "utf8");
   const proxy = readFileSync(PROXY_PATH, "utf8");
 
-  assert.match(home, /permanentRedirect\("\/second-voice"\)/);
+  assert.match(home, /export \{ default, metadata \} from "\.\/second-voice\/page";/);
   assert.match(page, /withGhostwriterSession/);
   assert.match(readFileSync(CLIENT_GUARD_PATH, "utf8"), /refreshGhostwriterShieldSession/);
-  assert.match(readFileSync(HOW_IT_WORKS_DRAWER_PATH, "utf8"), /href="\/second-voice\/case-study"/);
-  assert.match(topBar, /href="\/second-voice"/);
-  assert.match(footer, /href="\/second-voice"/);
-  assert.match(closingNotes, /href="\/second-voice"/);
-  assert.match(sharePage, /href="\/second-voice"/);
-  assert.match(sharePage, /href="\/second-voice\/case-study"/);
-  assert.match(shareNotFound, /href="\/second-voice"/);
-  assert.match(shareNotFound, /href="\/second-voice\/case-study"/);
-  assert.match(ogRoute, /→ \/second-voice/);
+  assert.match(readFileSync(HOW_IT_WORKS_DRAWER_PATH, "utf8"), /href="\/case-study"/);
+  assert.match(topBar, /href="\/"/);
+  assert.match(footer, /href="\/"/);
+  assert.match(closingNotes, /href="\/"/);
+  assert.match(sharePage, /href="\/"/);
+  assert.match(sharePage, /href="\/case-study"/);
+  assert.match(shareNotFound, /href="\/"/);
+  assert.match(shareNotFound, /href="\/case-study"/);
+  assert.match(ogRoute, /→ \//);
+  assert.match(proxy, /pathname === "\/"/);
+  assert.match(proxy, /pathname === "\/account"/);
   assert.match(proxy, /pathname === "\/second-voice"/);
   assert.doesNotMatch(proxy, /pathname\.startsWith\("\/second-voice\/"\)/);
   assert.doesNotMatch(proxy, /pathname === "\/ghostwriter"/);
@@ -347,7 +349,7 @@ test("main app includes an accessible How It Works drawer", () => {
   assert.match(drawer, /previousFocusRef\.current\.focus/);
   assert.match(drawer, /useReducedMotion/);
   assert.match(drawer, /useMediaQuery\("\(max-width: 767px\)"\)/);
-  assert.match(drawer, /href="\/second-voice\/case-study"/);
+  assert.match(drawer, /href="\/case-study"/);
 
   assert.match(globals, /\.ghostwriter \.gw-how-backdrop \{/);
   assert.match(

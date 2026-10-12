@@ -8,7 +8,7 @@ export class AppPage {
     this.page = page;
   }
 
-  async goto(path = "/second-voice") {
+  async goto(path = "/") {
     await this.page.goto(path, { waitUntil: "commit", timeout: 45_000 });
     await waitForAppReady(this.page);
   }

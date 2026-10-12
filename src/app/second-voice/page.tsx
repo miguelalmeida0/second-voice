@@ -34,7 +34,7 @@ export default async function SecondVoiceRoute() {
    * on this behavior.
    */
   const canonical = localAuthPageRedirect(
-    new Request("http://localhost/second-voice", {
+    new Request("http://localhost/", {
       headers: requestHeaders,
     }),
   );
@@ -52,7 +52,7 @@ export default async function SecondVoiceRoute() {
 
   const initialSession = portfolio
     ? await resolvePortfolioSession(
-        new Request("http://localhost/second-voice", {
+        new Request("http://localhost/", {
           headers: requestHeaders,
         }),
       )

@@ -6,7 +6,7 @@ export function CaseStudyTopBar() {
     <header className="sticky top-0 z-30 border-b border-[hsl(var(--cs-hairline))] bg-[hsl(var(--cs-background)/0.94)] backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1520px] items-center justify-between px-6 py-4 md:px-10 xl:px-14">
         <Link
-          href="/second-voice"
+          href="/"
           className="cs-topbar-link group inline-flex items-center gap-2"
         >
           <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />

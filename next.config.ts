@@ -21,6 +21,12 @@ const nextConfig: NextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
   },
+  async redirects() {
+    return [
+      { source: "/second-voice", destination: "/", permanent: true },
+      { source: "/second-voice/:path*", destination: "/:path*", permanent: true },
+    ];
+  },
   async headers() {
     const baselineHeaders = buildBaselineSecurityHeaders({ isDevelopment });
 

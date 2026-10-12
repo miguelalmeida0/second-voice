@@ -18,7 +18,7 @@ export function CaseStudyClosingNotes() {
         </div>
 
         <Link
-          href="/second-voice"
+          href="/"
           className="cs-closing-cta group inline-flex w-fit items-center gap-3"
         >
           <span>Open Second Voice AI</span>

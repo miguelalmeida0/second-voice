@@ -2,18 +2,25 @@ import { test, expect } from "../fixtures/test";
 import { waitForAppReady } from "../utils/waitForAppReady";
 
 test.describe("navigation and route coverage", () => {
-  test("redirects root and legacy Ghostwriter routes to canonical Second Voice routes", async ({ page }) => {
+  test("renders the studio at root and preserves legacy redirects", async ({ page }) => {
     await page.goto("/");
-    await expect(page).toHaveURL(/\/second-voice$/);
+    await expect(page).toHaveURL(/\/$/);
+    await waitForAppReady(page);
+
+    await page.goto("/second-voice");
+    await expect(page).toHaveURL(/\/$/);
     await waitForAppReady(page);
 
     await page.goto("/ghostwriter");
-    await expect(page).toHaveURL(/\/second-voice$/);
+    await expect(page).toHaveURL(/\/$/);
     await waitForAppReady(page);
 
     await page.goto("/ghostwriter/case-study");
-    await expect(page).toHaveURL(/\/second-voice\/case-study$/);
+    await expect(page).toHaveURL(/\/case-study$/);
     await expect(page.getByRole("link", { name: "Back to Second Voice AI" })).toBeVisible();
+
+    await page.goto("/second-voice/case-study");
+    await expect(page).toHaveURL(/\/case-study$/);
   });
 
   test("navigates between app, case study, and invalid public permalink recovery paths", async ({ app, page }) => {
@@ -21,17 +28,17 @@ test.describe("navigation and route coverage", () => {
     await app.openHowItWorks();
     await app.caseStudyLink().click();
 
-    await expect(page).toHaveURL(/\/second-voice\/case-study$/);
+    await expect(page).toHaveURL(/\/case-study$/);
     await expect(page.getByRole("link", { name: "Back to Second Voice AI" })).toBeVisible();
 
     await page.getByRole("link", { name: "Back to Second Voice AI" }).click();
-    await expect(page).toHaveURL(/\/second-voice$/);
+    await expect(page).toHaveURL(/\/$/);
     await waitForAppReady(page);
 
     await page.goto("/g/invalid-id");
     await expect(page.getByRole("heading", { name: "Lost in the draft." })).toBeVisible();
     await page.getByRole("link", { name: "Back to Second Voice AI" }).click();
-    await expect(page).toHaveURL(/\/second-voice$/);
+    await expect(page).toHaveURL(/\/$/);
     await waitForAppReady(page);
   });
 
@@ -43,6 +50,6 @@ test.describe("navigation and route coverage", () => {
     await expect(page.getByRole("button", { name: /^Rewrite my draft$/ })).toBeVisible();
 
     await app.openHowItWorks();
-    await expect(app.caseStudyLink()).toHaveAttribute("href", "/second-voice/case-study");
+    await expect(app.caseStudyLink()).toHaveAttribute("href", "/case-study");
   });
 });

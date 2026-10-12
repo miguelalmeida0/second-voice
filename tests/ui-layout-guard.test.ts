@@ -822,7 +822,7 @@ test("ghostwriter client can refresh stale shield cookies before giving up", () 
 
   assert.match(clientGuard, /export const RECOVERABLE_SESSION_ERRORS = \[/);
   assert.match(clientGuard, /export async function refreshGhostwriterShieldSession/);
-  assert.match(clientGuard, /fetch\("\/second-voice\?shield=refresh"/);
+  assert.match(clientGuard, /fetch\("\/\?shield=refresh"/);
   assert.match(clientGuard, /signal: options\.signal/);
   assert.match(clientGuard, /throwIfAborted\(signal\)/);
   assert.match(page, /withGhostwriterSession/);

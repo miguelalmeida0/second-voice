@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 export default function AccountPage() {
   const [confirmation,setConfirmation]=useState("");
@@ -30,9 +31,9 @@ export default function AccountPage() {
     } finally { setBusy(false); }
   }
   return <main className="duet-account mx-auto max-w-2xl px-6 py-16">
-    <a href="/" className="underline underline-offset-4">Back to Second Voice</a>
+    <Link href="/" className="underline underline-offset-4">Back to Second Voice</Link>
     <h1 className="mt-10 text-3xl">Account &amp; deletion</h1>
-    <p className="mt-6">Deletion revokes access, removes your account and clears private stored rewrites. Minimal trial and recovery records follow the seven-day content and 90-day recovery policy in <a href="/privacy" className="underline">Privacy &amp; contact</a>; they are not anonymous. Unresolved charges or incomplete cleanup need reconciliation. Previously copied text cannot be recalled.</p>
+    <p className="mt-6">Deletion revokes access, removes your account and clears private stored rewrites. Minimal trial and recovery records follow the seven-day content and 90-day recovery policy in <Link href="/privacy" className="underline">Privacy &amp; contact</Link>; they are not anonymous. Unresolved charges or incomplete cleanup need reconciliation. Previously copied text cannot be recalled.</p>
     <p className="mt-4">Sign out and sign in again before deleting. Confirmation must follow a fresh sign-in within ten minutes. This does not use a rewrite.</p>
     {state!=="complete" && <form className="mt-8" onSubmit={event=>{event.preventDefault();void remove();}}>
       <label htmlFor="confirmation">Type DELETE MY ACCOUNT to confirm</label>

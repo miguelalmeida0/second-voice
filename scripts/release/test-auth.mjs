@@ -74,7 +74,7 @@ try{
  // Match Supabase's service role: BYPASSRLS does not grant table privileges.
  // The app's explicit table/RPC revocations must still hold with this role.
  sql("create role anon; create role authenticated; create role service_role bypassrls; create role authenticator login password 'isolated-only' noinherit; grant anon,authenticated,service_role to authenticator; create schema auth; alter role postgres set search_path=auth,public;");
- const authEnv=envFile("auth.env",{GOTRUE_API_HOST:"0.0.0.0",GOTRUE_API_PORT:9999,API_EXTERNAL_URL:base+"/auth/v1",GOTRUE_DB_DRIVER:"postgres",GOTRUE_DB_DATABASE_URL:"postgres://postgres:isolated-only@"+pg+":5432/postgres",GOTRUE_DB_NAMESPACE:"auth",GOTRUE_SITE_URL:"http://127.0.0.1:3219/second-voice",GOTRUE_DISABLE_SIGNUP:"true",GOTRUE_JWT_ADMIN_ROLES:"service_role",GOTRUE_JWT_AUD:"authenticated",GOTRUE_JWT_DEFAULT_GROUP_NAME:"authenticated",GOTRUE_JWT_EXP:3600,GOTRUE_JWT_SECRET:jwt,GOTRUE_JWT_ISSUER:base+"/auth/v1",GOTRUE_EXTERNAL_EMAIL_ENABLED:"true",GOTRUE_MAILER_AUTOCONFIRM:"false",GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED:"false"});
+ const authEnv=envFile("auth.env",{GOTRUE_API_HOST:"0.0.0.0",GOTRUE_API_PORT:9999,API_EXTERNAL_URL:base+"/auth/v1",GOTRUE_DB_DRIVER:"postgres",GOTRUE_DB_DATABASE_URL:"postgres://postgres:isolated-only@"+pg+":5432/postgres",GOTRUE_DB_NAMESPACE:"auth",GOTRUE_SITE_URL:"http://127.0.0.1:3219/",GOTRUE_DISABLE_SIGNUP:"true",GOTRUE_JWT_ADMIN_ROLES:"service_role",GOTRUE_JWT_AUD:"authenticated",GOTRUE_JWT_DEFAULT_GROUP_NAME:"authenticated",GOTRUE_JWT_EXP:3600,GOTRUE_JWT_SECRET:jwt,GOTRUE_JWT_ISSUER:base+"/auth/v1",GOTRUE_EXTERNAL_EMAIL_ENABLED:"true",GOTRUE_MAILER_AUTOCONFIRM:"false",GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED:"false"});
  docker(["run","--rm","-d","--network",network,"--name",auth,"-p","127.0.0.1::9999","--env-file",authEnv,"supabase/gotrue:v2.189.0@sha256:385184459f57569c54c25209f51f3b2be99ddd7c4ce9e3555b5d3eea8447b7cf"]);
  authPort=port(auth,9999);
  await wait(async()=> (await fetch(base+"/auth/v1/health")).ok,"GoTrue");
@@ -106,21 +106,21 @@ try{
  app=spawn("node",[resolve("node_modules/next/dist/bin/next"),"dev","--webpack","-H","127.0.0.1","-p","3219"],{cwd:appDirectory,env:childEnv,stdio:["ignore","pipe","pipe"],detached:true});
  app.stdout.on("data",c=>{appLog=(appLog+c).slice(-8000);});
  app.stderr.on("data",c=>{appLog=(appLog+c).slice(-8000);});
- await wait(async()=> (await fetch("http://127.0.0.1:3219/second-voice")).ok,"Next authentication UI");
+ await wait(async()=> (await fetch("http://127.0.0.1:3219/")).ok,"Next authentication UI");
 
  // Exercise actual Next HTTP handlers with real GoTrue/PostgREST before browser launch.
  const appOrigin="http://127.0.0.1:3219";
  const jar=new Map();
  const ua="Mozilla/5.0 GhostwriterReleaseVerification";
  function acceptCookies(response){for(const value of response.headers.getSetCookie()){const first=value.split(";")[0],i=first.indexOf("=");const key=first.slice(0,i),v=first.slice(i+1);if(v)jar.set(key,v);else jar.delete(key);}}
- const initial=await fetch(appOrigin+"/second-voice",{headers:{"user-agent":ua}});acceptCookies(initial);
- const alias=await fetch("http://localhost:3219/second-voice",{redirect:"manual",headers:{"user-agent":ua}});
+ const initial=await fetch(appOrigin+"/",{headers:{"user-agent":ua}});acceptCookies(initial);
+ const alias=await fetch("http://localhost:3219/",{redirect:"manual",headers:{"user-agent":ua}});
  assert.ok([200,307].includes(alias.status));
  // Streaming Server Components can send the redirect as an absolute meta
  // refresh in a 200 response. The real browser below must follow it as well.
- if(alias.status===307)assert.equal(alias.headers.get("location"),appOrigin+"/second-voice");
- else assert.ok((await alias.text()).includes('url='+appOrigin+'/second-voice'),"Canonical streaming redirect missing");
- assert.equal((await fetch(appOrigin+"/second-voice")).status,200,"Canonical entry must not loop");
+ if(alias.status===307)assert.equal(alias.headers.get("location"),appOrigin+"/");
+ else assert.ok((await alias.text()).includes('url='+appOrigin+'/'),"Canonical streaming redirect missing");
+ assert.equal((await fetch(appOrigin+"/")).status,200,"Canonical entry must not loop");
  async function action(body,path="/api/ghostwriter/auth",expectedStatus=200){
   const csrf=jar.get("gw_csrf");assert.ok(csrf);
   const headers={"user-agent":ua,origin:appOrigin,"x-ghostwriter-csrf":csrf,cookie:[...jar].map(([k,v])=>k+"="+v).join("; ")};
@@ -201,13 +201,13 @@ try{
  // no application guard or authentication check is disabled for this test.
  const context=await browser.newContext({userAgent:ua});const page=await context.newPage();
  // No traces/videos/screenshots: even synthetic auth tokens stay out of artifacts.
- await page.goto("http://localhost:3219/second-voice");
- await page.waitForURL(appOrigin+"/second-voice");
+ await page.goto("http://localhost:3219/");
+ await page.waitForURL(appOrigin+"/");
  await page.getByText("Invited beta access",{exact:true}).click();
  await page.getByLabel("Email",{exact:true}).fill(email);
  await page.getByLabel("Email code",{exact:true}).fill(browserCode.data.properties.email_otp);
  const verificationResponse=page.waitForResponse(response=>response.url().endsWith("/api/ghostwriter/auth") && response.request().postDataJSON()?.action==="verify");
- const signInNavigation=page.waitForEvent("framenavigated",{predicate:frame=>frame===page.mainFrame() && new URL(frame.url()).pathname==="/second-voice"});
+ const signInNavigation=page.waitForEvent("framenavigated",{predicate:frame=>frame===page.mainFrame() && new URL(frame.url()).pathname==="/"});
  await page.getByRole("button",{name:"Sign in",exact:true}).click();
  assert.equal((await verificationResponse).status(),200,"Browser verification rejected");
  // Cookie receipt precedes the app's privacy-clearing reload. Do not race that
@@ -224,7 +224,7 @@ try{
  await page.reload();assert.equal((await statusResponse).status(),200);
  const second=await context.newPage();
  const secondStatus=second.waitForResponse(r=>r.url().endsWith("/api/ghostwriter/auth")&&r.request().postDataJSON()?.action==="status");
- await second.goto(appOrigin+"/second-voice");assert.equal((await secondStatus).status(),200);await second.close();
+ await second.goto(appOrigin+"/");assert.equal((await secondStatus).status(),200);await second.close();
  await page.getByText("Invited beta access",{exact:true}).click();
  await page.getByRole("button",{name:"Sign out",exact:true}).click();
  await wait(async()=>!(await context.cookies()).some(c=>c.name==="gw-access"),"Logout");

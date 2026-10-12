@@ -2,7 +2,7 @@
 
 **A writing studio for reshaping a draft by voice, tone and intended outcome without losing the original.**
 
-[Open the application](https://secondvoice-ai.vercel.app/second-voice) · [Engineering documentation](docs/README.md) · [Security gate](docs/security/LAUNCH_GATE.md) · [Contributing](CONTRIBUTING.md)
+[Open the application](https://secondvoice.miguelalmeida.xyz/) · [Engineering documentation](docs/README.md) · [Security gate](docs/security/LAUNCH_GATE.md) · [Contributing](CONTRIBUTING.md)
 
 Second Voice separates the source draft from its rewrite, with authored quick starts, author/outcome choices, and a rewrite workspace. The product is implemented in Next.js 16, React 19 and TypeScript.
 

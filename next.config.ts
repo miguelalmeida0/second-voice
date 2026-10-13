@@ -23,6 +23,14 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // Redirect only the legacy public landing page. API routes and Vercel cron
+      // requests must remain on their original host and keep their credentials.
+      {
+        source: "/",
+        has: [{ type: "host", value: "secondvoice-ai.vercel.app" }],
+        destination: "https://secondvoice.miguelalmeida.xyz/",
+        permanent: true,
+      },
       { source: "/second-voice", destination: "/", permanent: true },
       { source: "/second-voice/:path*", destination: "/:path*", permanent: true },
     ];

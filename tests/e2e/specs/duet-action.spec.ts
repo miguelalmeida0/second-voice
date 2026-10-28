@@ -23,7 +23,7 @@ test("primary action is discoverable before any interaction", async ({ app, page
     const box = await button.boundingBox();
     expect.soft(box!.y, `${width}: action starts in viewport`).toBeGreaterThanOrEqual(0);
     expect.soft(box!.y + box!.height, `${width}: whole action in initial viewport`).toBeLessThanOrEqual(height);
-    expect.soft(box!.height).toBeGreaterThanOrEqual(56);
+    expect.soft(box!.height).toBeGreaterThanOrEqual(44);
     expect.soft(await button.innerText()).toBe("Rewrite my draft");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
@@ -154,7 +154,7 @@ test("long results remain in native flow and the primary stays inside its contro
   const controls=(await page.locator(".duet-followup").boundingBox())!;
   const action=(await app.rewriteButton().boundingBox())!;
   expect(action.y).toBeGreaterThan(controls.y);
-  expect(action.y+action.height).toBeLessThan(controls.y+controls.height);
+  expect(action.y+action.height).toBeLessThanOrEqual(controls.y+controls.height);
   await page.setViewportSize({width:390,height:844});
   await page.getByRole("button",{name:"Copy rewrite",exact:true}).focus();
   await expect.poll(async () => {

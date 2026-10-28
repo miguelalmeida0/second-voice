@@ -29,7 +29,7 @@ test.describe("composer forms and rewrite submissions", () => {
 
     await app.goto();
     await app.chooseAuthor("Stephen King");
-    await app.setMood("73");
+    await app.setMood("100");
     await app.fillDraft(drafts.default);
     await app.runRewrite();
 
@@ -41,7 +41,7 @@ test.describe("composer forms and rewrite submissions", () => {
     expect(api.rewriteRequests[0]?.body).toMatchObject({
       author: "stephenking",
       mode: "author",
-      mood: 73,
+      mood: 100,
       share: false,
       text: drafts.default,
     });

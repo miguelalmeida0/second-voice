@@ -14,6 +14,7 @@ import {
   openPortfolioSignIn,
   usePortfolioAccess,
 } from "@/components/ghostwriter/PortfolioAccess";
+import { RewriteReview } from "@/components/ghostwriter/RewriteReview";
 import {
   RewritePlayback,
   type RewritePlaybackProvenance,
@@ -177,6 +178,8 @@ export function GhostwriterPage({
   const [input, setInput] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [pendingCanvasHeight, setPendingCanvasHeight] = useState<number>();
+  const canvasRef = useRef<HTMLDivElement>(null);
 
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
@@ -201,6 +204,10 @@ export function GhostwriterPage({
   const [previewOpen, setPreviewOpen] = useState(true);
 
   const [latestRun, setLatestRun] = useState<RewriteRun>(EMPTY_RUN);
+  const [reviewedRunId, setReviewedRunId] = useState<number | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const reviewEntryRef = useRef<HTMLElement | null>(null);
+  const reviewVisible = reviewOpen && reviewedRunId === latestRun.runId && Boolean(latestRun.source && latestRun.rewrite) && !loading && !error;
 
   const [lastAttempt, setLastAttempt] = useState<RewriteAttempt | null>(null);
 
@@ -237,7 +244,7 @@ export function GhostwriterPage({
     if (composerRef.current) {
       resizeComposer(composerRef.current);
     }
-  }, [input]);
+  }, [input, reviewVisible]);
 
   useEffect(() => {
     // Reflow existing drafts when a phone rotates or the window crosses a
@@ -421,6 +428,8 @@ export function GhostwriterPage({
 
     setLastAttempt(attempt);
 
+    // Preserve the action position while the guide becomes a loading state.
+    setPendingCanvasHeight(canvasRef.current?.getBoundingClientRect().height);
     setLoading(true);
 
     setRequestContext({
@@ -840,6 +849,8 @@ export function GhostwriterPage({
           id="ghostwriter-studio"
           ref={studioRef}
           className="gw-studio-workspace"
+          hidden={reviewVisible}
+          style={reviewVisible ? { display: "none" } : undefined}
         >
           {/* INPUT */}
           <div className="gw-studio-input">
@@ -901,9 +912,14 @@ export function GhostwriterPage({
             <button type="button" aria-label="Outcomes" aria-pressed={rewriteMode === "outcome"} disabled={loading} onClick={() => { setRewriteMode("outcome"); setError(null); }}><span className="duet-mode-name">Outcomes</span><small>Improve your message</small></button>
           </div>
         } onAuthor={(value) => { setActiveId(value); setError(null); }} onMood={(value) => { setMood(value); setError(null); }} onOutcome={(value) => { setOutcome(value); setError(null); }} preview={
-          <div className="duet-canvas">
+          <div ref={canvasRef} className="duet-canvas" style={loading ? { minHeight: pendingCanvasHeight } : undefined}>
           {previewOpen && !loading && !error && <RewriteGuide hasDraft={Boolean(input.trim())} mode={rewriteMode} />}
             <div className="duet-result" hidden={previewOpen && !loading && !error}><RewritePlayback
+              onReview={() => {
+                reviewEntryRef.current = studioRef.current?.querySelector<HTMLButtonElement>("[data-review-entry]") ?? null;
+                setReviewedRunId(latestRun.runId);
+                setReviewOpen(true);
+              }}
               onRewriteAgain={() => void handleRewrite()}
               rewriteAgainDisabled={!canRewrite}
               author={displayedAuthor}
@@ -965,6 +981,18 @@ export function GhostwriterPage({
 
 
         </section>
+        {reviewedRunId === latestRun.runId && latestRun.source && latestRun.rewrite ? (
+          <RewriteReview
+            key={latestRun.runId}
+            source={latestRun.source}
+            result={latestRun.rewrite}
+            hidden={!reviewVisible}
+            onClose={() => {
+              setReviewOpen(false);
+              window.requestAnimationFrame(() => reviewEntryRef.current?.focus({ preventScroll: true }));
+            }}
+          />
+        ) : null}
 
       </div>
 

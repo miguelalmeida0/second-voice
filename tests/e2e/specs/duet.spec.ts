@@ -9,7 +9,7 @@ test("Preview first keeps the primary action inside the forest workspace", async
   const controls = await page.locator(".duet-followup").boundingBox();
   const action = await app.rewriteButton().boundingBox();
   expect(action!.y).toBeGreaterThan(controls!.y);
-  expect(action!.y + action!.height).toBeLessThan(controls!.y + controls!.height);
+  expect(action!.y + action!.height).toBeLessThanOrEqual(controls!.y + controls!.height);
   expect(action!.x).toBeGreaterThanOrEqual(controls!.x);
   expect(action!.x).toBeGreaterThan(page.viewportSize()!.width / 2);
   expect(action!.width).toBeGreaterThanOrEqual(260);

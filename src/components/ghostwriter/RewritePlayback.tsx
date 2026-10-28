@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Author } from "@/components/ghostwriter/AuthorOrbital";
+import { writeClipboardText } from "@/components/ghostwriter/clipboard";
 import { diffWords, type DiffOp } from "@/components/ghostwriter/diff";
 import {
   RewriteFeedbackPanel,
@@ -195,24 +196,6 @@ function applyEvent(units: PlaybackUnit[], event: PlaybackEvent): PlaybackUnit[]
   });
 }
 
-async function writeClipboardText(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return;
-  } catch {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.left = "-9999px";
-    const previousFocus = document.activeElement;
-    document.body.append(textarea);
-    textarea.select();
-    let copied = false;
-    try { copied = document.execCommand("copy"); } finally { textarea.remove(); if (previousFocus instanceof HTMLElement) previousFocus.focus({ preventScroll: true }); }
-    if (!copied) throw new Error("Copy failed. Select the rewrite and copy it manually.");
-  }
-}
 
 function playbackMessage(
   phase: RewritePlaybackPhase,
@@ -255,6 +238,7 @@ export function RewritePlayback({
   mood,
   moodLabel,
   onRewriteAgain,
+  onReview,
   rewriteAgainDisabled,
   onApplyRewrite,
   onPhaseChange,
@@ -268,6 +252,7 @@ export function RewritePlayback({
   runId,
   source,
 }: {
+  onReview?: () => void;
   onRewriteAgain?: () => void;
   rewriteAgainDisabled?: boolean;
   author: Author | null;
@@ -491,6 +476,9 @@ export function RewritePlayback({
               Skip animation
             </button>
           )}
+          {visiblePhase === "complete" && source && result && onReview ? (
+            <button type="button" className="gw-chip" data-review-entry onClick={onReview}>Review changes</button>
+          ) : null}
           {canOpenLab && (
             <button
               type="button"

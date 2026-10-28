@@ -77,3 +77,34 @@ test("review entry avoids highlighting Back and keeps a route to the live editor
   await expect(back).toBeFocused();
   expect(await back.evaluate(el => parseFloat(getComputedStyle(el).outlineWidth))).toBeGreaterThanOrEqual(2);
 });
+
+test("review actions fit the initial laptop viewport without scrolling", async ({ page }, testInfo) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  for (const [width, height] of [[1024, 640], [1280, 640], [1366, 768], [1512, 738]]) {
+    await page.setViewportSize({ width, height });
+    await page.goto("/demo/rewrite-review");
+    await page.evaluate(() => document.fonts.ready);
+    const review = page.getByRole("region", { name: "Review your rewrite" });
+    for (const name of ["Duet", "Inline", "Focus"]) {
+      await review.getByRole("button", { name, exact: true }).click();
+      await expect(review.getByRole("button", { name, exact: true })).toHaveAttribute("aria-pressed", "true");
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+      for (const action of ["Accept all changes", "Keep original", "Accept change", "Copy preview"]) {
+        const button = review.getByRole("button", { name: action, exact: true });
+        const box = (await button.boundingBox())!;
+        expect(box.y, `${width}×${height} ${name}: ${action} top`).toBeGreaterThanOrEqual(0);
+        expect(box.y + box.height + await page.evaluate(() => window.scrollY), `${width}×${height} ${name}: ${action} visible on arrival`).toBeLessThanOrEqual(height - 8);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    await review.getByRole("button", { name: "Duet", exact: true }).click();
+    await expect(review).toHaveAttribute("data-view", "duet");
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    await page.screenshot({ path: testInfo.outputPath(`compact-${width}x${height}.png`) });
+    await review.getByRole("button", { name: "Accept all changes", exact: true }).click();
+    const copy = (await review.getByRole("button", { name: "Copy revision", exact: true }).boundingBox())!;
+    expect(copy.y + copy.height + await page.evaluate(() => window.scrollY)).toBeLessThanOrEqual(height - 8);
+  }
+});

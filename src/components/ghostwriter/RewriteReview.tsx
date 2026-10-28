@@ -234,11 +234,6 @@ export function RewriteReview({
             {view === "inline" ? "Your words. Refined." : "Your words."}
           </h2>
         </div>
-        <p className={styles.intro}>
-          {view === "inline"
-            ? "A different voice. With every change in view."
-            : "Every good rewrite starts with something worth keeping."}
-        </p>
         <div className={styles.documentMeta}>
           <span>Your original draft</span>
           <button type="button" onClick={onClose}>
@@ -275,8 +270,6 @@ export function RewriteReview({
             </details>
           )}
           <div className={styles.sourceBottom}>
-            <p className={styles.eyebrow}>A small change. Still your voice.</p>
-            <p>Keep a phrase. Try another. Every choice stays here.</p>
             <p>
               Review edits are local to this session. Public links and feedback
               use the original rewrite.
@@ -291,46 +284,30 @@ export function RewriteReview({
             {view === "inline" ? "Your final say." : "Another voice."}
           </h2>
         </div>
-        <p className={styles.intro}>Keep what feels right. Leave the rest.</p>
         <div className={styles.documentTools}>
           <div className={styles.layouts} role="group" aria-label="Review layout">
-            {layouts.map(([value, label, description], index) => (
+            {layouts.map(([value, label, description]) => (
               <button
                 key={value}
                 type="button"
                 aria-label={label}
+                title={description}
                 aria-pressed={view === value}
                 onClick={() => setView(value)}
               >
-                <span className={styles.layoutNumber} aria-hidden="true">
-                  0{index + 1}
-                </span>
-                <span>
-                  <strong>{label}</strong>
-                  <small>{description}</small>
-                </span>
+                {label}
               </button>
             ))}
           </div>
-          <div className={styles.reviewMeta}>
-            <span className={styles.tag}>
-              <span />
-              Your revision
-            </span>
-            <span>
-              {changes.length} suggested{" "}
-              {changes.length === 1 ? "change" : "changes"}
-            </span>
-            <button
-              className={styles.acceptAll}
-              type="button"
-              disabled={!changes.length || state.decisions.every((decision) => decision === "accept")}
-              onClick={() => dispatch({ type: "accept-all" })}
-            >
-              <Check aria-hidden="true" />
-              Accept all changes
-            </button>
-          </div>
+          <button
+            className={styles.acceptAll}
+            type="button"
+            disabled={!changes.length || state.decisions.every((decision) => decision === "accept")}
+            onClick={() => dispatch({ type: "accept-all" })}
+          >
+            <Check aria-hidden="true" />
+            Accept all changes
+          </button>
         </div>
         <div
           className={`${styles.reviewPaper} ${view === "inline" ? styles.inspector : ""}`}
@@ -338,11 +315,6 @@ export function RewriteReview({
         >
           {view === "inline" && changes.length ? (
             <>
-              <h3>The smallest edits matter.</h3>
-              <p>
-                Select a highlighted phrase in your draft, or choose a change
-                below.
-              </p>
               <div className={styles.changeList}>
                 {changes.map((change) => (
                   <button
@@ -383,12 +355,6 @@ export function RewriteReview({
           )}
         </div>
         <div className={styles.belowPaper}>
-          {view === "focus" && (
-            <details className={styles.fullDraft}>
-              <summary>Read the full revision</summary>
-              <p className={styles.prose}>{revision}</p>
-            </details>
-          )}
           <div className={styles.progress}>
             <p role="status" aria-live="polite" aria-atomic="true">
               {reviewed} of {changes.length} reviewed
@@ -480,11 +446,6 @@ export function RewriteReview({
             ) : null}
             {!pending && (
               <div className={styles.completion}>
-                <h3>
-                  {changes.length
-                    ? "Every word, your choice."
-                    : "Already in harmony."}
-                </h3>
                 <p>
                   {changes.length
                     ? `${state.decisions.filter((decision) => decision === "accept").length} accepted · ${state.decisions.filter((decision) => decision === "keep").length} kept original. Your revision is ready to copy.`
@@ -540,6 +501,12 @@ export function RewriteReview({
                     : "Copy revision"}
             </button>
           </footer>
+          {view === "focus" && (
+            <details className={styles.fullDraft}>
+              <summary>Read the full revision</summary>
+              <p className={styles.prose}>{revision}</p>
+            </details>
+          )}
           {copyError && (
             <div className={styles.manualRecovery}>
               <p className={styles.copyError} role="alert">

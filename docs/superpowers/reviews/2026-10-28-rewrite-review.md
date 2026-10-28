@@ -50,3 +50,9 @@ Validation: review interactions and exact copy recovery on desktop/mobile Chromi
 Both comparison papers now share desktop grid rows, aligning their top and bottom edges even when controls or headings wrap. Mobile retains its native stacked layout. Added an always-discoverable Accept all changes action above the revision; it accepts every suggestion, including previously kept originals. One Undo restores the exact previous decisions, and repeated acceptance is a no-op. Individual choices remain available.
 
 Validation: 11 model tests, the 34 desktop/mobile review browser cases (including all views at 320, 390, 768, 1280 and 1920px), 22 scroll guards, TypeScript, lint with existing warnings, production build, and bottom-edge visual inspection.
+
+## Review actions visible on arrival
+
+Reworked the review page around a compact single-row view switch and bulk action, 28px headings, 17px prose, and 120px minimum comparison papers that still grow naturally with content. Removed repeated introductory and decorative copy, reduced control spacing, and moved the optional full-revision disclosure below the actions. Preserved aligned papers, keyboard focus, native scrolling, and 44px touch targets. The sample shell now matches the real editor's full-height background.
+
+Added a viewport regression covering 1024×640, 1280×640, 1366×768, and 1512×738. In Duet, Inline, and Focus, Keep original, Accept change, Accept all changes, and Copy must be visible from document scroll position zero; Copy revision must also fit after bulk acceptance. Both desktop and touch Chromium pass. The full review suite passed 38 cases, with 22 scroll guards, type checks, lint (existing warnings only), and production build.

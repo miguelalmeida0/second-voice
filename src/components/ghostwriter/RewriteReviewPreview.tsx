@@ -14,7 +14,7 @@ export function RewriteReviewPreview() {
   }, [open]);
 
   return (
-    <main className="ghostwriter gw-studio">
+    <main className="ghostwriter gw-studio relative min-h-dvh overflow-x-clip">
       <div className="gw-studio-shell">
         <header className="duet-header">
           <div className="duet-brand">

@@ -36,13 +36,13 @@ Five shared grid rows:
 4. On the left, Rewrite aligned to the draft’s right edge, availability/recovery beside it, then quick starts.
 5. Privacy and legal links.
 
-Mode and author/outcome use native selects with persistent labels. Strength retains the native range and the existing 0/50/100 values. All canonical authors/outcomes and existing change handlers remain available. Settings preserve the draft and previously returned text.
+Mode and author/outcome use StudioSelect comboboxes with persistent labels, forest listboxes, apricot selected checkmarks and chevrons inset 12px from the right edge. Menus overlay the page without shifting the aligned editors. Strength retains the native range and the existing 0/50/100 values. All canonical authors/outcomes and existing change handlers remain available. Settings preserve the draft and previously returned text.
 
 The action is 10.25rem wide (164px at the default text size) and at least 40px tall on desktop; it sits 12px below the original editor, aligned to its right edge. Its width scales with enlarged text, and the action row can wrap without overlap. It follows growing writing surfaces in native document flow. Allowance messages must not enlarge the heading or create a blank area above the source.
 
 ### Mobile, below 768px
 
-Source and its action/availability row come first, followed by the output heading, compact settings and result. Preserve the adaptive single-node action dock, safe-area spacing, keyboard avoidance and fallbacks for short screens, enlarged text and oversized focused editors. Touch controls are at least 44px tall. Avoid duplicating the Rewrite button or changing selected values across breakpoints.
+Source and its action/availability row come first, followed by the output heading, compact settings and result. Preserve the adaptive single-node action dock, safe-area spacing, keyboard avoidance and fallbacks for short screens, enlarged text and oversized focused editors. Touch controls are at least 44px tall. At 480px and below, and in narrow 768–900px split layouts, Mode and Author share one row and Strength uses a compact full-width row so selected names remain readable. Avoid duplicating the Rewrite button or changing selected values across breakpoints.
 
 ### Type and spacing
 
@@ -62,7 +62,7 @@ Keep the existing Inter UI/source and Source Serif returned-prose pairing. Headi
 
 ### Access and behavior
 
-Native selects retain keyboard/type-ahead operation. Range announces the selected percentage and author-specific mood. All fields have accessible labels and visible focus. The action references its availability explanation. Help retains its dialog semantics, Escape, focus trap and focus return. Reduced motion disables nonessential playback/movement.
+StudioSelect supports arrows, Home/End, type-ahead, Enter/Space, Escape, Tab and outside-click dismissal. Focus stays on the trigger; opening and cancellation preserve the current selection. An intentional bounded listbox scroll region keeps long menus inside the viewport. Range announces the selected percentage and author-specific mood. All fields have accessible labels and visible focus. The action references its availability explanation. Help retains its dialog semantics, Escape, focus trap and focus return. Reduced motion disables nonessential playback/movement.
 
 Authentication, allowance, provider, challenge, idempotency and spending policies are unchanged. Lab remains gated by actual availability; do not expose an entry to its disabled live endpoint.
 

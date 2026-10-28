@@ -1,3 +1,4 @@
+import { StudioSelect } from "./StudioSelect";
 import { AUTHORS, MOOD_NAME, OUTCOMES, moodLabelFor, type AuthorId, type OutcomeId, type RewriteMode } from "@/lib/ghostwriter-shared";
 
 export function DuetControls({ mode, author, mood, outcome, disabled, onMode, onAuthor, onMood, onOutcome }: {
@@ -8,26 +9,18 @@ export function DuetControls({ mode, author, mood, outcome, disabled, onMode, on
   onOutcome: (outcome: OutcomeId) => void;
 }) {
   return <section className="duet-controls" aria-label="Rewrite settings">
-    <label className="duet-setting"><span>Mode</span>
-      <select aria-label="Rewrite mode" value={mode} disabled={disabled} onChange={event => onMode(event.target.value as RewriteMode)}>
-        <option value="author">Authors</option><option value="outcome">Outcomes</option>
-      </select>
-    </label>
+    <StudioSelect label="Mode" name="Rewrite mode" value={mode} disabled={disabled} onChange={onMode}
+      options={[{ value: "author", label: "Authors" }, { value: "outcome", label: "Outcomes" }]} />
     {mode === "author" ? <>
-      <label className="duet-setting"><span>Author</span>
-        <select aria-label="Author" value={author} disabled={disabled} onChange={event => onAuthor(event.target.value as AuthorId)}>
-          {AUTHORS.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
-      </label>
+      <StudioSelect label="Author" name="Author" value={author} disabled={disabled} onChange={onAuthor}
+        options={AUTHORS.map(item => ({ value: item.id, label: item.name }))} />
       <label className="duet-setting duet-strength"><span>Strength <span aria-hidden="true">{mood}%</span></span>
         <input className="duet-compact-range" type="range" min={0} max={100} step={50} value={mood} disabled={disabled}
           aria-label={`Strength — ${MOOD_NAME[author]} mood dial`} aria-valuetext={`${mood}% ${moodLabelFor(author, mood)}`}
           onChange={event => onMood(Number(event.target.value))} />
       </label>
-    </> : <label className="duet-setting duet-outcome-select"><span>Outcome</span>
-      <select aria-label="Writing outcome" value={outcome} disabled={disabled} onChange={event => onOutcome(event.target.value as OutcomeId)}>
-        {OUTCOMES.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
-      </select>
-    </label>}
+    </> : <StudioSelect className="duet-outcome-select" label="Outcome" name="Writing outcome" value={outcome}
+      disabled={disabled} onChange={onOutcome} options={OUTCOMES.map(item => ({ value: item.id, label: item.label }))} />}
+
   </section>;
 }

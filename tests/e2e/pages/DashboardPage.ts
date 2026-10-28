@@ -24,7 +24,7 @@ export class DashboardPage {
 
   async expectOutcomeConsole() {
     await this.app.switchToOutcomes();
-    await expect(this.app.rewriteModeSelect()).toHaveValue("outcome");
+    await expect(this.app.rewriteModeSelect()).toHaveAttribute("data-value", "outcome");
     await expect(this.page.getByRole("combobox", { name: "Writing outcome" })).toBeVisible();
     await expect(this.page.getByRole("combobox", { name: "Writing outcome" }).locator("option").filter({ hasText: "Improve clarity" })).toHaveCount(1);
     await expect(this.page.getByRole("combobox", { name: "Writing outcome" }).locator("option").filter({ hasText: "Be concise" })).toHaveCount(1);

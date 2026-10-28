@@ -50,19 +50,23 @@ export class AppPage {
   }
 
   async chooseAuthor(authorName: string) {
-    await this.page.getByRole("combobox", { name: "Author", exact: true }).selectOption({ label: authorName });
+    await this.page.getByRole("combobox", { name: "Author", exact: true }).click();
+    await this.page.getByRole("option", { name: authorName, exact: true }).click();
   }
 
   async chooseOutcome(label: string) {
-    await this.page.getByRole("combobox", { name: "Writing outcome" }).selectOption({ label });
+    await this.page.getByRole("combobox", { name: "Writing outcome" }).click();
+    await this.page.getByRole("option", { name: label, exact: true }).click();
   }
 
   async switchToOutcomes() {
-    await this.rewriteModeSelect().selectOption("outcome");
+    await this.rewriteModeSelect().click();
+    await this.page.getByRole("option", { name: "Outcomes", exact: true }).click();
   }
 
   async switchToAuthors() {
-    await this.rewriteModeSelect().selectOption("author");
+    await this.rewriteModeSelect().click();
+    await this.page.getByRole("option", { name: "Authors", exact: true }).click();
   }
 
   quickStartsToggle() {

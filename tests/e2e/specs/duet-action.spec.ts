@@ -85,7 +85,7 @@ test("action respects focus, orientation, short screens, enlarged text and all c
     await page.setViewportSize({width,height:width===844?390:844});
     await expect(app.draftInput()).toHaveValue("My words and selection survive each screen size.");
     expect(await app.draftInput().evaluate((node:HTMLTextAreaElement) => [node.selectionStart,node.selectionEnd])).toEqual([3,8]);
-    await expect(page.getByRole("combobox", { name: "Author", exact: true })).toHaveValue("stephenking");
+    await expect(page.getByRole("combobox", { name: "Author", exact: true })).toHaveAttribute("data-value", "stephenking");
     await expect(app.moodDial()).toHaveValue("50");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(await page.locator(".gw-inspiration-rewrite").evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);

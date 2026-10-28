@@ -21,8 +21,8 @@ test.describe("rewrite console dashboard", () => {
     await app.goto();
     await app.chooseAuthor("Stephen King");
 
-    await expect(page.getByRole("combobox", { name: "Author", exact: true })).toHaveValue("stephenking");
-    await expect(page.getByRole("combobox", { name: "Author", exact: true })).not.toHaveValue("tolkien");
+    await expect(page.getByRole("combobox", { name: "Author", exact: true })).toHaveAttribute("data-value", "stephenking");
+    await expect(page.getByRole("combobox", { name: "Author", exact: true })).not.toHaveAttribute("data-value", "tolkien");
     await expect(page.getByLabel(/dread mood dial/i)).toBeVisible();
     await expect(page.getByRole("button", { name: "Rewrite my draft" })).toBeVisible();
   });
@@ -32,7 +32,7 @@ test.describe("rewrite console dashboard", () => {
     await dashboard.expectOutcomeConsole();
     await dashboard.app.chooseOutcome("Be concise");
 
-    await expect(page.getByRole("combobox", { name: "Writing outcome" }).locator("option:checked")).toHaveText("Be concise");
+    await expect(page.getByRole("combobox", { name: "Writing outcome" })).toHaveText("Be concise");
     await expect(page.getByRole("button", { name: "Rewrite my draft" })).toBeVisible();
     await expect(page.getByRole("combobox", { name: "Author", exact: true })).toHaveCount(0);
   });

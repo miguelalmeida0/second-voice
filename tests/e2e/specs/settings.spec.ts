@@ -9,9 +9,9 @@ test.describe("local user preferences", () => {
 
     await page.reload();
 
-    await expect(app.rewriteModeSelect()).toHaveValue("outcome");
+    await expect(app.rewriteModeSelect()).toHaveAttribute("data-value", "outcome");
     await expect(page.getByRole("combobox", { name: "Writing outcome" })).toBeVisible();
-    await expect(page.getByRole("combobox", { name: "Writing outcome" }).locator("option:checked")).toHaveText("Be persuasive");
+    await expect(page.getByRole("combobox", { name: "Writing outcome" })).toHaveText("Be persuasive");
     await expect(page.getByRole("button", { name: "Rewrite my draft" })).toBeVisible();
   });
 
@@ -23,7 +23,7 @@ test.describe("local user preferences", () => {
 
     await page.goto("/second-voice");
 
-    await expect(page.getByRole("combobox", { name: "Rewrite mode" })).toHaveValue("author");
+    await expect(page.getByRole("combobox", { name: "Rewrite mode" })).toHaveAttribute("data-value", "author");
     await expect(page.getByRole("combobox", { name: "Author", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Rewrite my draft$/ })).toBeVisible();
   });

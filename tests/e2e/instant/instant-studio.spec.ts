@@ -133,7 +133,8 @@ for (const remaining of [4, 5]) {
   } }));
   await page.goto("/");
   await page.getByRole("textbox", { name: "Write or paste here" }).fill("My draft must remain editable and ready to rewrite.");
-  await page.getByRole("combobox", { name: "Author", exact: true }).selectOption("hemingway");
+  await page.getByRole("combobox", { name: "Author", exact: true }).click();
+  await page.getByRole("option", { name: "Ernest Hemingway", exact: true }).click();
   await expect(page.locator(".gw-inspiration-rewrite")).toBeEnabled();
   await expect(page.locator("#duet-action-allowance")).toContainText(`${remaining} free rewrites left`);
   await page.locator(".gw-inspiration-rewrite").click();
@@ -177,7 +178,8 @@ test("the last two rewrites complete and then the allowance closes generation", 
   await page.goto("/");
   const draft = page.getByRole("textbox", { name: "Write or paste here" });
   await draft.fill("Today I woke up earlier and made coffee before work.");
-  await page.getByRole("combobox", { name: "Author", exact: true }).selectOption("tolstoy");
+  await page.getByRole("combobox", { name: "Author", exact: true }).click();
+  await page.getByRole("option", { name: "Leo Tolstoy", exact: true }).click();
   const rewrite = page.locator(".gw-inspiration-rewrite");
   await expect(page.locator("#duet-action-allowance")).toContainText("2 free rewrites left");
   await rewrite.click();
@@ -204,7 +206,8 @@ test("exhausted allowance does not create a blank column above the draft", async
     await expect(page.locator(".gw-inspiration-rewrite")).toBeDisabled();
     await page.locator(editorSelector).fill("Here's a short four-line text:\n\nThe café on the corner opens at seven, but the owner is usually there by six.\nShe wipes the tables, checks the milk, and turns on the old radio by the window.\nMost mornings the first customer is a bus driver who orders the same thing.\nBy the time the city wakes up, the place already feels lived in.\n\nWant it on a specific topic or for a particular use, like a bio, a caption, or a message?");
     for (const mode of ["Authors", "Outcomes"]) {
-      await page.getByRole("combobox", { name: "Rewrite mode" }).selectOption(mode === "Authors" ? "author" : "outcome");
+      await page.getByRole("combobox", { name: "Rewrite mode" }).click();
+      await page.getByRole("option", { name: mode, exact: true }).click();
       const heading = (await page.locator(".duet-input-heading").boundingBox())!;
       const source = (await page.locator(".gw-composer-field").boundingBox())!;
       const output = (await page.locator(".duet-canvas").boundingBox())!;

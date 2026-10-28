@@ -8,12 +8,12 @@ test.describe("filters, tabs, and segmented controls", () => {
     await app.fillDraft("Keep this sentence while I change controls.");
 
     await app.switchToOutcomes();
-    await expect(app.rewriteModeSelect()).toHaveValue("outcome");
+    await expect(app.rewriteModeSelect()).toHaveAttribute("data-value", "outcome");
     await expect(app.page.getByRole("combobox", { name: "Writing outcome" })).toBeVisible();
     await expect(app.draftInput()).toHaveValue("Keep this sentence while I change controls.");
 
     await app.switchToAuthors();
-    await expect(app.rewriteModeSelect()).toHaveValue("author");
+    await expect(app.rewriteModeSelect()).toHaveAttribute("data-value", "author");
     await expect(app.page.getByRole("combobox", { name: "Author", exact: true })).toBeVisible();
     await expect(app.draftInput()).toHaveValue("Keep this sentence while I change controls.");
   });
@@ -23,7 +23,7 @@ test.describe("filters, tabs, and segmented controls", () => {
     await app.switchToOutcomes();
     await app.chooseOutcome("Get a reply");
 
-    await expect(page.getByRole("combobox", { name: "Writing outcome" }).locator("option:checked")).toHaveText("Get a reply");
+    await expect(page.getByRole("combobox", { name: "Writing outcome" })).toHaveText("Get a reply");
     await expect(page.getByRole("button", { name: "Rewrite my draft" })).toBeVisible();
   });
 

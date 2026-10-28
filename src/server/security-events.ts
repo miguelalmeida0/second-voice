@@ -27,8 +27,21 @@ const SECURITY_EVENT_DEFINITIONS: Record<string, SecurityEventDefinition> = {
   share_storage_unavailable: { alert: true, category: "operations", level: "error" },
 };
 
+// Fixed codes make browser-guard failures diagnosable without recording
+// request headers, cookies, origins, IPs, or free-form error messages.
+const browserBlockReasons = new Map<string, string>([
+  ["Security session expired. Refresh and try again.", "browser_session_expired"],
+  ["Request blocked.", "browser_agent_rejected"],
+  ["Cross-site request blocked.", "browser_cross_site_rejected"],
+  ["Origin check failed.", "browser_origin_rejected"],
+  ["Request verification failed.", "browser_csrf_rejected"],
+]);
+export function browserBlockReason(error: string): string | undefined {
+  return browserBlockReasons.get(error);
+}
+
 const numericFields = new Set(["status","severity","retryAfter","latencyMs","outputChars","mood"]);
-const enumValues = new Set(["tolkien","tolstoy","hemingway","stephenking","author","outcome","clarity","reply","confident","concise","persuasive","single_rewrite","rewrite_lab","positive","negative","none","provider_dispatch_failed","provider_rate_limited","provider_rejected","provider_unavailable","settlement_failed","result_persistence_failed","provider_usage_out_of_bounds","abuse_cooldown","protection_unavailable"]);
+const enumValues = new Set([...browserBlockReasons.values(),"tolkien","tolstoy","hemingway","stephenking","author","outcome","clarity","reply","confident","concise","persuasive","single_rewrite","rewrite_lab","positive","negative","none","provider_dispatch_failed","provider_rate_limited","provider_rejected","provider_unavailable","settlement_failed","result_persistence_failed","provider_usage_out_of_bounds","abuse_cooldown","protection_unavailable"]);
 const enumFields = new Set(["author","rewriteMode","outcome","generationSource","rating","reason"]);
 export function sanitizeSecurityDetails(details: Record<string,unknown>) {
   const safe:Record<string,string|number>={};

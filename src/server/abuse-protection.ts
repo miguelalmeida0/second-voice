@@ -17,7 +17,7 @@ import {
   resolveSecuritySecret,
   shouldTrustProxy,
 } from "../lib/security-env.ts";
-import { logSecurityEvent } from "./security-events.ts";
+import { browserBlockReason, logSecurityEvent } from "./security-events.ts";
 
 export const GHOSTWRITER_SESSION_COOKIE = "gw_session";
 export const GHOSTWRITER_CSRF_COOKIE = "gw_csrf";
@@ -606,6 +606,7 @@ async function reject(
 
   logSecurityEvent("request_blocked", {
     error,
+    reason: browserBlockReason(error),
     ip: guard?.ip ?? "unknown",
     retryAfter: retryAfterSeconds,
     sessionId: guard?.sessionId,

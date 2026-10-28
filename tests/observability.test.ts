@@ -43,3 +43,19 @@ test("quality telemetry is explicit and avoids user text fields", () => {
   assert.match(FEEDBACK_SERVER, /rewrite_hash: verifiedArtifact\.rewriteHash/);
   assert.doesNotMatch(FEEDBACK_SERVER, /input_text|output_text/);
 });
+
+
+test("browser guard telemetry accepts fixed reasons and drops arbitrary request data", async () => {
+  const { browserBlockReason, sanitizeSecurityDetails } = await import("../src/server/security-events.ts");
+  assert.equal(browserBlockReason("Origin check failed."), "browser_origin_rejected");
+  assert.equal(browserBlockReason("Request verification failed."), "browser_csrf_rejected");
+  assert.equal(browserBlockReason("user-provided text"), undefined);
+  assert.deepEqual(sanitizeSecurityDetails({
+    reason: browserBlockReason("Request blocked."),
+    status: 403,
+    error: "private draft",
+    origin: "private origin",
+    cookie: "secret token",
+  }), { reason: "browser_agent_rejected", status: 403 });
+  assert.deepEqual(sanitizeSecurityDetails({ reason: "private draft" }), {});
+});

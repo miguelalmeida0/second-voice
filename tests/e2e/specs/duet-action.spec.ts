@@ -60,9 +60,9 @@ test("one action keeps its place through real pointer activation, pending and co
     else {
       // Results (including optional feedback/sharing) grow in the native page.
       // The primary stays anchored inside its control-bar column or action row.
-      const controls = (await page.locator(".duet-followup").boundingBox())!;
-      const strength = (await page.locator(".duet-followup > :first-child").boundingBox())!;
-      expect(result.y - (strength.y + strength.height)).toBeGreaterThanOrEqual(16);
+      const controls = (await page.locator(".duet-output-heading").boundingBox())!;
+      const strength = (await page.locator(".duet-output-heading").boundingBox())!;
+      expect(Math.abs(result.y + result.height/2 - (strength.y + strength.height/2))).toBeLessThanOrEqual(1);
       expect(result.y+result.height).toBeLessThanOrEqual(controls.y+controls.height);
     }
     expect(await button.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -85,7 +85,7 @@ test("action respects focus, orientation, short screens, enlarged text and all c
     await page.setViewportSize({width,height:width===844?390:844});
     await expect(app.draftInput()).toHaveValue("My words and selection survive each screen size.");
     expect(await app.draftInput().evaluate((node:HTMLTextAreaElement) => [node.selectionStart,node.selectionEnd])).toEqual([3,8]);
-    await expect(page.getByRole("button",{name:"Choose Stephen King"})).toHaveAttribute("aria-pressed","true");
+    await expect(page.getByRole("combobox", { name: "Author", exact: true })).toHaveValue("stephenking");
     await expect(app.moodDial()).toHaveValue("50");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(await page.locator(".gw-inspiration-rewrite").evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -111,7 +111,8 @@ test("action respects focus, orientation, short screens, enlarged text and all c
   await page.setViewportSize({width:390,height:844});
   // Touch emulation has no hardware keyboard; WebKit uses Safari's all-controls traversal.
   if (info.project.use.hasTouch) await app.rewriteButton().focus();
-  else await page.keyboard.press(browserName === "webkit" ? "Alt+Tab" : "Tab");
+  else await page.getByRole("combobox", { name: "Rewrite mode" }).focus();
+  if (!info.project.use.hasTouch) await page.keyboard.press(browserName === "webkit" ? "Alt+Shift+Tab" : "Shift+Tab");
   await expect(app.rewriteButton()).toBeFocused();
   const contrast = await app.rewriteButton().evaluate(button => {
     const luminance = (color:string) => {
@@ -153,10 +154,10 @@ test("long results remain in native flow and the primary stays inside its contro
   await app.fillDraft("A draft to rewrite.");
   await app.runRewrite();
   await expect(page.locator('[data-phase="complete"]')).toBeVisible();
-  const controls=(await page.locator(".duet-followup").boundingBox())!;
+  const controls=(await page.locator(".duet-output-heading").boundingBox())!;
   const action=(await app.rewriteButton().boundingBox())!;
-  const strength = (await page.locator(".duet-followup > :first-child").boundingBox())!;
-  expect(action.y - (strength.y + strength.height)).toBeGreaterThanOrEqual(16);
+  const strength = (await page.locator(".duet-output-heading").boundingBox())!;
+  expect(Math.abs(action.y + action.height/2 - (strength.y + strength.height/2))).toBeLessThanOrEqual(1);
   expect(action.y+action.height).toBeLessThanOrEqual(controls.y+controls.height);
   await page.setViewportSize({width:390,height:844});
   await page.getByRole("button",{name:"Copy rewrite",exact:true}).focus();

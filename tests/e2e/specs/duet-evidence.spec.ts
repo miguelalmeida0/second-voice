@@ -18,11 +18,11 @@ test("Duet evidence: real controls, request lifecycle, responsive geometry and h
   await capture("01-default");
   for (const author of ["J.R.R. Tolkien", "Stephen King", "Leo Tolstoy", "Ernest Hemingway"]) {
     await app.chooseAuthor(author);
-    await expect(page.getByRole("button", { name: `Choose ${author}` })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("combobox", { name: "Author", exact: true }).locator("option:checked")).toHaveText(author);
   }
   await app.chooseAuthor("J.R.R. Tolkien");
   const minimumTarget = await page.evaluate(() => matchMedia("(pointer: coarse)").matches ? 44 : 32);
-  for (const control of await page.locator(".duet-controls button, .duet-actions button, .gw-range").all()) {
+  for (const control of await page.locator(".duet-controls select, .duet-actions button, .duet-compact-range").all()) {
     expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(minimumTarget);
   }
   await app.openQuickStarts();
@@ -36,7 +36,7 @@ test("Duet evidence: real controls, request lifecycle, responsive geometry and h
   await app.switchToOutcomes();
   for (const outcome of ["Improve clarity", "Get a reply", "Sound confident", "Be concise", "Be persuasive"]) {
     await app.chooseOutcome(outcome);
-    await expect(page.getByRole("button", { name: new RegExp(`^${outcome}`) })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("combobox", { name: "Writing outcome" }).locator("option:checked")).toHaveText(outcome);
   }
   await capture("03-outcome");
   await app.switchToAuthors();

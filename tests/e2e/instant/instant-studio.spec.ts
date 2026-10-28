@@ -34,7 +34,7 @@ test("slow auth leaves editor usable and generation closed through refresh", asy
   await expect(page.locator('[data-session-status="checking"]')).toBeVisible();
   await page.locator(editorSelector).fill("I missed the train, so I walked home.");
   await expect(page.locator(".gw-inspiration-rewrite")).toBeDisabled();
-  await page.locator(editorSelector).press("Tab");
+  await page.locator(editorSelector).press("Shift+Tab");
   await expect(page.getByRole("button", { name: "Clear text" })).toBeFocused();
   expect(api.rewriteRequests).toHaveLength(0);
   await expect(page.locator(".sv-loading-page")).toHaveCount(0);
@@ -133,7 +133,7 @@ for (const remaining of [4, 5]) {
   } }));
   await page.goto("/");
   await page.getByRole("textbox", { name: "Write or paste here" }).fill("My draft must remain editable and ready to rewrite.");
-  await page.getByRole("button", { name: "Choose Ernest Hemingway", exact: true }).click();
+  await page.getByRole("combobox", { name: "Author", exact: true }).selectOption("hemingway");
   await expect(page.locator(".gw-inspiration-rewrite")).toBeEnabled();
   await expect(page.locator("#duet-action-allowance")).toContainText(`${remaining} free rewrites left`);
   await page.locator(".gw-inspiration-rewrite").click();
@@ -177,7 +177,7 @@ test("the last two rewrites complete and then the allowance closes generation", 
   await page.goto("/");
   const draft = page.getByRole("textbox", { name: "Write or paste here" });
   await draft.fill("Today I woke up earlier and made coffee before work.");
-  await page.getByRole("button", { name: "Choose Leo Tolstoy", exact: true }).click();
+  await page.getByRole("combobox", { name: "Author", exact: true }).selectOption("tolstoy");
   const rewrite = page.locator(".gw-inspiration-rewrite");
   await expect(page.locator("#duet-action-allowance")).toContainText("2 free rewrites left");
   await rewrite.click();
@@ -203,14 +203,15 @@ test("exhausted allowance does not create a blank column above the draft", async
     await expect(page.locator(".gw-inspiration-rewrite")).toBeDisabled();
     await page.locator(editorSelector).fill("A draft stays editable after my allowance runs out.");
     for (const mode of ["Authors", "Outcomes"]) {
-      await page.getByRole("button", { name: mode, exact: true }).click();
+      await page.getByRole("combobox", { name: "Rewrite mode" }).selectOption(mode === "Authors" ? "author" : "outcome");
       const heading = (await page.locator(".duet-input-heading").boundingBox())!;
       const source = (await page.locator(".gw-composer-field").boundingBox())!;
       const output = (await page.locator(".duet-canvas").boundingBox())!;
       const action = (await page.locator(".gw-inspiration-rewrite").boundingBox())!;
-      expect(source.y - (heading.y + heading.height)).toBeLessThanOrEqual(60);
+      expect(source.y - (heading.y + heading.height)).toBeLessThanOrEqual(100);
       expect(Math.abs(source.y - output.y)).toBeLessThanOrEqual(1);
-      expect(action.y + action.height).toBeLessThan(heading.y);
+      expect(action.y + action.height).toBeLessThan(source.y);
+      expect(source.y).toBeLessThan(300);
       await page.screenshot({ path: info.outputPath(`no-empty-column-${width}-${mode}.png`) });
     }
   }

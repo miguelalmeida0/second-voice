@@ -14,7 +14,7 @@ for (const [width, height] of [[1024, 640], [1280, 720], [1512, 738]]) {
       const source = (await page.locator(".gw-composer-field").boundingBox())!;
       const output = (await page.locator(".duet-canvas").boundingBox())!;
       const heading = (await page.locator(".duet-input-heading").boundingBox())!;
-      expect(source.y - (heading.y + heading.height)).toBeLessThanOrEqual(60);
+      expect(source.y - (heading.y + heading.height)).toBeLessThanOrEqual(100);
       expect(Math.abs(source.y - output.y)).toBeLessThanOrEqual(1);
       expect(Math.abs(source.height - output.height)).toBeLessThanOrEqual(1);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -58,9 +58,13 @@ for (const [width, height] of [[1512, 738], [1280, 720], [1024, 640]]) {
       const cta = (await app.rewriteButton().boundingBox())!;
       const input = (await page.locator(".gw-composer-field").boundingBox())!;
       const output = (await page.locator(".duet-canvas").boundingBox())!;
-      const strength = (await page.locator(".duet-followup > :first-child").boundingBox())!;
-      expect(cta.y - (strength.y + strength.height)).toBeGreaterThanOrEqual(16);
-      expect(Math.abs(cta.width - output.width)).toBeLessThanOrEqual(1);
+      const heading = (await page.locator(".duet-output-heading").boundingBox())!;
+      const controls = (await page.locator(".duet-controls").boundingBox())!;
+      expect(Math.abs(cta.y + cta.height / 2 - (heading.y + heading.height / 2))).toBeLessThanOrEqual(1);
+      expect(controls.y).toBeGreaterThanOrEqual(heading.y + heading.height);
+      expect(controls.x).toBeGreaterThanOrEqual(width / 2);
+      expect(cta.width).toBeLessThanOrEqual(180);
+      expect(output.y).toBeLessThanOrEqual(300);
       expect(cta.y).toBeGreaterThanOrEqual(0);
       expect(cta.y + cta.height).toBeLessThanOrEqual(height - 16);
       expect(cta.y + cta.height).toBeLessThanOrEqual(output.y);
@@ -81,5 +85,22 @@ for (const [width, height] of [[1512, 738], [1280, 720], [1024, 640]]) {
     await app.runRewrite();
     await expect(page.locator('[data-phase="complete"]')).toBeVisible();
     await check();
+  });
+}
+
+for (const width of [1024, 1440]) {
+  test(`rewrite action accommodates enlarged text at ${width}px`, async ({ app, page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockGhostwriterApi(page);
+    await app.goto();
+    await app.fillDraft("A short draft with readable controls.");
+    await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
+    const button = app.rewriteButton();
+    await expect(button).toBeVisible();
+    expect(await button.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    const cta = (await button.boundingBox())!;
+    const controls = (await page.locator(".duet-controls").boundingBox())!;
+    expect(cta.y + cta.height).toBeLessThanOrEqual(controls.y);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }

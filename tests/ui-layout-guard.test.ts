@@ -373,9 +373,13 @@ test("compact author and outcome controls preserve canonical identities and acce
  const orbital=readFileSync(ORBITAL_PATH,"utf8");
  const outcomes=readFileSync(OUTCOME_OPTIONS_PATH,"utf8");
  assert.match(page,/aria-label="Rewrite mode"/);
- assert.match(page,/aria-pressed=\{rewriteMode === "author"\}/);
- assert.match(page,/aria-pressed=\{rewriteMode === "outcome"\}/);
- assert.match(page,/<AuthorOrbital/);assert.match(page,/<OutcomeOptions/);assert.match(page,/<MoodDial/);
+ assert.match(page,/<select aria-label="Rewrite mode" value=\{mode\}/);
+ assert.match(page,/<option value="author">Authors<\/option>/);
+ assert.match(page,/<option value="outcome">Outcomes<\/option>/);
+ assert.match(page,/<select aria-label="Author" value=\{author\}/);
+ assert.match(page,/<select aria-label="Writing outcome" value=\{outcome\}/);
+ assert.match(page,/AUTHORS.map/); assert.match(page,/OUTCOMES.map/);
+ assert.match(page,/aria-valuetext=\{`\$\{mood\}% \$\{moodLabelFor\(author, mood\)\}`\}/);
  assert.match(orbital,/AUTHORS as SHARED_AUTHORS/);assert.match(orbital,/export type Author = AuthorMeta/);
  for(const id of ["tolkien","stephenking","tolstoy","hemingway"])assert.ok(orbital.includes(id+":"));
  assert.match(orbital,/onSelect\(author.id\)/);assert.match(orbital,/aria-pressed=\{active === author.id\}/);

@@ -1,5 +1,4 @@
 import { test, expect } from "../fixtures/test";
-import { expectPressed } from "../utils/assertions";
 
 test.describe("rewrite console dashboard", () => {
   test("renders the full author console with primary controls", async ({ dashboard, page }) => {
@@ -15,15 +14,15 @@ test.describe("rewrite console dashboard", () => {
     await dashboard.app.openQuickStarts();
     await expect(page.getByRole("button", { name: "A rainy day thought" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Copy rewrite" })).toHaveCount(0);
-    await expect(page.getByRole("region", { name: "How to start your rewrite" })).toContainText("Your rewrite will appear here.");
+    await expect(page.getByRole("region", { name: "Rewrite preview" })).toContainText("Your rewrite will appear here.");
   });
 
   test("selecting an author updates selected state, mood label, and rewrite CTA", async ({ app, page }) => {
     await app.goto();
     await app.chooseAuthor("Stephen King");
 
-    await expectPressed(page.getByRole("button", { name: "Choose Stephen King" }), true);
-    await expectPressed(page.getByRole("button", { name: "Choose J.R.R. Tolkien" }), false);
+    await expect(page.getByRole("combobox", { name: "Author", exact: true })).toHaveValue("stephenking");
+    await expect(page.getByRole("combobox", { name: "Author", exact: true })).not.toHaveValue("tolkien");
     await expect(page.getByLabel(/dread mood dial/i)).toBeVisible();
     await expect(page.getByRole("button", { name: "Rewrite my draft" })).toBeVisible();
   });
@@ -33,8 +32,8 @@ test.describe("rewrite console dashboard", () => {
     await dashboard.expectOutcomeConsole();
     await dashboard.app.chooseOutcome("Be concise");
 
-    await expectPressed(page.getByRole("button", { name: /Be concise/ }), true);
+    await expect(page.getByRole("combobox", { name: "Writing outcome" }).locator("option:checked")).toHaveText("Be concise");
     await expect(page.getByRole("button", { name: "Rewrite my draft" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Choose J.R.R. Tolkien" })).toHaveCount(0);
+    await expect(page.getByRole("combobox", { name: "Author", exact: true })).toHaveCount(0);
   });
 });

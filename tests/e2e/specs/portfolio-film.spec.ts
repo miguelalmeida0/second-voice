@@ -33,7 +33,7 @@ test("portfolio film replays the real Tolkien workflow without provider traffic"
   );
   await expect(film).toHaveAttribute("data-film-ready", "true");
   await expect(page.getByRole("heading", { name: "The last harbor light" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Choose J.R.R. Tolkien/ })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Author", exact: true })).toBeVisible();
 
   if (compactLayout) {
     await expect(page.locator('section[aria-label="Inspectable revision"]')).toBeHidden();

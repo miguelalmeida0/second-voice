@@ -1,6 +1,5 @@
 import { test, expect } from "../fixtures/test";
 import { returningVisitor } from "../fixtures/users";
-import { expectPressed } from "../utils/assertions";
 
 test.describe("local user preferences", () => {
   test("persists rewrite mode and outcome selection across reloads", async ({ app, page }) => {
@@ -10,9 +9,9 @@ test.describe("local user preferences", () => {
 
     await page.reload();
 
-    await expectPressed(app.outcomeModeButton(), true);
-    await expect(page.getByRole("group", { name: "Outcome options" })).toBeVisible();
-    await expectPressed(page.getByRole("button", { name: /Be persuasive/ }), true);
+    await expect(app.rewriteModeSelect()).toHaveValue("outcome");
+    await expect(page.getByRole("combobox", { name: "Writing outcome" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Writing outcome" }).locator("option:checked")).toHaveText("Be persuasive");
     await expect(page.getByRole("button", { name: "Rewrite my draft" })).toBeVisible();
   });
 
@@ -24,8 +23,8 @@ test.describe("local user preferences", () => {
 
     await page.goto("/second-voice");
 
-    await expectPressed(page.getByRole("button", { name: "Authors" }), true);
-    await expect(page.getByRole("group", { name: "Choose an author" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Rewrite mode" })).toHaveValue("author");
+    await expect(page.getByRole("combobox", { name: "Author", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Rewrite my draft$/ })).toBeVisible();
   });
 });

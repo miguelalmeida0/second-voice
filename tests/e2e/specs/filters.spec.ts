@@ -3,36 +3,28 @@ import { caseStudyTreatments } from "../fixtures/testData";
 import { expectPressed } from "../utils/assertions";
 
 test.describe("filters, tabs, and segmented controls", () => {
-  test("rewrite mode segmented control switches between authors and outcomes without losing composer text", async ({ app }) => {
+  test("rewrite mode selector switches between authors and outcomes without losing composer text", async ({ app }) => {
     await app.goto();
     await app.fillDraft("Keep this sentence while I change controls.");
 
     await app.switchToOutcomes();
-    await expectPressed(app.outcomeModeButton(), true);
-    await expect(app.page.getByRole("group", { name: "Outcome options" })).toBeVisible();
+    await expect(app.rewriteModeSelect()).toHaveValue("outcome");
+    await expect(app.page.getByRole("combobox", { name: "Writing outcome" })).toBeVisible();
     await expect(app.draftInput()).toHaveValue("Keep this sentence while I change controls.");
 
     await app.switchToAuthors();
-    await expectPressed(app.authorModeButton(), true);
-    await expect(app.page.getByRole("group", { name: "Choose an author" })).toBeVisible();
+    await expect(app.rewriteModeSelect()).toHaveValue("author");
+    await expect(app.page.getByRole("combobox", { name: "Author", exact: true })).toBeVisible();
     await expect(app.draftInput()).toHaveValue("Keep this sentence while I change controls.");
   });
 
-  test("outcome filter buttons update selected state and helper copy", async ({ app, page }, testInfo) => {
+  test("outcome selector preserves the chosen direction", async ({ app, page }) => {
     await app.goto();
     await app.switchToOutcomes();
     await app.chooseOutcome("Get a reply");
 
-    await expectPressed(page.getByRole("button", { name: /Get a reply/ }), true);
-    await expectPressed(page.getByRole("button", { name: /Improve clarity/ }), false);
+    await expect(page.getByRole("combobox", { name: "Writing outcome" }).locator("option:checked")).toHaveText("Get a reply");
     await expect(page.getByRole("button", { name: "Rewrite my draft" })).toBeVisible();
-
-    // Outcome helper copy is decorative desktop/tablet explanatory text
-    // (display:none under 1000px, see .gw-outcome-choice-description); the
-    // outcome title alone carries the selected state on narrow viewports.
-    if (testInfo.project.name !== "mobile-chrome") {
-      await expect(page.locator(".duet-outcome-note").getByText("Warm, direct, easy to answer.", { exact: true })).toBeVisible();
-    }
   });
 
   test("case-study treatment tabs update live example text and pressed state", async ({ page }) => {

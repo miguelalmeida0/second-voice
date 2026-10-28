@@ -546,7 +546,7 @@ test("real editor preserves author, strength and draft through review, then revi
   await review.getByRole("button", { name: "Back to rewrite", exact: true }).click();
   await expect(app.draftInput()).toBeEditable();
   await expect(app.draftInput()).toHaveValue(source);
-  await expect(page.getByRole("button", { name: "Choose Ernest Hemingway" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("combobox", { name: "Author", exact: true })).toHaveValue("hemingway");
   await expect(app.moodDial()).toHaveValue("100");
   expect(api.rewriteRequests[0].body).toMatchObject({ author: "hemingway", mood: 100, text: source, mode: "author" });
   const nextDraft = "Please shorten this message without changing its meaning.";
@@ -564,7 +564,7 @@ test("real editor preserves author, strength and draft through review, then revi
   expect(api.rewriteRequests[1].body).toMatchObject({ text: nextDraft, mode: "outcome", outcome: "concise" });
   await review.getByRole("button", { name: "Back to rewrite", exact: true }).click();
   await expect(app.draftInput()).toHaveValue(nextDraft);
-  await expect(app.outcomeModeButton()).toHaveAttribute("aria-pressed", "true");
+  await expect(app.rewriteModeSelect()).toHaveValue("outcome");
 });
 
 test("integrated review aligns papers and keeps actions in a laptop viewport", async ({ app, page }, testInfo) => {

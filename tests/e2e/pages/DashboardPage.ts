@@ -1,6 +1,5 @@
 import { expect, type Page } from "@playwright/test";
 import { AppPage } from "./AppPage";
-import { expectPressed } from "../utils/assertions";
 
 export class DashboardPage {
   readonly app: AppPage;
@@ -16,19 +15,18 @@ export class DashboardPage {
   }
 
   async expectAuthorConsole() {
-    await expect(this.page.getByRole("group", { name: "Choose an author" })).toBeVisible();
-    await expect(this.page.getByRole("group", { name: "Rewrite mode" })).toBeVisible();
-    await expect(this.page.getByRole("button", { name: "Choose J.R.R. Tolkien" })).toBeVisible();
-    await expect(this.page.getByRole("button", { name: "Choose Stephen King" })).toBeVisible();
+    await expect(this.page.getByRole("combobox", { name: "Author", exact: true })).toBeVisible();
+    await expect(this.page.getByRole("combobox", { name: "Rewrite mode" })).toBeVisible();
+    await expect(this.page.getByRole("combobox", { name: "Author", exact: true }).locator("option[value=tolkien]")).toHaveCount(1);
+    await expect(this.page.getByRole("combobox", { name: "Author", exact: true }).locator("option[value=stephenking]")).toHaveCount(1);
     await expect(this.page.getByLabel(/mood dial/i)).toBeVisible();
   }
 
   async expectOutcomeConsole() {
     await this.app.switchToOutcomes();
-    await expectPressed(this.app.outcomeModeButton(), true);
-    await expect(this.page.getByRole("group", { name: "Outcome options" })).toBeVisible();
-    await expect(this.page.getByRole("group", { name: "Outcome options" })).toBeVisible();
-    await expect(this.page.getByRole("button", { name: /Improve clarity/ })).toBeVisible();
-    await expect(this.page.getByRole("button", { name: /Be concise/ })).toBeVisible();
+    await expect(this.app.rewriteModeSelect()).toHaveValue("outcome");
+    await expect(this.page.getByRole("combobox", { name: "Writing outcome" })).toBeVisible();
+    await expect(this.page.getByRole("combobox", { name: "Writing outcome" }).locator("option").filter({ hasText: "Improve clarity" })).toHaveCount(1);
+    await expect(this.page.getByRole("combobox", { name: "Writing outcome" }).locator("option").filter({ hasText: "Be concise" })).toHaveCount(1);
   }
 }

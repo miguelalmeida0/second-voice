@@ -65,7 +65,7 @@ test.describe("composer forms and rewrite submissions", () => {
     await app.fillDraft(drafts.default);
     await app.runRewrite();
 
-    await expect(page.getByRole("status")).toContainText(/Rewriting with Tolkien/i);
+    await expect(page.locator(".duet-canvas").getByRole("status")).toContainText(/Rewriting with Tolkien/i);
     await expect(page.getByRole("button", { name: /Rewriting/ }).first()).toBeDisabled();
     await app.expectRewriteVisible(apiResponses.rewrite);
   });
@@ -75,12 +75,12 @@ test.describe("composer forms and rewrite submissions", () => {
 
     await app.goto();
     await app.fillDraft("");
-    await expect(page.getByRole("region", { name: "How to start your rewrite" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Rewrite preview" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Free sample preview" })).toHaveCount(0);
     await app.switchToOutcomes();
-    await expect(page.getByRole("region", { name: "How to start your rewrite" })).toContainText("Choose a goal for your writing.");
-    await page.getByRole("button", { name: "Authors", exact: true }).click();
-    await expect(page.getByRole("region", { name: "How to start your rewrite" })).toContainText("Choose an author and strength.");
+    await expect(page.getByRole("region", { name: "Rewrite preview" })).toContainText("Your rewrite will appear here.");
+    await app.switchToAuthors();
+    await expect(page.getByRole("region", { name: "Rewrite preview" })).toContainText("Your rewrite will appear here.");
     await expect(app.draftInput()).toHaveValue("");
     await expect(app.rewriteButton()).toBeDisabled();
     expect(api.rewriteRequests).toHaveLength(0);

@@ -17,12 +17,8 @@ export class AppPage {
     return this.page.getByLabel("Write or paste here");
   }
 
-  authorModeButton() {
-    return this.page.getByRole("button", { name: "Authors" });
-  }
-
-  outcomeModeButton() {
-    return this.page.getByRole("button", { name: "Outcomes" });
+  rewriteModeSelect() {
+    return this.page.getByRole("combobox", { name: "Rewrite mode" });
   }
 
   rewriteButton() {
@@ -54,19 +50,19 @@ export class AppPage {
   }
 
   async chooseAuthor(authorName: string) {
-    await this.page.getByRole("button", { name: `Choose ${authorName}` }).click();
+    await this.page.getByRole("combobox", { name: "Author", exact: true }).selectOption({ label: authorName });
   }
 
   async chooseOutcome(label: string) {
-    await this.page.getByRole("group", { name: "Outcome options" }).getByRole("button", { name: new RegExp(label, "i") }).click();
+    await this.page.getByRole("combobox", { name: "Writing outcome" }).selectOption({ label });
   }
 
   async switchToOutcomes() {
-    await this.outcomeModeButton().click();
+    await this.rewriteModeSelect().selectOption("outcome");
   }
 
   async switchToAuthors() {
-    await this.authorModeButton().click();
+    await this.rewriteModeSelect().selectOption("author");
   }
 
   quickStartsToggle() {

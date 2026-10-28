@@ -12,7 +12,7 @@ const DETAILS = [
   { icon: PenLine, description: "Close the day with clarity" },
 ];
 
-export function QuickStartsPanel({ input, onSelect, onRewrite, loading, canRewrite, completed, status, onRetryAccess, actionsOnly = false, promptsOnly = false, promptsOpen = false, onPromptsOpenChange }: {
+export function QuickStartsPanel({ input, onSelect, onRewrite, loading, canRewrite, completed, actionsOnly = false, promptsOnly = false, promptsOpen = false, onPromptsOpenChange }: {
   actionsOnly?: boolean;
   promptsOnly?: boolean;
   promptsOpen?: boolean;
@@ -23,31 +23,18 @@ export function QuickStartsPanel({ input, onSelect, onRewrite, loading, canRewri
   loading?: boolean;
   canRewrite?: boolean;
   completed?: boolean;
-  status?: string | null;
-  onRetryAccess?: () => void;
 }) {
   const actionRef = useDuetActionDock(!promptsOnly);
-  // Keep the policy's exact wording; put the first sentence near the action.
-  const sentenceEnd = status?.indexOf(". ") ?? -1;
-  const allowance = sentenceEnd >= 0 ? status!.slice(0, sentenceEnd + 1) : status;
-  const statusDetail = sentenceEnd >= 0 ? status!.slice(sentenceEnd + 2) : null;
-  const actionableDetail = statusDetail?.startsWith("Sign in with GitHub any time") ? null : statusDetail;
   const actionLabel = loading ? "Rewriting…" : completed ? "Rewrite again" : "Rewrite my draft";
   return (
     <section className={promptsOnly ? "gw-inspiration duet-prompts" : "gw-inspiration duet-actions"} aria-label={promptsOnly ? "Quick starts" : "Rewrite actions"}>
       {!promptsOnly && <><div ref={actionRef} className="duet-action-primary">
-        <button type="button" className="gw-inspiration-rewrite" aria-describedby="duet-action-hint duet-action-allowance" onClick={onRewrite} disabled={!canRewrite}>
+        <button type="button" className="gw-inspiration-rewrite" aria-describedby="duet-action-hint duet-action-allowance" onClick={onRewrite} disabled={!canRewrite} aria-busy={loading || undefined}>
           <span>{actionLabel}</span>
           {loading ? <LoaderCircle aria-hidden="true" /> : null}
           {!loading ? <ArrowRight aria-hidden="true" /> : null}
         </button>
-        <div className="duet-action-copy">
-        <p id="duet-action-hint" className="duet-action-hint">{!input.trim() ? "Add text to enable rewriting." : "Uses 1 rewrite."}</p>
-        {allowance ? <p id="duet-action-allowance" className="gw-inspiration-status" role="status">{allowance}</p> : <span id="duet-action-allowance" className="sr-only" />}
-        {onRetryAccess && <button type="button" className="duet-retry-access" onClick={onRetryAccess}>Check availability</button>}
-        </div>
       </div>
-      {actionableDetail ? <p className="gw-inspiration-status-detail">{actionableDetail}</p> : null}
       </>}
       {!actionsOnly && <>
       <p className="duet-start-label">Nothing to paste? Start from one of these.</p>
@@ -73,4 +60,20 @@ export function QuickStartsPanel({ input, onSelect, onRewrite, loading, canRewri
       </>}
     </section>
   );
+}
+
+export function RewriteAllowance({ input, status, onRetryAccess }: {
+  input: string; status?: string | null; onRetryAccess?: () => void;
+}) {
+  // Preserve the access policy's wording while separating its summary and detail.
+  const sentenceEnd = status?.indexOf(". ") ?? -1;
+  const allowance = sentenceEnd >= 0 ? status!.slice(0, sentenceEnd + 1) : status;
+  const statusDetail = sentenceEnd >= 0 ? status!.slice(sentenceEnd + 2) : null;
+  const actionableDetail = statusDetail?.startsWith("Sign in with GitHub any time") ? null : statusDetail;
+  return <div className="duet-allowance">
+    <p id="duet-action-hint" className="sr-only">{!input.trim() ? "Add text to enable rewriting." : "Uses 1 rewrite."}</p>
+    <p id="duet-action-allowance" className="gw-inspiration-status" role="status">{allowance || (!input.trim() ? "Add text to enable rewriting." : "Uses 1 rewrite.")}</p>
+    {actionableDetail && <p className="gw-inspiration-status-detail">{actionableDetail}</p>}
+    {onRetryAccess && <button type="button" className="duet-retry-access" onClick={onRetryAccess}>Check availability</button>}
+  </div>;
 }

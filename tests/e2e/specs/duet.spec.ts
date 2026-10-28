@@ -6,14 +6,14 @@ test("primary action stays above the preview inside the forest workspace", async
   await app.goto();
   await page.setViewportSize({ width: 1440, height: 1100 });
   await app.fillDraft("A sentence to rewrite.");
-  const controls = await page.locator(".duet-followup").boundingBox();
+  const controls = await page.locator(".duet-output-heading").boundingBox();
   const action = await app.rewriteButton().boundingBox();
-  const strength = (await page.locator(".duet-followup > :first-child").boundingBox())!;
-  expect(action!.y - (strength.y + strength.height)).toBeGreaterThanOrEqual(16);
+  const strength = (await page.locator(".duet-output-heading").boundingBox())!;
+  expect(Math.abs(action!.y + action!.height/2 - (strength.y + strength.height/2))).toBeLessThanOrEqual(1);
   expect(action!.y + action!.height).toBeLessThanOrEqual(controls!.y + controls!.height);
   expect(action!.x).toBeGreaterThanOrEqual(controls!.x);
   expect(action!.x).toBeGreaterThan(page.viewportSize()!.width / 2);
-  expect(action!.width).toBeGreaterThanOrEqual(260);
+  expect(action!.width).toBeGreaterThanOrEqual(140);
 });
 
 test("Duet starts empty and preserves the draft through responsive layouts", async ({ app, page }) => {

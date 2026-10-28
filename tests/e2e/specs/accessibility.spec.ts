@@ -54,7 +54,7 @@ test.describe("accessibility and keyboard integrity", () => {
   test("primary controls expose accessible names, states, and no horizontal overflow", async ({ app, page }) => {
     await app.goto();
 
-    await expect(page.getByRole("button", { name: "Authors" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("combobox", { name: "Rewrite mode" })).toHaveValue("author");
     await expect(page.getByLabel(/mythic mood dial/i)).toHaveAttribute("aria-valuetext", /starlit/i);
     await expect(page.getByRole("button", { name: "Copy rewrite" })).toHaveCount(0);
     await expectNoHorizontalOverflow(page);

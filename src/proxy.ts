@@ -7,6 +7,7 @@ import {
   ensureShieldCookies,
 } from "@/server/abuse-protection";
 import { logSecurityEvent } from "@/server/security-events";
+import { homepageOAuthRedirect } from "@/server/auth-origin";
 import {
   anonymousVisitorCookieName,
   anonymousVisitorCookieSettings,
@@ -23,6 +24,17 @@ function isNonceCspPath(pathname: string) {
 }
 
 export function proxy(request: NextRequest) {
+  try {
+    const callback = homepageOAuthRedirect(request);
+    if (callback) {
+      const redirect = NextResponse.redirect(callback, 303);
+      redirect.headers.set("Cache-Control", "private, no-store");
+      redirect.headers.set("Referrer-Policy", "no-referrer");
+      return redirect;
+    }
+  } catch {
+    return new NextResponse("Invalid sign-in return address.", { status: 400 });
+  }
   const shouldApplyNonceCsp = isNonceCspPath(request.nextUrl.pathname);
   let response: NextResponse;
 

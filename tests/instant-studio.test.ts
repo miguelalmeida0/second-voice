@@ -74,6 +74,7 @@ test("new visitors get identity and shield cookies on the studio response withou
   process.env.GHOSTWRITER_RELEASE_PROFILE = "portfolio-free";
   const { NextRequest } = require("next/server");
   const proxy = loadSource("src/proxy.ts", {
+    "@/server/auth-origin": { homepageOAuthRedirect: () => null },
     "@/lib/security-http": { buildContentSecurityPolicy: () => "default-src 'self'" },
     "@/server/security-events": { logSecurityEvent: () => {} },
     "@/server/abuse-protection": {

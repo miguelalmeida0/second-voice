@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {authRedirectOrigin,callbackOrigin,localAuthPageRedirect} from "../src/server/auth-origin.ts";
+import {authRedirectOrigin,callbackOrigin,localAuthPageRedirect,homepageOAuthRedirect} from "../src/server/auth-origin.ts";
 import {readAuthCookie} from "../src/server/auth-session.ts";
 
 test("OAuth keeps the browser's canonical cookie host despite Next's internal loopback URL",()=>{
@@ -20,6 +20,23 @@ test("OAuth keeps the browser's canonical cookie host despite Next's internal lo
   for(const url of ["http://demo.example.org","https://localhost","https://127.0.0.1","https://evil.test"])assert.throws(()=>callbackOrigin(req(url,"demo.example.org")));
   assert.equal(localAuthPageRedirect(req("http://localhost:4003/second-voice","localhost:4003")),null);
   process.env.NEXT_PUBLIC_SITE_URL="http://127.0.0.1:4003";assert.throws(authRedirectOrigin);
+ } finally {for(const [k,v] of Object.entries(saved)){if(v===undefined)delete process.env[k];else process.env[k]=v;}}
+});
+
+test("homepage OAuth returns reach only the canonical PKCE callback",()=>{
+ const saved={NODE_ENV:process.env.NODE_ENV,NEXT_PUBLIC_SITE_URL:process.env.NEXT_PUBLIC_SITE_URL};
+ try {
+  Object.assign(process.env,{NODE_ENV:"production",NEXT_PUBLIC_SITE_URL:"https://demo.example.org"});
+  for (const path of ["/", "/second-voice", "/second-voice/"]) {
+   assert.equal(homepageOAuthRedirect(new Request("https://demo.example.org"+path+"?code=test-code")),"https://demo.example.org/api/ghostwriter/auth/callback?code=test-code");
+  }
+  for (const path of ["/", "/?auth=complete", "/api/ghostwriter/auth/callback?code=test", "/account?code=test"]) {
+   assert.equal(homepageOAuthRedirect(new Request("https://demo.example.org"+path)),null);
+  }
+  assert.equal(homepageOAuthRedirect(new Request("https://demo.example.org/?code=test",{method:"POST"})),null);
+  assert.throws(()=>homepageOAuthRedirect(new Request("https://evil.example/?code=test")));
+  assert.throws(()=>homepageOAuthRedirect(new Request("https://demo.example.org/?code=test",{headers:{host:"evil.example"}})));
+  assert.equal(homepageOAuthRedirect(new Request("https://demo.example.org/?code=test&next=https://evil.example")),"https://demo.example.org/api/ghostwriter/auth/callback?code=test&next=https://evil.example");
  } finally {for(const [k,v] of Object.entries(saved)){if(v===undefined)delete process.env[k];else process.env[k]=v;}}
 });
 

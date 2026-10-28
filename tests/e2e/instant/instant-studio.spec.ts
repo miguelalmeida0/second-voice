@@ -223,3 +223,25 @@ test("exhausted allowance does not create a blank column above the draft", async
     }
   }
 });
+
+
+test("OAuth returns at the homepage reach the PKCE handler without rendering the studio", async ({ request }) => {
+  const returned = await request.get("/?code=synthetic-test-code", { maxRedirects: 0 });
+  expect(returned.status()).toBe(303);
+  expect(new URL(returned.headers().location, returned.url()).pathname).toBe("/api/ghostwriter/auth/callback");
+  expect(returned.headers()["cache-control"]).toBe("private, no-store");
+  expect(returned.headers()["referrer-policy"]).toBe("no-referrer");
+  const rejected = await request.get(returned.headers().location);
+  expect(rejected.status()).toBe(401);
+  expect(await rejected.text()).toContain("Sign-in could not be completed");
+});
+
+test("account exposes only the browser support reference and keeps its signed cookie private", async ({ page }) => {
+  await mockGhostwriterApi(page);
+  await page.goto("/");
+  await page.getByRole("link", { name: "Account", exact: true }).click();
+  await page.getByText("Browser support reference", { exact: true }).click();
+  await expect(page.locator("details code")).toHaveText(/^[0-9a-f-]{36}$/);
+  await expect(page.getByRole("heading", { name: "Account & deletion" })).toBeVisible();
+  expect(await page.locator("body").innerText()).not.toContain("gw-anon");
+});

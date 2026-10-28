@@ -38,3 +38,13 @@ export function localAuthPageRedirect(request: Request) {
   const url = new URL(request.url);
   return configured.origin + url.pathname + url.search;
 }
+
+// Providers can fall back to the configured site root. Route that response
+// through the same browser-bound PKCE exchange; never treat a code as a session.
+export function homepageOAuthRedirect(request: Request) {
+  const url = new URL(request.url);
+  if (request.method !== "GET" || !["/", "/second-voice", "/second-voice/"].includes(url.pathname) ||
+      (!url.searchParams.has("code") && !url.searchParams.has("error"))) return null;
+  const origin = callbackOrigin(request);
+  return origin + "/api/ghostwriter/auth/callback" + url.search;
+}

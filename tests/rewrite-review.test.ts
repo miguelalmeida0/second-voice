@@ -118,3 +118,18 @@ test("large comparisons fall back to one exact whole-text replacement", () => {
   assert.equal(buildReviewText(parts, initial), result);
   assert.equal(buildReviewText(parts, reviewReducer(initial, { type: "decide", id: 0, decision: "keep" })), source);
 });
+
+test("accept all is one undoable transaction across kept, accepted and pending edits", () => {
+  const parts = buildReviewParts("red cat old dog small", "blue cat new dog large");
+  let state = createReviewState(parts);
+  state = reviewReducer(state, { type: "decide", id: 0, decision: "keep" });
+  state = reviewReducer(state, { type: "decide", id: 1, decision: "accept" });
+  const accepted = reviewReducer(state, { type: "accept-all" });
+  assert.deepEqual(accepted.decisions, ["accept", "accept", "accept"]);
+  assert.equal(buildReviewText(parts, accepted), "blue cat new dog large");
+  assert.equal(accepted.history.length, state.history.length + 1);
+  assert.deepEqual(reviewReducer(accepted, { type: "undo" }), state);
+  assert.equal(reviewReducer(accepted, { type: "accept-all" }), accepted);
+  const empty = createReviewState(buildReviewParts("same", "same"));
+  assert.equal(reviewReducer(empty, { type: "accept-all" }), empty);
+});

@@ -44,3 +44,9 @@ The owner requested restrained product sizing across the workspace and review UI
 The deployed test environment has no preview configuration and explicitly prohibits inference. `/demo/rewrite-review` therefore offers the real review component with clearly labelled prepared text and no API calls. It is available in development and Vercel preview only, with no production credential or policy changes. A production-build smoke check without application credentials returned 200 for the preview environment and 404 for the production environment.
 
 Validation: review interactions and exact copy recovery on desktop/mobile Chromium, sample route state preservation and zero API requests, responsive action checks from 320px through 2560px, keyboard/accessibility checks, 22 scroll guards, TypeScript, lint (only three existing warnings), and production build. Bottom-edge screenshots inspected; Safari remains untested.
+
+## Aligned comparison and bulk acceptance
+
+Both comparison papers now share desktop grid rows, aligning their top and bottom edges even when controls or headings wrap. Mobile retains its native stacked layout. Added an always-discoverable Accept all changes action above the revision; it accepts every suggestion, including previously kept originals. One Undo restores the exact previous decisions, and repeated acceptance is a no-op. Individual choices remain available.
+
+Validation: 11 model tests, the 34 desktop/mobile review browser cases (including all views at 320, 390, 768, 1280 and 1920px), 22 scroll guards, TypeScript, lint with existing warnings, production build, and bottom-edge visual inspection.

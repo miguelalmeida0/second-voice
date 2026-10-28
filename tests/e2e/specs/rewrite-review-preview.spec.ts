@@ -29,3 +29,39 @@ test("sample review works without application credentials or API requests", asyn
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await page.screenshot({ path: testInfo.outputPath("sample-review-bottom.png") });
 });
+
+test("panels align and accept all can be undone across every review layout", async ({ page }, testInfo) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/demo/rewrite-review");
+  const review = page.getByRole("region", { name: "Review your rewrite" });
+  const bulk = review.getByRole("button", { name: "Accept all changes", exact: true });
+  await expect(bulk).toBeVisible();
+  for (const width of [768, 1280, 1920, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const name of ["Duet", "Inline", "Focus"]) {
+      await review.getByRole("button", { name, exact: true }).click();
+      if (width >= 768) {
+        const original = (await page.getByTestId("review-source-paper").boundingBox())!;
+        const revision = (await page.getByTestId("review-result-paper").boundingBox())!;
+        expect(Math.abs(original.y - revision.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(original.height - revision.height)).toBeLessThanOrEqual(1);
+      }
+      await review.getByRole("button", { name: "Keep original", exact: true }).click();
+      await expect(review.getByRole("status")).toContainText("1 of 3 reviewed");
+      await bulk.click();
+      await expect(review.getByRole("status")).toContainText("3 of 3 reviewed");
+      await expect(bulk).toBeDisabled();
+      await expect(review.getByRole("button", { name: "Copy revision", exact: true })).toBeVisible();
+      await review.getByRole("button", { name: "Undo", exact: true }).click();
+      await expect(review.getByRole("status")).toContainText("1 of 3 reviewed");
+      await expect(review.getByRole("button", { name: "Keep original", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await review.getByRole("button", { name: "Reset", exact: true }).click();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await review.getByRole("button", { name: "Duet", exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath("aligned-review.png"), fullPage: true });
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.screenshot({ path: testInfo.outputPath("aligned-review-bottom.png") });
+});

@@ -242,7 +242,7 @@ export function RewriteReview({
             Back to rewrite
           </button>
         </div>
-        <div className={styles.sourcePaper}>
+        <div className={styles.sourcePaper} data-testid="review-source-paper">
           {view === "focus" && edit ? (
             <>
               <p className={styles.kicker}>Your original phrase</p>
@@ -257,25 +257,27 @@ export function RewriteReview({
             </div>
           )}
         </div>
-        <p className={styles.proof}>
-          <LockKeyhole aria-hidden="true" />
-          Your original stays untouched.
-        </p>
-        {view === "focus" && (
-          <details className={styles.fullDraft}>
-            <summary>Read the full original</summary>
-            <p className={styles.prose} data-testid="full-original">
-              {source}
-            </p>
-          </details>
-        )}
-        <div className={styles.sourceBottom}>
-          <p className={styles.eyebrow}>A small change. Still your voice.</p>
-          <p>Keep a phrase. Try another. Every choice stays here.</p>
-          <p>
-            Review edits are local to this session. Public links and feedback
-            use the original rewrite.
+        <div className={styles.belowPaper}>
+          <p className={styles.proof}>
+            <LockKeyhole aria-hidden="true" />
+            Your original stays untouched.
           </p>
+          {view === "focus" && (
+            <details className={styles.fullDraft}>
+              <summary>Read the full original</summary>
+              <p className={styles.prose} data-testid="full-original">
+                {source}
+              </p>
+            </details>
+          )}
+          <div className={styles.sourceBottom}>
+            <p className={styles.eyebrow}>A small change. Still your voice.</p>
+            <p>Keep a phrase. Try another. Every choice stays here.</p>
+            <p>
+              Review edits are local to this session. Public links and feedback
+              use the original rewrite.
+            </p>
+          </div>
         </div>
       </section>
       <section className={styles.right} aria-labelledby="review-result-title">
@@ -286,37 +288,49 @@ export function RewriteReview({
           </h2>
         </div>
         <p className={styles.intro}>Keep what feels right. Leave the rest.</p>
-        <div className={styles.layouts} role="group" aria-label="Review layout">
-          {layouts.map(([value, label, description], index) => (
+        <div className={styles.documentTools}>
+          <div className={styles.layouts} role="group" aria-label="Review layout">
+            {layouts.map(([value, label, description], index) => (
+              <button
+                key={value}
+                type="button"
+                aria-label={label}
+                aria-pressed={view === value}
+                onClick={() => setView(value)}
+              >
+                <span className={styles.layoutNumber} aria-hidden="true">
+                  0{index + 1}
+                </span>
+                <span>
+                  <strong>{label}</strong>
+                  <small>{description}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className={styles.reviewMeta}>
+            <span className={styles.tag}>
+              <span />
+              Your revision
+            </span>
+            <span>
+              {changes.length} suggested{" "}
+              {changes.length === 1 ? "change" : "changes"}
+            </span>
             <button
-              key={value}
+              className={styles.acceptAll}
               type="button"
-              aria-label={label}
-              aria-pressed={view === value}
-              onClick={() => setView(value)}
+              disabled={!changes.length || state.decisions.every((decision) => decision === "accept")}
+              onClick={() => dispatch({ type: "accept-all" })}
             >
-              <span className={styles.layoutNumber} aria-hidden="true">
-                0{index + 1}
-              </span>
-              <span>
-                <strong>{label}</strong>
-                <small>{description}</small>
-              </span>
+              <Check aria-hidden="true" />
+              Accept all changes
             </button>
-          ))}
-        </div>
-        <div className={styles.reviewMeta}>
-          <span className={styles.tag}>
-            <span />
-            Your revision
-          </span>
-          <span>
-            {changes.length} suggested{" "}
-            {changes.length === 1 ? "change" : "changes"}
-          </span>
+          </div>
         </div>
         <div
           className={`${styles.reviewPaper} ${view === "inline" ? styles.inspector : ""}`}
+          data-testid="review-result-paper"
         >
           {view === "inline" && changes.length ? (
             <>
@@ -364,194 +378,196 @@ export function RewriteReview({
             </div>
           )}
         </div>
-        {view === "focus" && (
-          <details className={styles.fullDraft}>
-            <summary>Read the full revision</summary>
-            <p className={styles.prose}>{revision}</p>
-          </details>
-        )}
-        <div className={styles.progress}>
-          <p role="status" aria-live="polite" aria-atomic="true">
-            {reviewed} of {changes.length} reviewed
-            {copied
-              ? pending
-                ? " · Preview copied, including pending suggestions"
-                : " · Revision copied"
-              : ""}
-          </p>
-          <div
-            className={styles.progressDots}
-            role="group"
-            aria-label="Select a change"
-          >
-            {changes
-              .filter(
-                (change) =>
-                  changes.length <= 7 || Math.abs(change.id - selected) <= 2,
-              )
-              .map((change) => (
-                <button
-                  key={change.id}
-                  type="button"
-                  aria-label={`Change ${change.id + 1}, ${decisionLabel[state.decisions[change.id]]}`}
-                  aria-current={selected === change.id ? "true" : undefined}
-                  data-done={state.decisions[change.id] !== "pending"}
-                  onClick={() => setSelected(change.id)}
-                >
-                  {state.decisions[change.id] === "accept"
-                    ? "✓"
-                    : state.decisions[change.id] === "keep"
-                      ? "−"
-                      : change.id + 1}
-                </button>
-              ))}
+        <div className={styles.belowPaper}>
+          {view === "focus" && (
+            <details className={styles.fullDraft}>
+              <summary>Read the full revision</summary>
+              <p className={styles.prose}>{revision}</p>
+            </details>
+          )}
+          <div className={styles.progress}>
+            <p role="status" aria-live="polite" aria-atomic="true">
+              {reviewed} of {changes.length} reviewed
+              {copied
+                ? pending
+                  ? " · Preview copied, including pending suggestions"
+                  : " · Revision copied"
+                : ""}
+            </p>
+            <div
+              className={styles.progressDots}
+              role="group"
+              aria-label="Select a change"
+            >
+              {changes
+                .filter(
+                  (change) =>
+                    changes.length <= 7 || Math.abs(change.id - selected) <= 2,
+                )
+                .map((change) => (
+                  <button
+                    key={change.id}
+                    type="button"
+                    aria-label={`Change ${change.id + 1}, ${decisionLabel[state.decisions[change.id]]}`}
+                    aria-current={selected === change.id ? "true" : undefined}
+                    data-done={state.decisions[change.id] !== "pending"}
+                    onClick={() => setSelected(change.id)}
+                  >
+                    {state.decisions[change.id] === "accept"
+                      ? "✓"
+                      : state.decisions[change.id] === "keep"
+                        ? "−"
+                        : change.id + 1}
+                  </button>
+                ))}
+            </div>
           </div>
-        </div>
-        <div className={styles.controls}>
-          {edit ? (
-            <>
-              <div className={styles.changeNav}>
-                <p>
-                  Change {selected + 1} of {changes.length} ·{" "}
-                  {decisionLabel[state.decisions[selected]]}
-                </p>
-                <div>
+          <div className={styles.controls}>
+            {edit ? (
+              <>
+                <div className={styles.changeNav}>
+                  <p>
+                    Change {selected + 1} of {changes.length} ·{" "}
+                    {decisionLabel[state.decisions[selected]]}
+                  </p>
+                  <div>
+                    <button
+                      type="button"
+                      aria-label="Previous change"
+                      disabled={selected === 0}
+                      onClick={() => setSelected(selected - 1)}
+                    >
+                      <ChevronLeft aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Next change"
+                      disabled={selected === changes.length - 1}
+                      onClick={() => setSelected(selected + 1)}
+                    >
+                      <ChevronRight aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+                <div className={styles.comparison} aria-label="Selected change">
+                  <del>{edit.original || "No text"}</del>
+                  <ArrowRight aria-hidden="true" />
+                  <span>{edit.suggestion || "Remove this text"}</span>
+                </div>
+                <div className={styles.actions}>
                   <button
                     type="button"
-                    aria-label="Previous change"
-                    disabled={selected === 0}
-                    onClick={() => setSelected(selected - 1)}
+                    aria-pressed={state.decisions[selected] === "keep"}
+                    onClick={() => decide("keep")}
                   >
-                    <ChevronLeft aria-hidden="true" />
+                    Keep original
                   </button>
                   <button
+                    className={styles.accept}
                     type="button"
-                    aria-label="Next change"
-                    disabled={selected === changes.length - 1}
-                    onClick={() => setSelected(selected + 1)}
+                    aria-pressed={state.decisions[selected] === "accept"}
+                    onClick={() => decide("accept")}
                   >
-                    <ChevronRight aria-hidden="true" />
+                    Accept change
+                    <Check aria-hidden="true" />
                   </button>
                 </div>
+              </>
+            ) : null}
+            {!pending && (
+              <div className={styles.completion}>
+                <h3>
+                  {changes.length
+                    ? "Every word, your choice."
+                    : "Already in harmony."}
+                </h3>
+                <p>
+                  {changes.length
+                    ? `${state.decisions.filter((decision) => decision === "accept").length} accepted · ${state.decisions.filter((decision) => decision === "keep").length} kept original. Your revision is ready to copy.`
+                    : "Both versions are identical. There is nothing to review."}
+                </p>
               </div>
-              <div className={styles.comparison} aria-label="Selected change">
-                <del>{edit.original || "No text"}</del>
-                <ArrowRight aria-hidden="true" />
-                <span>{edit.suggestion || "Remove this text"}</span>
-              </div>
-              <div className={styles.actions}>
-                <button
-                  type="button"
-                  aria-pressed={state.decisions[selected] === "keep"}
-                  onClick={() => decide("keep")}
-                >
-                  Keep original
-                </button>
-                <button
-                  className={styles.accept}
-                  type="button"
-                  aria-pressed={state.decisions[selected] === "accept"}
-                  onClick={() => decide("accept")}
-                >
-                  Accept change
-                  <Check aria-hidden="true" />
-                </button>
-              </div>
-            </>
-          ) : null}
-          {!pending && (
-            <div className={styles.completion}>
-              <h3>
-                {changes.length
-                  ? "Every word, your choice."
-                  : "Already in harmony."}
-              </h3>
-              <p>
-                {changes.length
-                  ? `${state.decisions.filter((decision) => decision === "accept").length} accepted · ${state.decisions.filter((decision) => decision === "keep").length} kept original. Your revision is ready to copy.`
-                  : "Both versions are identical. There is nothing to review."}
+            )}
+          </div>
+          <footer className={styles.footer}>
+            <div>
+              <button
+                type="button"
+                disabled={!state.history.length}
+                onClick={() => {
+                  setSelected(state.history.at(-1)?.[0]?.id ?? 0);
+                  dispatch({ type: "undo" });
+                }}
+              >
+                <Undo2 aria-hidden="true" />
+                Undo
+              </button>
+              <button
+                type="button"
+                disabled={!reviewed}
+                onClick={() => {
+                  dispatch({ type: "reset" });
+                  setSelected(0);
+                }}
+              >
+                <RotateCcw aria-hidden="true" />
+                Reset
+              </button>
+            </div>
+            <button
+              type="button"
+              className={styles.copy}
+              aria-disabled={copying}
+              onClick={() => void copyRevision()}
+            >
+              {copied ? (
+                <Check aria-hidden="true" />
+              ) : (
+                <Copy aria-hidden="true" />
+              )}
+              {copying
+                ? "Copying…"
+                : copied
+                  ? pending
+                    ? "Preview copied"
+                    : "Revision copied"
+                  : pending
+                    ? "Copy preview"
+                    : "Copy revision"}
+            </button>
+          </footer>
+          {copyError && (
+            <div className={styles.manualRecovery}>
+              <p className={styles.copyError} role="alert">
+                {copyError}
               </p>
+              <p>Select this revision, then use your browser’s Copy command.</p>
+              <textarea
+                ref={manualRevisionRef}
+                id="review-manual-revision"
+                aria-label="Revision for manual copying"
+                aria-readonly="true"
+                aria-multiline="true"
+                readOnly
+                rows={1}
+                value={revision}
+                className={`${styles.prose} ${styles.manualRevision}`}
+              />
+              <button
+                type="button"
+                aria-controls="review-manual-revision"
+                onClick={selectRevisionText}
+              >
+                Select revision text
+              </button>
             </div>
           )}
-        </div>
-        <footer className={styles.footer}>
-          <div>
-            <button
-              type="button"
-              disabled={!state.history.length}
-              onClick={() => {
-                setSelected(state.history.at(-1)?.[0]?.id ?? 0);
-                dispatch({ type: "undo" });
-              }}
-            >
-              <Undo2 aria-hidden="true" />
-              Undo
-            </button>
-            <button
-              type="button"
-              disabled={!reviewed}
-              onClick={() => {
-                dispatch({ type: "reset" });
-                setSelected(0);
-              }}
-            >
-              <RotateCcw aria-hidden="true" />
-              Reset
-            </button>
-          </div>
-          <button
-            type="button"
-            className={styles.copy}
-            aria-disabled={copying}
-            onClick={() => void copyRevision()}
-          >
-            {copied ? (
-              <Check aria-hidden="true" />
-            ) : (
-              <Copy aria-hidden="true" />
-            )}
-            {copying
-              ? "Copying…"
-              : copied
-                ? pending
-                  ? "Preview copied"
-                  : "Revision copied"
-                : pending
-                  ? "Copy preview"
-                  : "Copy revision"}
-          </button>
-        </footer>
-        {copyError && (
-          <div className={styles.manualRecovery}>
-            <p className={styles.copyError} role="alert">
-              {copyError}
+          {pending && (
+            <p className={styles.previewNote}>
+              Your preview includes suggestions you haven’t reviewed yet.
             </p>
-            <p>Select this revision, then use your browser’s Copy command.</p>
-            <textarea
-              ref={manualRevisionRef}
-              id="review-manual-revision"
-              aria-label="Revision for manual copying"
-              aria-readonly="true"
-              aria-multiline="true"
-              readOnly
-              rows={1}
-              value={revision}
-              className={`${styles.prose} ${styles.manualRevision}`}
-            />
-            <button
-              type="button"
-              aria-controls="review-manual-revision"
-              onClick={selectRevisionText}
-            >
-              Select revision text
-            </button>
-          </div>
-        )}
-        {pending && (
-          <p className={styles.previewNote}>
-            Your preview includes suggestions you haven’t reviewed yet.
-          </p>
-        )}
+          )}
+        </div>
       </section>
     </section>
   );

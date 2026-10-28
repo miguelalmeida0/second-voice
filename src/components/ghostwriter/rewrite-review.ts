@@ -9,6 +9,7 @@ export type ReviewState = { decisions: ReviewDecision[]; history: DecisionChange
 export type ReviewAction =
   | { type: "decide"; id: number; decision: "accept" | "keep" }
   | { type: "undo" }
+  | { type: "accept-all" }
   | { type: "reset" };
 
 // At most 1,000,000 Uint32 cells (4 MB) and that many LCS comparisons.
@@ -96,12 +97,13 @@ export function reviewReducer(state: ReviewState, action: ReviewAction): ReviewS
     return { decisions, history: [...state.history, [{ id: action.id, decision: previous }]] };
   }
 
+  const target = action.type === "accept-all" ? "accept" : "pending";
   const previous: DecisionChange[] = [];
   state.decisions.forEach((decision, id) => {
-    if (decision !== "pending") previous.push({ id, decision });
+    if (decision !== target) previous.push({ id, decision });
   });
   if (!previous.length) return state;
-  return { decisions: state.decisions.map(() => "pending"), history: [...state.history, previous] };
+  return { decisions: state.decisions.map(() => target), history: [...state.history, previous] };
 }
 
 export function buildReviewText(parts: ReviewPart[], state: ReviewState): string {

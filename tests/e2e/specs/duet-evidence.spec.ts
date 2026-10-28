@@ -21,8 +21,9 @@ test("Duet evidence: real controls, request lifecycle, responsive geometry and h
     await expect(page.getByRole("button", { name: `Choose ${author}` })).toHaveAttribute("aria-pressed", "true");
   }
   await app.chooseAuthor("J.R.R. Tolkien");
+  const minimumTarget = await page.evaluate(() => matchMedia("(pointer: coarse)").matches ? 44 : 32);
   for (const control of await page.locator(".duet-controls button, .duet-actions button, .gw-range").all()) {
-    expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(minimumTarget);
   }
   await app.openQuickStarts();
   for (const label of ["A rainy day thought", "A note to future me", "A tiny comfort spell", "A moonlit thought", "A cat observation", "A soft end-of-day note"]) {

@@ -2,13 +2,13 @@ import { test, expect } from "../fixtures/test";
 import { mockGhostwriterApi } from "../utils/mockApi";
 import { apiResponses } from "../fixtures/testData";
 
-test("Preview first keeps the primary action inside the forest workspace", async ({ app, page }) => {
+test("primary action stays above the preview inside the forest workspace", async ({ app, page }) => {
   await app.goto();
   await page.setViewportSize({ width: 1440, height: 1100 });
   await app.fillDraft("A sentence to rewrite.");
   const controls = await page.locator(".duet-followup").boundingBox();
   const action = await app.rewriteButton().boundingBox();
-  expect(action!.y).toBeGreaterThan(controls!.y);
+  expect(Math.abs(action!.y - controls!.y)).toBeLessThanOrEqual(1);
   expect(action!.y + action!.height).toBeLessThanOrEqual(controls!.y + controls!.height);
   expect(action!.x).toBeGreaterThanOrEqual(controls!.x);
   expect(action!.x).toBeGreaterThan(page.viewportSize()!.width / 2);

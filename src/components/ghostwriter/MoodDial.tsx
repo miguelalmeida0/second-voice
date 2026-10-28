@@ -28,7 +28,7 @@ export function MoodDial({
           </p>
         </div>
         <div className="gw-mood-badge inline-flex items-center rounded-[10px] border px-3 py-1 text-[11px] sm:text-[12px]">
-          {preview ? "Choose how much the voice comes through." : author ? `${value}% · ${moodLabel}` : "Pick an author"}
+          {author ? `${value}% · ${moodLabel}` : "Pick an author"}
         </div>
       </div>
 

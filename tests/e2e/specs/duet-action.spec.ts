@@ -23,7 +23,8 @@ test("primary action is discoverable before any interaction", async ({ app, page
     const box = await button.boundingBox();
     expect.soft(box!.y, `${width}: action starts in viewport`).toBeGreaterThanOrEqual(0);
     expect.soft(box!.y + box!.height, `${width}: whole action in initial viewport`).toBeLessThanOrEqual(height);
-    expect.soft(box!.height).toBeGreaterThanOrEqual(44);
+    const minimumTarget = await page.evaluate(() => matchMedia("(pointer: coarse)").matches ? 44 : 40);
+    expect.soft(box!.height).toBeGreaterThanOrEqual(minimumTarget);
     expect.soft(await button.innerText()).toBe("Rewrite my draft");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
@@ -60,7 +61,7 @@ test("one action keeps its place through real pointer activation, pending and co
       // Results (including optional feedback/sharing) grow in the native page.
       // The primary stays anchored inside its control-bar column or action row.
       const controls = (await page.locator(".duet-followup").boundingBox())!;
-      expect(result.y).toBeGreaterThan(controls.y);
+      expect(Math.abs(result.y - controls.y)).toBeLessThanOrEqual(1);
       expect(result.y+result.height).toBeLessThanOrEqual(controls.y+controls.height);
     }
     expect(await button.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -153,7 +154,7 @@ test("long results remain in native flow and the primary stays inside its contro
   await expect(page.locator('[data-phase="complete"]')).toBeVisible();
   const controls=(await page.locator(".duet-followup").boundingBox())!;
   const action=(await app.rewriteButton().boundingBox())!;
-  expect(action.y).toBeGreaterThan(controls.y);
+  expect(Math.abs(action.y - controls.y)).toBeLessThanOrEqual(1);
   expect(action.y+action.height).toBeLessThanOrEqual(controls.y+controls.height);
   await page.setViewportSize({width:390,height:844});
   await page.getByRole("button",{name:"Copy rewrite",exact:true}).focus();

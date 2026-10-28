@@ -17,10 +17,10 @@ export function DuetControls({ mode, author, mood, outcome, disabled, onAuthor, 
       {modeSwitch}
       {mode === "author" ? <AuthorOrbital active={author} disabled={disabled} onSelect={onAuthor} /> : <OutcomeOptions value={outcome} disabled={disabled} onChange={onOutcome} />}
     </div>
-    {preview}
     <div className="duet-followup">
     {mode === "author" ? <MoodDial preview author={author} value={mood} disabled={disabled} onChange={onMood} /> : <div className="duet-outcome-note"><h2>Your direction</h2><p>{OUTCOMES.find(item => item.id === outcome)?.label}</p><span>{outcomeDescription(OUTCOMES.find(item => item.id === outcome)?.label ?? "")}</span></div>}
     {children}
     </div>
+    {preview}
   </section>;
 }

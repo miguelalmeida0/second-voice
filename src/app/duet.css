@@ -421,8 +421,7 @@ html, body { background: var(--duet-cream); }
 .ghostwriter.gw-studio .duet-result [aria-busy="true"] { padding-bottom: 0; }
 .ghostwriter.gw-studio .duet-result [data-phase="requesting"] > .duet-playback-toolbar { display: none; }
 
-/* Shared desktop tracks align both writing surfaces, including wrapped controls
-   and returned text. Mobile keeps its native stacked reading order. */
+/* Settings occupy one shared band; neither editor reserves empty control rows. */
 @media (min-width: 768px) {
   .ghostwriter.gw-studio .gw-studio-workspace {
     grid-template-rows: auto auto auto auto auto auto;
@@ -433,27 +432,34 @@ html, body { background: var(--duet-cream); }
   .ghostwriter.gw-studio .gw-studio-output {
     display: grid;
     grid-template-rows: subgrid;
-    grid-row: 1 / span 6;
+    grid-row: 2 / span 5;
   }
   .ghostwriter.gw-studio .gw-studio-input { grid-column: 1; }
   .ghostwriter.gw-studio .gw-studio-output { grid-column: 2; }
   .duet-column-heading { grid-row: 1; }
-  .gw-studio .duet-note { grid-row: 3; align-self: end; margin: 0; }
-  .ghostwriter.gw-studio .gw-composer-field { grid-row: 4; }
-  .duet-input-support { grid-row: 5; align-self: start; }
-  .duet-draft-footer { grid-row: 6; align-self: start; padding-top: 0; }
+  .gw-studio .duet-note { grid-row: 2; margin: 0; }
+  .ghostwriter.gw-studio .gw-composer-field { grid-row: 3; }
+  .duet-input-support { grid-row: 4; align-self: start; }
+  .duet-draft-footer { grid-row: 5; align-self: start; padding-top: 0; }
   .ghostwriter.gw-studio .duet-controls {
     display: grid;
-    grid-template-rows: subgrid;
-    grid-row: 2 / span 5;
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: inherit;
-    margin: 0;
-    align-items: stretch;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    grid-template-rows: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: inherit;
+    margin: 0 -16px 8px;
+    padding: 16px;
+    width: calc(100% + 32px);
+    max-width: none;
+    align-items: start;
+    background: var(--duet-forest);
+    border-radius: 8px;
   }
-  .duet-voice { grid-row: 1; }
+  .duet-voice { grid-column: 1; grid-row: 1; }
   .duet-followup {
-    grid-row: 2;
+    grid-column: 2;
+    grid-row: 1;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-items: start;
@@ -493,4 +499,20 @@ html, body { background: var(--duet-cream); }
   .duet-quick-drafts button, .duet-editor-meta button,
   .ghostwriter.gw-studio .gw-range-control,
   .ghostwriter.gw-studio .gw-range { min-height: 44px; }
+}
+
+.ghostwriter.gw-studio .gw-studio-workspace > .duet-controls {
+  --ghost: var(--duet-cream);
+  --mist: var(--duet-light-muted);
+  --whisper: var(--duet-light-muted);
+  --gw-focus-ring: var(--duet-cream);
+  --gw-focus-offset: var(--duet-forest);
+}
+.ghostwriter.gw-studio .duet-controls button:focus-visible { outline-color: var(--duet-cream); }
+@media (max-width: 767px) {
+  .ghostwriter.gw-studio .gw-studio-workspace > .duet-controls {
+    width: 100%; margin: 0 0 24px; padding: 16px;
+    background: var(--duet-forest); border-radius: 8px;
+  }
+  .duet-canvas { margin-top: 16px; }
 }

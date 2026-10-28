@@ -853,6 +853,34 @@ export function GhostwriterPage({
           hidden={reviewVisible}
           style={reviewVisible ? { display: "none" } : undefined}
         >
+        <DuetControls mode={rewriteMode} author={active.id} mood={mood} outcome={outcome} disabled={loading} modeSwitch={
+          <div className="duet-mode" data-mode={rewriteMode} role="group" aria-label="Rewrite mode">
+            <button type="button" aria-label="Authors" aria-pressed={rewriteMode === "author"} disabled={loading} onClick={() => { setRewriteMode("author"); setError(null); }}><span className="duet-mode-name">Authors</span><small>Match a writer’s voice</small></button>
+            <button type="button" aria-label="Outcomes" aria-pressed={rewriteMode === "outcome"} disabled={loading} onClick={() => { setRewriteMode("outcome"); setError(null); }}><span className="duet-mode-name">Outcomes</span><small>Improve your message</small></button>
+          </div>
+        } onAuthor={(value) => { setActiveId(value); setError(null); }} onMood={(value) => { setMood(value); setError(null); }} onOutcome={(value) => { setOutcome(value); setError(null); }}>
+          <QuickStartsPanel actionsOnly
+            input={input}
+            onSelect={setInput}
+            onRewrite={() => {
+              setPromptsOpen(false);
+              setPreviewOpen(false);
+              if (accessView?.signIn) openPortfolioSignIn();
+              else void handleRewrite();
+            }}
+            loading={loading}
+            canRewrite={canRewrite}
+            completed={Boolean(latestRun.rewrite) && !error}
+            onRetryAccess={portfolioAccess?.session.status === "unavailable"
+              ? () => window.dispatchEvent(new Event("ghostwriter-session-retry"))
+              : undefined}
+            status={cooldownSeconds > 0
+              ? "Next rewrite in " + cooldownSeconds + "s. Your free-rewrite allowance is unchanged."
+              : accessView || !features.rewriteEnabled
+                ? rewriteUnavailableMessage
+                : null}
+          />
+        </DuetControls>
           {/* INPUT */}
           <div className="gw-studio-input">
             <div className="duet-column-heading duet-input-heading"><p className="duet-index">01 / Your draft</p>
@@ -907,12 +935,6 @@ export function GhostwriterPage({
             <p className="duet-index">02 / Their voice</p>
             <h2 className="duet-title">Another voice.</h2>
             </div>
-        <DuetControls mode={rewriteMode} author={active.id} mood={mood} outcome={outcome} disabled={loading} modeSwitch={
-          <div className="duet-mode" data-mode={rewriteMode} role="group" aria-label="Rewrite mode">
-            <button type="button" aria-label="Authors" aria-pressed={rewriteMode === "author"} disabled={loading} onClick={() => { setRewriteMode("author"); setError(null); }}><span className="duet-mode-name">Authors</span><small>Match a writer’s voice</small></button>
-            <button type="button" aria-label="Outcomes" aria-pressed={rewriteMode === "outcome"} disabled={loading} onClick={() => { setRewriteMode("outcome"); setError(null); }}><span className="duet-mode-name">Outcomes</span><small>Improve your message</small></button>
-          </div>
-        } onAuthor={(value) => { setActiveId(value); setError(null); }} onMood={(value) => { setMood(value); setError(null); }} onOutcome={(value) => { setOutcome(value); setError(null); }} preview={
           <div ref={canvasRef} className="duet-canvas" style={loading ? { minHeight: pendingCanvasHeight } : undefined}>
           {previewOpen && !loading && !error && <RewriteGuide hasDraft={Boolean(input.trim())} mode={rewriteMode} />}
             <div className="duet-result" hidden={previewOpen && !loading && !error}><RewritePlayback
@@ -956,29 +978,6 @@ export function GhostwriterPage({
               source={displayedSource}
             /></div>
           </div>
-        }>
-          <QuickStartsPanel actionsOnly
-            input={input}
-            onSelect={setInput}
-            onRewrite={() => {
-              setPromptsOpen(false);
-              setPreviewOpen(false);
-              if (accessView?.signIn) openPortfolioSignIn();
-              else void handleRewrite();
-            }}
-            loading={loading}
-            canRewrite={canRewrite}
-            completed={Boolean(latestRun.rewrite) && !error}
-            onRetryAccess={portfolioAccess?.session.status === "unavailable"
-              ? () => window.dispatchEvent(new Event("ghostwriter-session-retry"))
-              : undefined}
-            status={cooldownSeconds > 0
-              ? "Next rewrite in " + cooldownSeconds + "s. Your free-rewrite allowance is unchanged."
-              : accessView || !features.rewriteEnabled
-                ? rewriteUnavailableMessage
-                : null}
-          />
-        </DuetControls>
         {previewOpen && latestRun.rewrite && !loading && <button type="button" className="duet-return-result" onClick={() => setPreviewOpen(false)}>Back to your rewrite</button>}
           </div>
 

@@ -13,6 +13,8 @@ for (const [width, height] of [[1024, 640], [1280, 720], [1512, 738]]) {
     const check = async () => {
       const source = (await page.locator(".gw-composer-field").boundingBox())!;
       const output = (await page.locator(".duet-canvas").boundingBox())!;
+      const heading = (await page.locator(".duet-input-heading").boundingBox())!;
+      expect(source.y - (heading.y + heading.height)).toBeLessThanOrEqual(60);
       expect(Math.abs(source.y - output.y)).toBeLessThanOrEqual(1);
       expect(Math.abs(source.height - output.height)).toBeLessThanOrEqual(1);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

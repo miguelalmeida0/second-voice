@@ -4,8 +4,7 @@ import { MoodDial } from "./MoodDial";
 import { OutcomeOptions, outcomeDescription } from "./OutcomeOptions";
 import { OUTCOMES, type AuthorId, type OutcomeId, type RewriteMode } from "@/lib/ghostwriter-shared";
 
-export function DuetControls({ mode, author, mood, outcome, disabled, onAuthor, onMood, onOutcome, children, preview, modeSwitch }: {
-  preview?: ReactNode;
+export function DuetControls({ mode, author, mood, outcome, disabled, onAuthor, onMood, onOutcome, children, modeSwitch }: {
   modeSwitch: ReactNode;
   children?: ReactNode;
   mode: RewriteMode; author: AuthorId; mood: number; outcome: OutcomeId; disabled: boolean;
@@ -21,6 +20,5 @@ export function DuetControls({ mode, author, mood, outcome, disabled, onAuthor, 
     {mode === "author" ? <MoodDial preview author={author} value={mood} disabled={disabled} onChange={onMood} /> : <div className="duet-outcome-note"><h2>Your direction</h2><p>{OUTCOMES.find(item => item.id === outcome)?.label}</p><span>{outcomeDescription(OUTCOMES.find(item => item.id === outcome)?.label ?? "")}</span></div>}
     {children}
     </div>
-    {preview}
   </section>;
 }

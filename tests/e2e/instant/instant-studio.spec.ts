@@ -191,3 +191,27 @@ test("the last two rewrites complete and then the allowance closes generation", 
   expect(api.rewriteRequests.every(request => request.body.author === "tolstoy")).toBe(true);
   await expect(draft).toHaveValue("Today I woke up earlier and made coffee before work.");
 });
+
+test("exhausted allowance does not create a blank column above the draft", async ({ page }, info) => {
+  await mockGhostwriterApi(page);
+  await page.route("**/api/ghostwriter/auth", route => route.fulfill({ json: {
+    mode: "anonymous", allowance: { remaining: 0, todayRemaining: 0, available: false },
+  } }));
+  for (const width of [1512, 1024]) {
+    await page.setViewportSize({ width, height: 738 });
+    await page.goto("/");
+    await expect(page.locator(".gw-inspiration-rewrite")).toBeDisabled();
+    await page.locator(editorSelector).fill("A draft stays editable after my allowance runs out.");
+    for (const mode of ["Authors", "Outcomes"]) {
+      await page.getByRole("button", { name: mode, exact: true }).click();
+      const heading = (await page.locator(".duet-input-heading").boundingBox())!;
+      const source = (await page.locator(".gw-composer-field").boundingBox())!;
+      const output = (await page.locator(".duet-canvas").boundingBox())!;
+      const action = (await page.locator(".gw-inspiration-rewrite").boundingBox())!;
+      expect(source.y - (heading.y + heading.height)).toBeLessThanOrEqual(60);
+      expect(Math.abs(source.y - output.y)).toBeLessThanOrEqual(1);
+      expect(action.y + action.height).toBeLessThan(heading.y);
+      await page.screenshot({ path: info.outputPath(`no-empty-column-${width}-${mode}.png`) });
+    }
+  }
+});

@@ -525,6 +525,8 @@ html, body { background: var(--duet-cream); }
 .studio-select-option[data-active="true"] { background: #3b5042; }
 .studio-select-option[aria-selected="true"] { font-weight: 500; }
 .studio-select-option > svg { color: var(--duet-apricot); flex: 0 0 14px; width: 14px; height: 14px; }
+.studio-select-option-copy { display: grid; min-width: 0; gap: 3px; overflow-wrap: anywhere; }
+.studio-select-description { color: #c4ceb9; font-size: 11px; line-height: 1.5; }
 @media (pointer: coarse) {
   .studio-select-trigger, .studio-select-option { min-height: 44px; }
 }

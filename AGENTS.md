@@ -37,3 +37,8 @@ These instructions apply to coding agents, local automation, and repository main
 - For locally authored changes, set both Git author and committer to `Miguel Almeida <94702822+miguelalmeida0@users.noreply.github.com>`. Do not add automated-agent co-author trailers.
 - Preserve real contributor provenance when it differs from this single-owner assumption; stop for review rather than silently misattributing another human's work.
 <!-- END: owner-branch-policy -->
+
+
+## Owner-wide UI rule: custom dropdowns only
+
+This is a critical design rule for all of the owner's apps, including every route and secondary flow here. Never ship browser-default select/dropdown UI, including mobile native pickers. Use the shared accessible custom dropdown (StudioSelect in Second Voice), with keyboard navigation, typeahead, Escape/outside dismissal, selected-state indication, inset chevrons, and a viewport-bounded popup. Styling a native `<select>` does not satisfy this rule. Run the custom-dropdown source guard and verify open menus on desktop and mobile. Keep controls in clearly spaced groups; compact sizing must never cause touching, overlap, or clipped actions.

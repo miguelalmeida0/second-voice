@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { writeClipboardText } from "./clipboard";
+import { StudioSelect } from "./StudioSelect";
 import {
   buildReviewParts,
   buildReviewText,
@@ -304,11 +305,12 @@ export function RewriteReview({
           <button
             className={styles.acceptAll}
             type="button"
+            aria-label={!changes.length ? "No changes" : allAccepted ? "All accepted" : "Accept all changes"}
             disabled={!changes.length || allAccepted}
             onClick={() => dispatch({ type: "accept-all" })}
           >
             <Check aria-hidden="true" />
-            {!changes.length ? "No changes" : allAccepted ? "All accepted" : "Accept all changes"}
+            {!changes.length ? "No changes" : allAccepted ? "All accepted" : "Accept all"}
           </button>
         </div>
         <div
@@ -343,56 +345,28 @@ export function RewriteReview({
                   : " · Revision copied"
                 : ""}
             </p>
-            {changes.length > 7 ? (
-              <select
-                className={styles.changeSelect}
-                aria-label="Jump to change"
-                value={selected}
-                onChange={(event) => setSelected(Number(event.target.value))}
-              >
-                {changes.map((change) => {
-                  const summary = (change.suggestion || `Remove “${change.original}”`).replace(/\s+/g, " ").trim();
-                  const graphemes = Array.from(contextSegmenter.segment(summary), ({ segment }) => segment);
-                  const label = graphemes.length > 48 ? `${graphemes.slice(0, 48).join("")}…` : summary;
-                  return <option key={change.id} value={change.id}>
-                    {change.id + 1} of {changes.length} · {label} — {decisionLabel[state.decisions[change.id]]}
-                  </option>;
-                })}
-              </select>
-            ) : (
-            <div
-              className={styles.progressDots}
-              role="group"
-              aria-label="Select a change"
-            >
-              {changes.map((change) => (
-                  <button
-                    key={change.id}
-                    type="button"
-                    aria-label={`Change ${change.id + 1}, ${decisionLabel[state.decisions[change.id]]}`}
-                    aria-current={selected === change.id ? "true" : undefined}
-                    data-done={state.decisions[change.id] !== "pending"}
-                    onClick={() => setSelected(change.id)}
-                  >
-                    {state.decisions[change.id] === "accept"
-                      ? "✓"
-                      : state.decisions[change.id] === "keep"
-                        ? "−"
-                        : change.id + 1}
-                  </button>
-                ))}
-            </div>
-            )}
           </div>
           <div className={styles.controls}>
             {edit ? (
               <>
                 <div className={styles.changeNav}>
-                  <p>
-                    Change {selected + 1} of {changes.length} ·{" "}
-                    {decisionLabel[state.decisions[selected]]}
-                  </p>
-                  <div>
+                  <StudioSelect
+                    className={styles.changeSelect}
+                    label="Change" name="Jump to change" hideLabel
+                    value={String(selected)} disabled={hidden}
+                    displayValue={`Change ${selected + 1} of ${changes.length}`}
+                    onChange={value => setSelected(Number(value))}
+                    options={changes.map(change => {
+                      const summary = (change.suggestion || `Remove “${change.original}”`).replace(/\s+/g, " ").trim();
+                      const graphemes = Array.from(contextSegmenter.segment(summary), ({ segment }) => segment);
+                      return {
+                        value: String(change.id),
+                        label: `${change.id + 1}. ${graphemes.length > 48 ? `${graphemes.slice(0, 48).join("")}…` : summary}`,
+                        description: decisionLabel[state.decisions[change.id]],
+                      };
+                    })}
+                  />
+                  <div className={styles.changeArrows}>
                     <button
                       type="button"
                       aria-label="Previous change"

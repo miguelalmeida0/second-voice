@@ -69,3 +69,10 @@ Authentication, allowance, provider, challenge, idempotency and spending policie
 ### Release checks
 
 At 1024×640, 1280×720 and 1512×738, verify text panels align, controls stay in the forest half, editors begin within 300 CSS pixels of the page top, and the action remains fully visible before interaction. Check empty/filled/long drafts, both modes, loading, results, exhausted allowance and recoverable errors. Inspect mobile at 320px and 390px, keyboard focus, enlarged text and the page bottom. No horizontal scrollbar or development indicator. Run the repository scroll guard and interaction regressions; geometric checks do not replace visual inspection.
+
+
+### Review navigation and dropdown rule
+
+Native browser dropdowns are prohibited throughout the app, including secondary review flows. The shared StudioSelect serves author, outcome, mode, and change selection. The review trigger shows a concise change position; the popup separates the change excerpt and decision status into two lines with a selected checkmark. The menu remains bounded to the viewport and scrolls independently only while open. Keyboard navigation is immediate.
+
+Review tools follow a consistent hierarchy: compact layout tabs and Accept all above the aligned papers; reviewed count below; one bordered decision group with change selection and previous/next navigation, the selected comparison, and Keep/Accept; then a separate Undo/Reset/Copy row. Use 12px within and between action groups, 16px after headings, and 12px above papers. Focus view keeps the same decision spacing even when the comparison is omitted. Preserve full whitespace in the actual drafts and copied text; collapse whitespace in the small selected-change comparison and Focus context excerpt so paragraph breaks cannot inflate these summaries. Desktop buttons stay 36–44px, with 44px touch targets. Do not add a second change-position row or fill menus with repeated full-sentence status labels.

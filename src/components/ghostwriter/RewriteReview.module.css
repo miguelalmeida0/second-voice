@@ -60,8 +60,9 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px 12px;
-  margin-bottom: 8px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 @media (min-width: 768px) {
   .left,
@@ -78,7 +79,7 @@
 .right {
   color: #eeeee0;
 }
-.heading { margin-bottom: 12px; }
+.heading { margin-bottom: 16px; }
 .heading .eyebrow {
   margin: 0 0 6px;
 }
@@ -98,7 +99,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   font-size: 10px;
 }
 .documentMeta > span {
@@ -195,7 +196,8 @@
 .layouts {
   display: flex;
   flex: 1;
-  min-width: 180px;
+  min-width: 150px;
+  max-width: 300px;
   gap: 3px;
   border: 1px solid #eeeee030;
   background: #00000013;
@@ -209,7 +211,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 12px;
+  padding: 6px 8px;
   min-height: 36px;
   border-radius: 6px;
   justify-content: center;
@@ -227,7 +229,8 @@
   justify-content: center;
   gap: 7px;
   min-height: 44px;
-  padding: 8px 12px;
+  padding: 8px 10px;
+  flex-shrink: 0;
   border: 1px solid #eeeee050;
   border-radius: 8px;
   color: #eeeee0;
@@ -248,8 +251,9 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 8px;
+  gap: 12px;
+  min-height: 20px;
+  margin: 12px 0;
 }
 .progress > p {
   margin: 0;
@@ -257,68 +261,40 @@
   font-size: 11px;
   line-height: 1.6;
 }
-.progressDots {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-.progressDots button {
-  display: grid;
-  place-items: center;
-  min-width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 1px solid #eeeee030;
-  border-radius: 50%;
-  color: #c4ceb9;
-  font-size: 11px;
-}
-.progressDots button[data-done="true"] {
-  background: #c4ceb9;
-  color: #223229;
-  border-color: #c4ceb9;
-}
-.progressDots button[aria-current="true"] {
-  outline: 1px solid #ee9965;
-  outline-offset: 3px;
-}
 .controls {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #eeeee030;
+  padding: 12px;
+  border: 1px solid #eeeee030;
+  border-radius: 10px;
+  background: #ffffff03;
 }
+.controls:empty { display: none; }
 .changeNav {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
 }
-.changeNav p {
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  line-height: 1.7;
-}
-.changeNav > div {
+.changeArrows {
   display: flex;
-  gap: 6px;
+  flex: 0 0 auto;
+  gap: 8px;
 }
-.changeNav button {
+.changeArrows button {
   display: grid;
   place-items: center;
-  min-width: 32px;
-  min-height: 32px;
+  min-width: 36px;
+  min-height: 36px;
   border: 1px solid #eeeee030;
-  border-radius: 50%;
+  border-radius: 6px;
 }
 .comparison {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr);
   align-items: center;
-  gap: 15px;
-  margin: 6px 0 10px;
-  font: 400 16px/1.4 var(--font-serif);
-  white-space: pre-wrap;
+  gap: 12px;
+  margin: 12px 0 0;
+  font: 400 15px/1.5 var(--font-serif);
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 .comparison del {
@@ -334,7 +310,8 @@
 .actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
-  gap: 10px;
+  gap: 12px;
+  margin-top: 12px;
 }
 .actions button {
   min-height: 44px;
@@ -344,7 +321,7 @@
   gap: 10px;
   padding: 8px 12px;
   border: 1px solid #eeeee030;
-  border-radius: 10px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
 }
@@ -363,9 +340,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #eeeee030;
+  flex-wrap: wrap;
+  margin-top: 12px;
 }
 .footer > div {
   display: flex;
@@ -441,23 +417,14 @@
   margin: 0;
 }
 .changeSelect {
-  flex: 0 1 260px;
+  flex: 0 1 220px;
   min-width: 0;
   max-width: 100%;
-  min-height: 36px;
-  padding: 7px 28px 7px 10px;
-  border: 1px solid #eeeee030;
-  border-radius: 6px;
-  background: #223229;
-  color: #eeeee0;
-  color-scheme: dark;
-  font: 400 11px/1.4 var(--font-sans);
-  text-overflow: ellipsis;
-  cursor: pointer;
+  position: relative;
 }
-.changeSelect:focus-visible {
-  outline: 2px solid #ee9965;
-  outline-offset: 3px;
+.changeSelect > button {
+  min-height: 36px;
+  font-size: 12px;
 }
 .kicker {
   font-size: 10px;
@@ -477,7 +444,7 @@
   color: #536452;
   font-size: 12px;
   line-height: 1.8;
-  white-space: pre-wrap;
+  white-space: normal;
   overflow-wrap: anywhere;
   margin: 0;
 }
@@ -575,8 +542,8 @@
 
 /* Comfortable touch targets without oversized desktop controls. */
 @media (pointer: coarse) {
-  .layouts button, .changeSelect, .footer button { min-height: 44px; }
-  .changeNav button, .progressDots button { min-width: 44px; min-height: 44px; }
+  .layouts button, .changeSelect > button, .footer button { min-height: 44px; }
+  .changeArrows button { min-width: 44px; min-height: 44px; }
 }
 
 /* Once decisions are complete, copying is the primary next step. */

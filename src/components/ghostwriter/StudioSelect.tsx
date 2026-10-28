@@ -4,12 +4,12 @@ import { Check, ChevronDown } from "lucide-react";
 import { useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 
-type Option<T extends string> = { value: T; label: string };
+type Option<T extends string> = { value: T; label: string; description?: string };
 
 /** Select-only combobox. Focus stays on the trigger while options are explored. */
-export function StudioSelect<T extends string>({ label, name, value, options, disabled, onChange, className = "" }: {
+export function StudioSelect<T extends string>({ label, name, value, options, disabled, onChange, className = "", hideLabel = false, displayValue }: {
   label: string; name: string; value: T; options: readonly Option<T>[];
-  disabled: boolean; onChange: (value: T) => void; className?: string;
+  disabled: boolean; onChange: (value: T) => void; className?: string; hideLabel?: boolean; displayValue?: string;
 }) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -103,20 +103,21 @@ export function StudioSelect<T extends string>({ label, name, value, options, di
   }
 
   return <div className={`duet-setting ${className}`}>
-    <label htmlFor={id}>{label}</label>
+    <label htmlFor={id} className={hideLabel ? "sr-only" : undefined}>{label}</label>
     <button ref={trigger} id={id} type="button" className="studio-select-trigger" role="combobox"
       aria-label={name} aria-expanded={expanded} aria-haspopup="listbox" aria-controls={expanded ? `${id}-list` : undefined}
       aria-activedescendant={expanded ? `${id}-option-${active}` : undefined} data-value={value}
       disabled={disabled} onKeyDown={onKeyDown} onBlur={() => setOpen(false)}
       onClick={() => { setActive(selected); setOpen(!expanded); search.current.text = ""; }}>
-      <span>{options[selected].label}</span><ChevronDown aria-hidden="true" />
+      <span>{displayValue ?? options[selected].label}</span><ChevronDown aria-hidden="true" />
     </button>
     {expanded && createPortal(<div ref={menu} id={`${id}-list`} role="listbox" aria-label={name}
       className="studio-select-menu" onMouseDown={event => event.preventDefault()}>
       {options.map((option, index) => <div key={option.value} id={`${id}-option-${index}`} role="option"
         aria-selected={value === option.value} data-active={active === index} className="studio-select-option"
         onPointerMove={event => { if (event.pointerType === "mouse") setActive(index); }} onClick={() => choose(index)}>
-        <span>{option.label}</span>{value === option.value && <Check aria-hidden="true" />}
+        <span className="studio-select-option-copy"><span>{option.label}</span>{option.description && <span className="studio-select-description">{option.description}</span>}</span>
+        {value === option.value && <Check aria-hidden="true" />}
       </div>)}
     </div>, document.body)}
   </div>;

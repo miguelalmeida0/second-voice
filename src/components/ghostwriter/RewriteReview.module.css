@@ -440,52 +440,24 @@
   line-height: 1.8;
   margin: 0;
 }
-.inspector {
-  background: transparent;
-  padding: 5px 0;
-  min-height: 120px;
-}
-.changeList {
-  margin-top: 0;
-}
-.changeList button {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  width: 100%;
-  min-height: 36px;
-  padding: 6px 0;
-  border-top: 1px solid #eeeee030;
-  font-size: 12px;
-  line-height: 1.5;
-  text-align: left;
-}
-.changeIndex {
-  display: grid;
-  place-items: center;
-  width: 25px;
-  height: 25px;
-  flex-shrink: 0;
-  border: 1px solid #eeeee030;
-  border-radius: 50%;
-  font-size: 10px;
-}
-.changeList button[aria-pressed="true"] .changeIndex {
-  background: #ee9965;
-  color: #2a3c32;
-  border-color: #ee9965;
-}
-.changeSummary {
-  flex: 1;
+.changeSelect {
+  flex: 0 1 260px;
   min-width: 0;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 7px 28px 7px 10px;
+  border: 1px solid #eeeee030;
+  border-radius: 6px;
+  background: #223229;
+  color: #eeeee0;
+  color-scheme: dark;
+  font: 400 11px/1.4 var(--font-sans);
+  text-overflow: ellipsis;
+  cursor: pointer;
 }
-.decision {
-  font-size: 10px;
-  color: #c4ceb9;
-  flex-shrink: 0;
-  padding-top: 2px;
+.changeSelect:focus-visible {
+  outline: 2px solid #ee9965;
+  outline-offset: 3px;
 }
 .kicker {
   font-size: 10px;
@@ -531,7 +503,7 @@
     gap: 0;
   }
   .sourcePaper,
-  .reviewPaper:not(.inspector) {
+  .reviewPaper {
     padding: 16px;
   }
   .footer > div {
@@ -567,8 +539,7 @@
   .prose {
     font-size: 1.0625rem;
   }
-  .reviewPaper,
-  .inspector {
+  .reviewPaper {
     min-height: 120px;
   }
   .layouts button {
@@ -583,7 +554,7 @@
 }
 @media (max-width: 360px) {
   .sourcePaper,
-  .reviewPaper:not(.inspector) {
+  .reviewPaper {
     padding: 16px;
   }
   .footer > div {
@@ -604,7 +575,7 @@
 
 /* Comfortable touch targets without oversized desktop controls. */
 @media (pointer: coarse) {
-  .layouts button, .changeList button, .footer button { min-height: 44px; }
+  .layouts button, .changeSelect, .footer button { min-height: 44px; }
   .changeNav button, .progressDots button { min-width: 44px; min-height: 44px; }
 }
 

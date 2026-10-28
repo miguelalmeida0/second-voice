@@ -586,3 +586,16 @@ test("operation ownership and rendered output surfaces resist IDOR and script ex
   );
   assert.doesNotMatch(componentSource, /dangerouslySetInnerHTML|\.innerHTML\s*=/);
 });
+
+
+test("anonymous quota explains the rolling window without dispatching", async () => {
+  const ledger = new TestAiLedger();
+  const provider = new MockAiProvider();
+  ledger.reserve = async () => ({ kind: "denied", reason: "anonymous_day_limit" });
+  const result = await executeGovernedRewrite(request("anonymous-quota-0001"), INPUT, {}, dependencies({ ledger, provider }));
+  assert.equal(result.status, 429);
+  assert.equal(result.reasonCode, "USER_QUOTA");
+  assert.match(result.error ?? "", /24.hour/);
+  assert.doesNotMatch(result.error ?? "", /tomorrow/);
+  assert.equal(provider.calls, 0);
+});

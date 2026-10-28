@@ -154,3 +154,31 @@ test("availability can recover without discarding the draft or enabling unchecke
  await expect(draft).toHaveValue("Keep this text while the availability check recovers.");
  expect(api.rewriteRequests).toHaveLength(0);
 });
+
+
+test("the last two rewrites complete and then the allowance closes generation", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const api = await mockGhostwriterApi(page);
+  await page.route("**/api/ghostwriter/auth", route => {
+    const remaining = Math.max(0, 2 - api.rewriteRequests.length);
+    return route.fulfill({ json: { mode: "anonymous", allowance: {
+      remaining, todayRemaining: remaining, available: true,
+    } } });
+  });
+  await page.goto("/");
+  const draft = page.getByRole("textbox", { name: "Write or paste here" });
+  await draft.fill("Today I woke up earlier and made coffee before work.");
+  await page.getByRole("button", { name: "Choose Leo Tolstoy", exact: true }).click();
+  const rewrite = page.locator(".gw-inspiration-rewrite");
+  await expect(page.locator("#duet-action-allowance")).toContainText("2 free rewrites left");
+  await rewrite.click();
+  await expect(page.locator('[data-phase="complete"]')).toBeVisible();
+  await expect(page.locator("#duet-action-allowance")).toContainText("1 free rewrite left");
+  await rewrite.click();
+  await expect(page.locator('[data-phase="complete"]')).toBeVisible();
+  await expect(rewrite).toBeDisabled();
+  await expect(page.locator("#duet-action-allowance")).toContainText("used for now");
+  expect(api.rewriteRequests).toHaveLength(2);
+  expect(api.rewriteRequests.every(request => request.body.author === "tolstoy")).toBe(true);
+  await expect(draft).toHaveValue("Today I woke up earlier and made coffee before work.");
+});

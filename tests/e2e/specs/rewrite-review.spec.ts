@@ -670,3 +670,48 @@ test("background and writing columns stay centered in composer and review", asyn
   await page.setViewportSize({ width: 1512, height: 738 });
   await page.screenshot({ path: info.outputPath("centered-review.png") });
 });
+
+
+test("inline review keeps a dense rewrite readable with its decisions in view", async ({ app, page }, info) => {
+  const draft = "Today I woke up a bit earlier than usual.\nI made coffee and checked my messages before work.\nThe weather is cooler now, so I grabbed a jacket on the way out.\nLater I'm planning to cook dinner and watch a movie.";
+  const rewrite = "I woke up early, made coffee, and checked messages before work.\nThe cooler weather prompted me to grab a jacket.\nLater, I’ll cook dinner and watch a movie.";
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await mockGhostwriterApi(page, { rewrite: response(rewrite) });
+  await app.goto();
+  await app.fillDraft(draft);
+  await app.runRewrite();
+  await page.getByRole("button", { name: "Review changes", exact: true }).click();
+  const review = page.getByRole("region", { name: "Review your rewrite" });
+  await review.getByRole("button", { name: "Inline", exact: true }).click();
+  await expect(review.getByTestId("review-revision")).toHaveText(rewrite);
+  const jump = review.getByRole("combobox", { name: "Jump to change" });
+  await expect(jump).toBeVisible();
+  const count = await jump.locator("option").count();
+  expect(count).toBeGreaterThan(10);
+  const paper = (await review.getByTestId("review-result-paper").boundingBox())!;
+  const sourcePaper = (await review.getByTestId("review-source-paper").boundingBox())!;
+  expect(Math.abs(paper.y - sourcePaper.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(paper.height - sourcePaper.height)).toBeLessThanOrEqual(1);
+  expect(paper.height).toBeLessThan(300);
+  for (const name of ["Accept change", "Keep original", "Copy preview"]) {
+    const box = (await review.getByRole("button", { name, exact: true }).boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(720);
+  }
+  await page.screenshot({ path: info.outputPath("inline-dense-desktop.png"), fullPage: true });
+  await jump.selectOption(String(count - 1));
+  await review.getByRole("button", { name: "Keep original", exact: true }).click();
+  await expect(review.getByRole("status")).toContainText(`1 of ${count} reviewed`);
+  await review.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(jump).toHaveValue(String(count - 1));
+  await review.getByRole("button", { name: "Accept all changes", exact: true }).click();
+  await expect(review.getByRole("button", { name: "All accepted", exact: true })).toBeDisabled();
+  await review.getByRole("button", { name: "Copy revision", exact: true }).click();
+  expect(await page.evaluate(() => (window as Window & { copiedText?: string }).copiedText)).toBe(rewrite);
+  for (const width of [768, 390, 320]) {
+    await page.setViewportSize({ width, height: 800 });
+    await expect(jump).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  await page.screenshot({ path: info.outputPath("inline-dense-mobile.png"), fullPage: true });
+  expect((await new AxeBuilder({ page }).include('[aria-label="Review your rewrite"]').analyze()).violations).toEqual([]);
+});

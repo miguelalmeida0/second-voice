@@ -7,7 +7,7 @@ const environment={AI_ENABLED:"true",GHOSTWRITER_RELEASE_PROFILE:"portfolio-free
 test("Free resource policy is explicit and does not enable paid mode",()=>{
  const result=resolvePortfolioFreePolicy(environment);assert.equal(result.enabled,true);
  if(!result.enabled)return;
- assert.equal(result.config.accountGenerationsPer24Hours,3);assert.equal(result.config.accountGenerationsPerMinute,3);
+ assert.equal(result.config.accountGenerationsPer24Hours,5);assert.equal(result.config.accountGenerationsPerMinute,3);
  assert.equal(result.config.globalConcurrency,1);assert.equal(result.config.globalGenerationsPerMinute,6);assert.equal(result.config.anonymousGlobalDailyLimit,60);
  assert.equal(result.config.maximumReservationMicroUsd,750,"Estimate retained, never fabricated as zero price");
  assert.equal(resolveLiveAiPolicy().enabled,false);
@@ -40,4 +40,15 @@ test("Portfolio reliability removes lifetime/calendar shutdowns while preserving
  for(const pattern of ["anonymous_day_limit","global_day_limit","month_budget","pg_advisory_xact_lock","ghostwriter_portfolio_entitlements","ghostwriter_portfolio_heartbeat"])assert.ok(sql.includes(pattern),pattern);
  assert.ok(!sql.includes("'account_lifetime_limit'"));assert.ok(!/free_verified_until>clock_timestamp\(\)/.test(sql));assert.ok(!/retire_at>clock_timestamp\(\)/.test(sql));
  const callback=readFileSync("src/app/api/ghostwriter/auth/callback/route.ts","utf8");assert.ok(callback.includes("authenticateAiRequest"));assert.ok(callback.includes("exchangeCodeForSession"));assert.ok(!callback.includes('searchParams.get("next")'));
+});
+
+// Production advertises five starts. The reservation must receive that same
+// limit, rather than silently replacing it with the retired three-start cap.
+test("portfolio admission honors the configured five-rewrite allowance and lower overrides", () => {
+ for (const limit of [1, 2, 3, 4, 5]) {
+  const result = resolvePortfolioFreePolicy({...environment, GHOSTWRITER_AI_ACCOUNT_GENERATIONS_PER_24H: String(limit)});
+  assert.equal(result.enabled, true);
+  if (result.enabled) assert.equal(result.config.accountGenerationsPer24Hours, limit);
+ }
+ assert.equal(resolvePortfolioFreePolicy({...environment, GHOSTWRITER_AI_ACCOUNT_GENERATIONS_PER_24H: "6"}).enabled, false);
 });

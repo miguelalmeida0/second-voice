@@ -123,7 +123,7 @@ function denial(reason: string, moodLabel: string, retryAfterSeconds?: number): 
     retryAfterSeconds: 60,
   };
   if (reason === "account_day_limit") return failure(moodLabel, "Your rolling 24-hour rewrite allowance is used. Try again when an earlier successful rewrite leaves that window. Your text has been kept.", 429, null, "USER_QUOTA");
-  if (reason === "anonymous_day_limit") return failure(moodLabel, "Free rewrites are used for today. Try again tomorrow. Your text has been kept.", 429, null, "USER_QUOTA");
+  if (reason === "anonymous_day_limit") return failure(moodLabel, "Your free rewrites in the last 24 hours are used. Try again when an earlier rewrite leaves that window. Your text has been kept.", 429, null, "USER_QUOTA");
   if (reason === "global_day_limit") return failure(moodLabel, "Today’s free demo capacity has been used. Try again tomorrow. Your text has been kept.", 429, null, "GLOBAL_CAPACITY");
   if (["service_paused","unresolved_liability"].includes(reason)) return failure(moodLabel,"Free rewriting is temporarily paused. Your text has been kept.",503,null,"SERVICE_UNAVAILABLE");
   if (reason === "session_revoked") return failure(moodLabel,"Your session expired or was signed out. Sign in again; your text has been kept.",401,null,"SESSION_EXPIRED");

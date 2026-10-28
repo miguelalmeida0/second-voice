@@ -237,7 +237,7 @@ export function RewriteReview({
           </h2>
         </div>
         <div className={styles.documentMeta}>
-          <span>Your original draft</span>
+          <span>{view === "inline" ? "Changes in context" : "Your original draft"}</span>
           <button type="button" onClick={onClose}>
             <ArrowLeft aria-hidden="true" />
             {backLabel}
@@ -312,34 +312,10 @@ export function RewriteReview({
           </button>
         </div>
         <div
-          className={`${styles.reviewPaper} ${view === "inline" ? styles.inspector : ""}`}
+          className={styles.reviewPaper}
           data-testid="review-result-paper"
         >
-          {view === "inline" && changes.length ? (
-            <>
-              <div className={styles.changeList}>
-                {changes.map((change) => (
-                  <button
-                    key={change.id}
-                    type="button"
-                    aria-label={`Select change ${change.id + 1}`}
-                    aria-pressed={selected === change.id}
-                    onClick={() => setSelected(change.id)}
-                  >
-                    <span className={styles.changeIndex}>
-                      {String(change.id + 1).padStart(2, "0")}
-                    </span>
-                    <span className={styles.changeSummary}>
-                      {change.suggestion || `Remove “${change.original}”`}
-                    </span>
-                    <span className={styles.decision}>
-                      {decisionLabel[state.decisions[change.id]]}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : view === "focus" && edit ? (
+          {view === "focus" && edit ? (
             <>
               <p className={styles.kicker}>Suggested phrase</p>
               <p className={styles.phrase}>
@@ -352,7 +328,7 @@ export function RewriteReview({
             </>
           ) : (
             <div className={styles.prose} data-testid="review-revision">
-              {prose("revision")}
+              {view === "inline" ? revision : prose("revision")}
             </div>
           )}
         </div>
@@ -367,17 +343,29 @@ export function RewriteReview({
                   : " · Revision copied"
                 : ""}
             </p>
+            {changes.length > 7 ? (
+              <select
+                className={styles.changeSelect}
+                aria-label="Jump to change"
+                value={selected}
+                onChange={(event) => setSelected(Number(event.target.value))}
+              >
+                {changes.map((change) => {
+                  const summary = (change.suggestion || `Remove “${change.original}”`).replace(/\s+/g, " ").trim();
+                  const graphemes = Array.from(contextSegmenter.segment(summary), ({ segment }) => segment);
+                  const label = graphemes.length > 48 ? `${graphemes.slice(0, 48).join("")}…` : summary;
+                  return <option key={change.id} value={change.id}>
+                    {change.id + 1} of {changes.length} · {label} — {decisionLabel[state.decisions[change.id]]}
+                  </option>;
+                })}
+              </select>
+            ) : (
             <div
               className={styles.progressDots}
               role="group"
               aria-label="Select a change"
             >
-              {changes
-                .filter(
-                  (change) =>
-                    changes.length <= 7 || Math.abs(change.id - selected) <= 2,
-                )
-                .map((change) => (
+              {changes.map((change) => (
                   <button
                     key={change.id}
                     type="button"
@@ -394,6 +382,7 @@ export function RewriteReview({
                   </button>
                 ))}
             </div>
+            )}
           </div>
           <div className={styles.controls}>
             {edit ? (

@@ -360,7 +360,9 @@ export function resolvePortfolioFreePolicy(environment: AiPolicyEnvironment = pr
   // require the operator-reviewed, time-bounded matching record in PostgreSQL.
   const result=resolveConfiguredPolicy(environment,true);
   if (!result.enabled) return result;
-  return {enabled:true,reason:null,config:{...result.config,profile:"portfolio-free",freeOrganizationId:org,freeProjectId:project,accountGenerationsPer24Hours:Math.min(3,result.config.accountGenerationsPer24Hours),accountGenerationsPerMinute:Math.min(3,result.config.accountGenerationsPerMinute),globalGenerationsPerMinute:Math.min(6,result.config.globalGenerationsPerMinute),globalConcurrency:Math.min(1,result.config.globalConcurrency)}};
+  // The configured daily limit is already bounded at five. Preserve it so
+  // reservation agrees with the five-start production allowance.
+  return {enabled:true,reason:null,config:{...result.config,profile:"portfolio-free",freeOrganizationId:org,freeProjectId:project,accountGenerationsPerMinute:Math.min(3,result.config.accountGenerationsPerMinute),globalGenerationsPerMinute:Math.min(6,result.config.globalGenerationsPerMinute),globalConcurrency:Math.min(1,result.config.globalConcurrency)}};
 }
 
 export function isAiKillSwitchEnabled(environment: AiPolicyEnvironment = process.env): boolean {

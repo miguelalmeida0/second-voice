@@ -14,6 +14,7 @@ import {
   openPortfolioSignIn,
   usePortfolioAccess,
 } from "@/components/ghostwriter/PortfolioAccess";
+import { RewriteReview } from "@/components/ghostwriter/RewriteReview";
 import {
   RewritePlayback,
   type RewritePlaybackProvenance,
@@ -203,6 +204,10 @@ export function GhostwriterPage({
   const [previewOpen, setPreviewOpen] = useState(true);
 
   const [latestRun, setLatestRun] = useState<RewriteRun>(EMPTY_RUN);
+  const [reviewedRunId, setReviewedRunId] = useState<number | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const reviewEntryRef = useRef<HTMLElement | null>(null);
+  const reviewVisible = reviewOpen && reviewedRunId === latestRun.runId && Boolean(latestRun.source && latestRun.rewrite) && !loading && !error;
 
   const [lastAttempt, setLastAttempt] = useState<RewriteAttempt | null>(null);
 
@@ -239,7 +244,7 @@ export function GhostwriterPage({
     if (composerRef.current) {
       resizeComposer(composerRef.current);
     }
-  }, [input]);
+  }, [input, reviewVisible]);
 
   useEffect(() => {
     // Reflow existing drafts when a phone rotates or the window crosses a
@@ -923,6 +928,8 @@ export function GhostwriterPage({
           id="ghostwriter-studio"
           ref={studioRef}
           className="gw-studio-workspace"
+          hidden={reviewVisible}
+          style={reviewVisible ? { display: "none" } : undefined}
         >
           {/* INPUT */}
           <div className="gw-studio-input">
@@ -987,6 +994,11 @@ export function GhostwriterPage({
           <div className="duet-canvas">
           {previewOpen && !loading && !error && <RewriteGuide hasDraft={Boolean(input.trim())} mode={rewriteMode} />}
             <div className="duet-result" hidden={previewOpen && !loading && !error}><RewritePlayback
+              onReview={() => {
+                reviewEntryRef.current = studioRef.current?.querySelector<HTMLButtonElement>("[data-review-entry]") ?? null;
+                setReviewedRunId(latestRun.runId);
+                setReviewOpen(true);
+              }}
               onRewriteAgain={() => void handleRewrite()}
               rewriteAgainDisabled={!canRewrite}
               author={displayedAuthor}
@@ -1048,6 +1060,18 @@ export function GhostwriterPage({
 
 
         </section>
+        {reviewedRunId === latestRun.runId && latestRun.source && latestRun.rewrite ? (
+          <RewriteReview
+            key={latestRun.runId}
+            source={latestRun.source}
+            result={latestRun.rewrite}
+            hidden={!reviewVisible}
+            onClose={() => {
+              setReviewOpen(false);
+              window.requestAnimationFrame(() => reviewEntryRef.current?.focus({ preventScroll: true }));
+            }}
+          />
+        ) : null}
 
       </div>
 

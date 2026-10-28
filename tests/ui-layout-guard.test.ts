@@ -390,7 +390,8 @@ test("ghostwriter composer auto-expands instead of trapping page scroll", () => 
   assert.match(playback, /FlaskConical/);
   assert.match(playback, /Share2/);
   assert.match(playback, /ShieldCheck/);
-  assert.match(playback, /async function writeClipboardText\(text: string\)/);
+  const clipboard = readFileSync(new URL("../src/components/ghostwriter/clipboard.ts", import.meta.url), "utf8");
+  assert.match(clipboard, /async function writeClipboardText\(text: string\)/);
   assert.match(playback, /className="gw-playback-panel relative mt-5 min-h-\[15rem\] rounded-\[12px\][^"]*pr-14/);
   assert.match(playback, /className="gw-copy-result"/);
   assert.match(playback, /aria-label=\{copied \? "Rewrite copied" : "Copy rewrite"\}/);

@@ -386,7 +386,7 @@ export function RewritePlayback({
 
   const showSkip = visiblePhase === "prelude" || visiblePhase === "animating";
   const canOpenLab =
-    mode === "author" && visiblePhase === "complete" && Boolean(author) && canCopy && Boolean(source);
+    Boolean(onApplyRewrite) && mode === "author" && visiblePhase === "complete" && Boolean(author) && canCopy && Boolean(source);
   const labOpen = canOpenLab && labRunId === runId;
 
   async function copyResult() {

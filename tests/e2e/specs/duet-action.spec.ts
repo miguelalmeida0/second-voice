@@ -61,7 +61,8 @@ test("one action keeps its place through real pointer activation, pending and co
       // Results (including optional feedback/sharing) grow in the native page.
       // The primary stays anchored inside its control-bar column or action row.
       const controls = (await page.locator(".duet-followup").boundingBox())!;
-      expect(Math.abs(result.y - controls.y)).toBeLessThanOrEqual(1);
+      const strength = (await page.locator(".duet-followup > :first-child").boundingBox())!;
+      expect(result.y - (strength.y + strength.height)).toBeGreaterThanOrEqual(16);
       expect(result.y+result.height).toBeLessThanOrEqual(controls.y+controls.height);
     }
     expect(await button.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -154,7 +155,8 @@ test("long results remain in native flow and the primary stays inside its contro
   await expect(page.locator('[data-phase="complete"]')).toBeVisible();
   const controls=(await page.locator(".duet-followup").boundingBox())!;
   const action=(await app.rewriteButton().boundingBox())!;
-  expect(Math.abs(action.y - controls.y)).toBeLessThanOrEqual(1);
+  const strength = (await page.locator(".duet-followup > :first-child").boundingBox())!;
+  expect(action.y - (strength.y + strength.height)).toBeGreaterThanOrEqual(16);
   expect(action.y+action.height).toBeLessThanOrEqual(controls.y+controls.height);
   await page.setViewportSize({width:390,height:844});
   await page.getByRole("button",{name:"Copy rewrite",exact:true}).focus();

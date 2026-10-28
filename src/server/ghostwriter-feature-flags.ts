@@ -46,7 +46,7 @@ export function getGhostwriterFeatureAvailability(): GhostwriterFeatureAvailabil
       hasWritableStore &&
       hasPublicReadStore &&
       hasAbuseStore,
-    rewriteLabEnabled: e2eFixtureMode,
+    rewriteLabEnabled: optionalFeatures && e2eFixtureMode,
     rewriteEnabled,
     rewriteUnavailableReason,
   };

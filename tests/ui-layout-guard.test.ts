@@ -635,7 +635,7 @@ test("visible rewrite share controls are explicit and privacy-scoped", () => {
   assert.match(featureFlags, /getSupabasePublic\(\)/);
   assert.match(featureFlags, /resolveAbuseStoreConfig/);
   assert.match(featureFlags, /resolveLiveAiPolicy\(\)/);
-  assert.match(featureFlags, /rewriteLabEnabled: e2eFixtureMode/);
+  assert.match(featureFlags, /rewriteLabEnabled: optionalFeatures && e2eFixtureMode/);
   assert.match(featureFlags, /publicSharingEnabled\(process\.env\.GHOSTWRITER_ALLOW_PUBLIC_SHARING\)/);
   assert.match(playback, /RewriteFeedbackPanel/);
   assert.match(feedbackPanel, /Did this edit land/);

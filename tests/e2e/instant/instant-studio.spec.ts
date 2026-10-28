@@ -91,6 +91,7 @@ test("rewrite feedback stays in output and reduced motion stops its signal", asy
   await expect(page.locator(editorSelector)).toHaveValue("I missed the train, so I walked home.");
   await expect(page.locator('[data-phase="complete"]')).toBeVisible();
   await expect(page.locator('[data-phase="complete"] .gw-playback-panel-strong')).toContainText(rewritten);
+  await expect(page.getByRole("button", { name: /Open Rewrite Lab/ })).toHaveCount(0);
   expect(api.rewriteRequests).toHaveLength(1);
 });
 
@@ -100,6 +101,14 @@ test("studio preserves native scrolling and readable fields across widths", asyn
     await page.setViewportSize({ width, height: width > 1000 ? 900 : 844 });
     await page.goto("/");
     await expect(page.locator(editorSelector)).toBeVisible();
+    const logo = page.locator(".duet-logo img");
+    await expect(logo).toHaveCount(1);
+    await expect.poll(() => logo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+    expect(await logo.evaluate((image: HTMLImageElement) => decodeURIComponent(image.currentSrc))).toContain(width >= 768 ? "second-voice-wordmark.png" : "second-voice-icon.png");
+    const brand = (await page.locator(".duet-logo").boundingBox())!;
+    expect(brand.width).toBeLessThanOrEqual(180);
+    expect(brand.height).toBeLessThanOrEqual(36);
+    await page.screenshot({ path: info.outputPath(`brand-${width}.png`) });
     const geometry = await page.evaluate(() => ({
       overflow: document.documentElement.scrollWidth > innerWidth,
       fontSize: parseFloat(getComputedStyle(document.querySelector("textarea")!).fontSize),

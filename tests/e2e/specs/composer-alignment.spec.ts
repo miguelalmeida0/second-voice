@@ -57,7 +57,8 @@ for (const [width, height] of [[1512, 738], [1280, 720], [1024, 640]]) {
       const input = (await page.locator(".gw-composer-field").boundingBox())!;
       const output = (await page.locator(".duet-canvas").boundingBox())!;
       const strength = (await page.locator(".duet-followup > :first-child").boundingBox())!;
-      expect(Math.abs(cta.y - strength.y)).toBeLessThanOrEqual(1);
+      expect(cta.y - (strength.y + strength.height)).toBeGreaterThanOrEqual(16);
+      expect(Math.abs(cta.width - output.width)).toBeLessThanOrEqual(1);
       expect(cta.y).toBeGreaterThanOrEqual(0);
       expect(cta.y + cta.height).toBeLessThanOrEqual(height - 16);
       expect(cta.y + cta.height).toBeLessThanOrEqual(output.y);

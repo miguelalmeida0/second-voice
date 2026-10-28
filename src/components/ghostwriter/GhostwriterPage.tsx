@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { StudioBrand } from "./StudioBrand";
 
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
@@ -842,7 +843,7 @@ export function GhostwriterPage({
       {identity}
       <div className="gw-studio-shell">
         <header className="duet-header">
-          <div className="duet-brand"><svg aria-hidden="true" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M10 7h11l-6 21H4z"/><path d="M19 3h10l-6 21H13z"/></svg><h1>Second Voice</h1></div>
+          <div className="duet-brand"><h1 className="sr-only">Second Voice AI</h1><StudioBrand /></div>
           <nav aria-label="Workspace"><button ref={howItWorksTriggerRef} type="button" aria-haspopup="dialog" aria-expanded={howItWorksOpen} aria-controls="gw-how-drawer" onClick={() => setHowItWorksOpen(true)}>How it works <ArrowUpRight aria-hidden="true" /></button><a href="/account">Account <ArrowUpRight aria-hidden="true" /></a></nav>
         </header>
         <section

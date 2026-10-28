@@ -8,7 +8,8 @@ test("primary action stays above the preview inside the forest workspace", async
   await app.fillDraft("A sentence to rewrite.");
   const controls = await page.locator(".duet-followup").boundingBox();
   const action = await app.rewriteButton().boundingBox();
-  expect(Math.abs(action!.y - controls!.y)).toBeLessThanOrEqual(1);
+  const strength = (await page.locator(".duet-followup > :first-child").boundingBox())!;
+  expect(action!.y - (strength.y + strength.height)).toBeGreaterThanOrEqual(16);
   expect(action!.y + action!.height).toBeLessThanOrEqual(controls!.y + controls!.height);
   expect(action!.x).toBeGreaterThanOrEqual(controls!.x);
   expect(action!.x).toBeGreaterThan(page.viewportSize()!.width / 2);

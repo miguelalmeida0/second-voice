@@ -14,6 +14,11 @@
 .workspace[hidden] {
   display: none;
 }
+/* Focus announces the view, without making a control look selected on entry.
+   Interactive controls keep their visible keyboard focus rings below. */
+.workspace:focus {
+  outline: none;
+}
 .workspace * {
   box-sizing: border-box;
 }

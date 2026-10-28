@@ -16,7 +16,7 @@ test("sample review works without application credentials or API requests", asyn
     await review.getByRole("button", { name, exact: true }).click();
     await expect(review.getByRole("button", { name, exact: true })).toHaveAttribute("aria-pressed", "true");
   }
-  await review.getByRole("button", { name: "Back to rewrite" }).click();
+  await review.getByRole("button", { name: "Back to sample" }).click();
   await expect(review).toBeHidden();
   const resume = page.getByRole("button", { name: "Review sample" });
   await expect(resume).toBeFocused();
@@ -64,4 +64,16 @@ test("panels align and accept all can be undone across every review layout", asy
   await page.screenshot({ path: testInfo.outputPath("aligned-review.png"), fullPage: true });
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await page.screenshot({ path: testInfo.outputPath("aligned-review-bottom.png") });
+});
+
+test("review entry avoids highlighting Back and keeps a route to the live editor", async ({ page }) => {
+  await page.goto("/demo/rewrite-review");
+  const review = page.getByRole("region", { name: "Review your rewrite" });
+  await expect(review).toBeFocused();
+  const back = review.getByRole("button", { name: "Back to sample", exact: true });
+  await expect(back).not.toBeFocused();
+  await expect(page.getByRole("link", { name: "Open live editor", exact: true })).toHaveAttribute("href", "https://secondvoice.miguelalmeida.xyz/");
+  await page.keyboard.press("Tab");
+  await expect(back).toBeFocused();
+  expect(await back.evaluate(el => parseFloat(getComputedStyle(el).outlineWidth))).toBeGreaterThanOrEqual(2);
 });

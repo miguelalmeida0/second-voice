@@ -52,11 +52,13 @@ export function RewriteReview({
   result,
   hidden,
   onClose,
+  backLabel = "Back to rewrite",
 }: {
   source: string;
   result: string;
   hidden: boolean;
   onClose: () => void;
+  backLabel?: string;
 }) {
   const parts = useMemo(
     () => buildReviewParts(source, result),
@@ -75,7 +77,7 @@ export function RewriteReview({
     error?: string;
   } | null>(null);
   const [copying, setCopying] = useState(false);
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const workspaceRef = useRef<HTMLElement>(null);
   const manualRevisionRef = useRef<HTMLTextAreaElement>(null);
   const revision = buildReviewText(parts, state);
   const reviewed = state.decisions.filter(
@@ -93,7 +95,7 @@ export function RewriteReview({
       : null;
 
   useLayoutEffect(() => {
-    if (!hidden) closeRef.current?.focus({ preventScroll: true });
+    if (!hidden) workspaceRef.current?.focus({ preventScroll: true });
   }, [hidden]);
 
   function decide(decision: "accept" | "keep") {
@@ -214,6 +216,8 @@ export function RewriteReview({
 
   return (
     <section
+      ref={workspaceRef}
+      tabIndex={-1}
       className={styles.workspace}
       aria-label="Review your rewrite"
       hidden={hidden}
@@ -237,9 +241,9 @@ export function RewriteReview({
         </p>
         <div className={styles.documentMeta}>
           <span>Your original draft</span>
-          <button ref={closeRef} type="button" onClick={onClose}>
+          <button type="button" onClick={onClose}>
             <ArrowLeft aria-hidden="true" />
-            Back to rewrite
+            {backLabel}
           </button>
         </div>
         <div className={styles.sourcePaper} data-testid="review-source-paper">

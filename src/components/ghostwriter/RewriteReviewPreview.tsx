@@ -23,8 +23,9 @@ export function RewriteReviewPreview() {
             </svg>
             <h1>Second Voice</h1>
           </div>
-          <nav aria-label="Sample preview" style={{ paddingRight: 0 }}>
+          <nav aria-label="Sample preview" style={{ paddingRight: 0, flexWrap: "wrap", columnGap: 16 }}>
             <button type="button" onClick={() => setOpen(false)}>Sample review · No AI calls</button>
+            <a href="https://secondvoice.miguelalmeida.xyz/" className="underline underline-offset-4">Open live editor</a>
           </nav>
         </header>
         {!open && (
@@ -32,7 +33,7 @@ export function RewriteReviewPreview() {
             <section className="gw-studio-input" aria-label="Sample original">
               <p className="duet-index">01 / Prepared sample</p>
               <h2 className="duet-title">Your words.</h2>
-              <p className="duet-note">This preview uses sample text. It makes no AI requests.</p>
+              <p className="duet-note">This is a read-only sample. Use the live editor to write your own text and generate rewrites.</p>
               <p className="whitespace-pre-wrap text-lg leading-relaxed">{source}</p>
             </section>
             <section className="gw-studio-output" aria-label="Sample rewrite">
@@ -45,7 +46,7 @@ export function RewriteReviewPreview() {
             </section>
           </div>
         )}
-        <RewriteReview source={source} result={result} hidden={!open} onClose={() => setOpen(false)} />
+        <RewriteReview source={source} result={result} hidden={!open} onClose={() => setOpen(false)} backLabel="Back to sample" />
       </div>
     </main>
   );

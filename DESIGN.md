@@ -30,19 +30,19 @@ The writing surfaces are the main content. Both start directly below compact hea
 One centered shell, two equal columns, one native document scroller. The current responsive shell gutters and center gap remain in use.
 
 Five shared grid rows:
-1. Left: “Your words.” Right: “Another voice.” and the compact Rewrite action.
+1. Left: “Your words.” Right: “Another voice.”
 2. Left: short writing hint, character count, Clear. Right: Mode, Author and Strength; Outcomes replaces Author/Strength with its outcome selector.
 3. Original and rewrite surfaces with matching top and bottom edges.
-4. Quick starts on the left; truthful rewrite availability/recovery on the right.
+4. On the left, Rewrite aligned to the draft’s right edge, availability/recovery beside it, then quick starts.
 5. Privacy and legal links.
 
 Mode and author/outcome use native selects with persistent labels. Strength retains the native range and the existing 0/50/100 values. All canonical authors/outcomes and existing change handlers remain available. Settings preserve the draft and previously returned text.
 
-The action is 10.25rem wide (164px at the default text size) and at least 40px tall on desktop; it sits beside the output heading. Its width scales with enlarged text, and the heading can wrap without overlap. It must remain above both growing writing surfaces. Allowance messages must not enlarge the heading or create a blank area above the source.
+The action is 10.25rem wide (164px at the default text size) and at least 40px tall on desktop; it sits 12px below the original editor, aligned to its right edge. Its width scales with enlarged text, and the action row can wrap without overlap. It follows growing writing surfaces in native document flow. Allowance messages must not enlarge the heading or create a blank area above the source.
 
 ### Mobile, below 768px
 
-Source comes first, followed by the output heading, compact settings, result and availability. Preserve the adaptive single-node action dock, safe-area spacing, keyboard avoidance and fallbacks for short screens, enlarged text and oversized focused editors. Touch controls are at least 44px tall. Avoid duplicating the Rewrite button or changing selected values across breakpoints.
+Source and its action/availability row come first, followed by the output heading, compact settings and result. Preserve the adaptive single-node action dock, safe-area spacing, keyboard avoidance and fallbacks for short screens, enlarged text and oversized focused editors. Touch controls are at least 44px tall. Avoid duplicating the Rewrite button or changing selected values across breakpoints.
 
 ### Type and spacing
 

@@ -373,7 +373,7 @@ html, body { background: var(--duet-cream); }
   .duet-mode small { font-size: 10px; }
 }
 
-/* Compact controls. The rewrite action precedes the growing writing surfaces. */
+/* Compact controls and aligned writing surfaces. */
 .ghostwriter.gw-studio .gw-studio-workspace { align-items: start; min-height: 0; padding-top: 12px; }
 .gw-studio .duet-title { font-size: var(--duet-heading); line-height: 1.15; letter-spacing: -.04em; }
 .gw-studio .duet-index { margin-bottom: 6px; }
@@ -464,13 +464,11 @@ html, body { background: var(--duet-cream); }
   .ghostwriter.gw-studio .gw-range { min-height: 44px; }
 }
 
-.duet-output-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
-.duet-output-heading > div { min-width: 0; }
-.ghostwriter.gw-studio .duet-output-heading .duet-actions { width: 10.25rem; max-width: 100%; flex: 0 0 10.25rem; margin: 0; padding: 0; }
-.duet-output-heading .duet-action-primary { display: block; }
-.ghostwriter.gw-studio .duet-output-heading .gw-inspiration-rewrite { gap: 8px; }
-.duet-output-heading .gw-inspiration-rewrite > span { white-space: nowrap; }
-.duet-output-heading .gw-inspiration-rewrite > svg { width: 16px; height: 16px; flex-shrink: 0; }
+.ghostwriter.gw-studio .duet-draft-action .duet-actions { width: 10.25rem; max-width: 100%; flex: 0 0 10.25rem; margin: 0; padding: 0; }
+.duet-draft-action .duet-action-primary { display: block; }
+.ghostwriter.gw-studio .duet-draft-action .gw-inspiration-rewrite { gap: 8px; }
+.duet-draft-action .gw-inspiration-rewrite > span { white-space: nowrap; }
+.duet-draft-action .gw-inspiration-rewrite > svg { width: 16px; height: 16px; flex-shrink: 0; }
 .duet-draft-context { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
 .gw-studio .duet-draft-context .duet-note, .duet-draft-context .duet-editor-meta { margin: 0; }
 .duet-draft-context .duet-editor-meta { gap: 12px; }
@@ -495,10 +493,23 @@ html, body { background: var(--duet-cream); }
   .duet-setting select, .duet-compact-range { min-height: 44px; }
 }
 @media (max-width: 767px) {
-  .duet-output-heading { display: block; }
-  .ghostwriter.gw-studio .duet-output-heading .duet-actions { width: 100%; margin-top: 12px; }
+  .duet-draft-action { margin-top: 12px; }
   .duet-draft-context { margin: 12px 0; }
   .ghostwriter.gw-studio .duet-controls { margin-top: 16px; gap: 8px; }
   .duet-canvas { margin-top: 16px; }
   .duet-allowance { margin-top: 12px; }
 }
+
+/* Put the next action where writing ends, with its availability beside it. */
+.duet-draft-action { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.duet-draft-action .duet-allowance { flex: 1 1 120px; min-width: 0; }
+.ghostwriter.gw-studio .duet-draft-action .duet-actions { margin-left: auto; }
+.ghostwriter.gw-studio .duet-draft-action .gw-inspiration-status,
+.ghostwriter.gw-studio .duet-draft-action .gw-inspiration-status-detail,
+.duet-draft-action .duet-retry-access { color: var(--duet-muted); }
+.duet-draft-action .duet-allowance { margin-top: 0; }
+.duet-draft-action .duet-retry-access:focus-visible,
+.ghostwriter.gw-studio .duet-draft-action .gw-inspiration-rewrite:focus { outline-color: var(--duet-forest); }
+.ghostwriter.gw-studio .duet-draft-action [data-docked="true"] .gw-inspiration-rewrite:focus { outline-color: var(--duet-cream); }
+
+.ghostwriter.gw-studio .duet-result > .gw-card-strong[data-phase="requesting"] > .gw-playback-panel { min-height: 0; padding-bottom: 0; }

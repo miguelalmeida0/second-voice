@@ -60,9 +60,9 @@ test("one action keeps its place through real pointer activation, pending and co
     else {
       // Results (including optional feedback/sharing) grow in the native page.
       // The primary stays anchored inside its control-bar column or action row.
-      const controls = (await page.locator(".duet-output-heading").boundingBox())!;
-      const strength = (await page.locator(".duet-output-heading").boundingBox())!;
-      expect(Math.abs(result.y + result.height/2 - (strength.y + strength.height/2))).toBeLessThanOrEqual(1);
+      const controls = (await page.locator(".duet-draft-action").boundingBox())!;
+      const strength = (await page.locator(".duet-draft-action").boundingBox())!;
+      expect(Math.abs(result.y - strength.y)).toBeLessThanOrEqual(1);
       expect(result.y+result.height).toBeLessThanOrEqual(controls.y+controls.height);
     }
     expect(await button.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -111,8 +111,8 @@ test("action respects focus, orientation, short screens, enlarged text and all c
   await page.setViewportSize({width:390,height:844});
   // Touch emulation has no hardware keyboard; WebKit uses Safari's all-controls traversal.
   if (info.project.use.hasTouch) await app.rewriteButton().focus();
-  else await page.getByRole("combobox", { name: "Rewrite mode" }).focus();
-  if (!info.project.use.hasTouch) await page.keyboard.press(browserName === "webkit" ? "Alt+Shift+Tab" : "Shift+Tab");
+  else await app.draftInput().focus();
+  if (!info.project.use.hasTouch) await page.keyboard.press(browserName === "webkit" ? "Alt+Tab" : "Tab");
   await expect(app.rewriteButton()).toBeFocused();
   const contrast = await app.rewriteButton().evaluate(button => {
     const luminance = (color:string) => {
@@ -154,10 +154,10 @@ test("long results remain in native flow and the primary stays inside its contro
   await app.fillDraft("A draft to rewrite.");
   await app.runRewrite();
   await expect(page.locator('[data-phase="complete"]')).toBeVisible();
-  const controls=(await page.locator(".duet-output-heading").boundingBox())!;
+  const controls=(await page.locator(".duet-draft-action").boundingBox())!;
   const action=(await app.rewriteButton().boundingBox())!;
-  const strength = (await page.locator(".duet-output-heading").boundingBox())!;
-  expect(Math.abs(action.y + action.height/2 - (strength.y + strength.height/2))).toBeLessThanOrEqual(1);
+  const strength = (await page.locator(".duet-draft-action").boundingBox())!;
+  expect(Math.abs(action.y - strength.y)).toBeLessThanOrEqual(1);
   expect(action.y+action.height).toBeLessThanOrEqual(controls.y+controls.height);
   await page.setViewportSize({width:390,height:844});
   await page.getByRole("button",{name:"Copy rewrite",exact:true}).focus();

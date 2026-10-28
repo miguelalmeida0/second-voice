@@ -198,10 +198,11 @@ test("exhausted allowance does not create a blank column above the draft", async
     mode: "anonymous", allowance: { remaining: 0, todayRemaining: 0, available: false },
   } }));
   for (const width of [1512, 1024]) {
-    await page.setViewportSize({ width, height: 738 });
+    const height = width === 1024 ? 640 : 738;
+    await page.setViewportSize({ width, height });
     await page.goto("/");
     await expect(page.locator(".gw-inspiration-rewrite")).toBeDisabled();
-    await page.locator(editorSelector).fill("A draft stays editable after my allowance runs out.");
+    await page.locator(editorSelector).fill("Here's a short four-line text:\n\nThe café on the corner opens at seven, but the owner is usually there by six.\nShe wipes the tables, checks the milk, and turns on the old radio by the window.\nMost mornings the first customer is a bus driver who orders the same thing.\nBy the time the city wakes up, the place already feels lived in.\n\nWant it on a specific topic or for a particular use, like a bio, a caption, or a message?");
     for (const mode of ["Authors", "Outcomes"]) {
       await page.getByRole("combobox", { name: "Rewrite mode" }).selectOption(mode === "Authors" ? "author" : "outcome");
       const heading = (await page.locator(".duet-input-heading").boundingBox())!;
@@ -210,8 +211,11 @@ test("exhausted allowance does not create a blank column above the draft", async
       const action = (await page.locator(".gw-inspiration-rewrite").boundingBox())!;
       expect(source.y - (heading.y + heading.height)).toBeLessThanOrEqual(100);
       expect(Math.abs(source.y - output.y)).toBeLessThanOrEqual(1);
-      expect(action.y + action.height).toBeLessThan(source.y);
+      expect(action.y).toBeGreaterThanOrEqual(source.y + source.height);
+      expect(action.y - (source.y + source.height)).toBeLessThanOrEqual(16);
+      expect(Math.abs(action.x + action.width - (source.x + source.width))).toBeLessThanOrEqual(1);
       expect(source.y).toBeLessThan(300);
+      expect(action.y + action.height).toBeLessThanOrEqual(height - 16);
       await page.screenshot({ path: info.outputPath(`no-empty-column-${width}-${mode}.png`) });
     }
   }

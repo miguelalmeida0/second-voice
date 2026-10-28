@@ -47,7 +47,7 @@ for (const [width, height] of [[1024, 640], [1280, 720], [1512, 738]]) {
 const cafeDraft = "Here's a short four-line text:\n\nThe café on the corner opens at seven, but the owner is usually there by six.\nShe wipes the tables, checks the milk, and turns on the old radio by the window.\nMost mornings the first customer is a bus driver who orders the same thing.\nBy the time the city wakes up, the place already feels lived in.\n\nWant it on a specific topic or for a particular use, like a bio, a caption, or a message?";
 
 for (const [width, height] of [[1512, 738], [1280, 720], [1024, 640]]) {
-  test(`rewrite controls stay above growing drafts at ${width}x${height}`, async ({ app, page }, info) => {
+  test(`rewrite action follows growing drafts at ${width}x${height}`, async ({ app, page }, info) => {
     await page.setViewportSize({ width, height });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await mockGhostwriterApi(page);
@@ -60,14 +60,14 @@ for (const [width, height] of [[1512, 738], [1280, 720], [1024, 640]]) {
       const output = (await page.locator(".duet-canvas").boundingBox())!;
       const heading = (await page.locator(".duet-output-heading").boundingBox())!;
       const controls = (await page.locator(".duet-controls").boundingBox())!;
-      expect(Math.abs(cta.y + cta.height / 2 - (heading.y + heading.height / 2))).toBeLessThanOrEqual(1);
+      expect(cta.y - (input.y + input.height)).toBeGreaterThanOrEqual(8);
+      expect(cta.y - (input.y + input.height)).toBeLessThanOrEqual(16);
+      expect(Math.abs(cta.x + cta.width - (input.x + input.width))).toBeLessThanOrEqual(1);
       expect(controls.y).toBeGreaterThanOrEqual(heading.y + heading.height);
       expect(controls.x).toBeGreaterThanOrEqual(width / 2);
       expect(cta.width).toBeLessThanOrEqual(180);
       expect(output.y).toBeLessThanOrEqual(300);
       expect(cta.y).toBeGreaterThanOrEqual(0);
-      expect(cta.y + cta.height).toBeLessThanOrEqual(height - 16);
-      expect(cta.y + cta.height).toBeLessThanOrEqual(output.y);
       expect(Math.abs(input.y - output.y)).toBeLessThanOrEqual(1);
       expect(Math.abs(input.height - output.height)).toBeLessThanOrEqual(1);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -99,8 +99,8 @@ for (const width of [1024, 1440]) {
     await expect(button).toBeVisible();
     expect(await button.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     const cta = (await button.boundingBox())!;
-    const controls = (await page.locator(".duet-controls").boundingBox())!;
-    expect(cta.y + cta.height).toBeLessThanOrEqual(controls.y);
+    const input = (await page.locator(".gw-composer-field").boundingBox())!;
+    expect(cta.y).toBeGreaterThanOrEqual(input.y + input.height);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }

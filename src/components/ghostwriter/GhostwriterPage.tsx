@@ -885,6 +885,31 @@ export function GhostwriterPage({
             </div>
 
             <div className="duet-input-support">
+              <div className="duet-draft-action">
+                <RewriteAllowance input={input}
+                  onRetryAccess={portfolioAccess?.session.status === "unavailable"
+                    ? () => window.dispatchEvent(new Event("ghostwriter-session-retry"))
+                    : undefined}
+                  status={cooldownSeconds > 0
+                    ? "Next rewrite in " + cooldownSeconds + "s. Your free-rewrite allowance is unchanged."
+                    : accessView || !features.rewriteEnabled
+                      ? rewriteUnavailableMessage
+                      : null}
+                />
+                <QuickStartsPanel actionsOnly
+                  input={input}
+                  onSelect={setInput}
+                  onRewrite={() => {
+                    setPromptsOpen(false);
+                    setPreviewOpen(false);
+                    if (accessView?.signIn) openPortfolioSignIn();
+                    else void handleRewrite();
+                  }}
+                  loading={loading}
+                  canRewrite={canRewrite}
+                  completed={Boolean(latestRun.rewrite) && !error}
+                />
+              </div>
             <QuickStartsPanel promptsOnly input={input} onSelect={setInput} promptsOpen={promptsOpen} onPromptsOpenChange={setPromptsOpen} />
             </div>
             <div className="duet-draft-footer">
@@ -906,19 +931,6 @@ export function GhostwriterPage({
           <div ref={outputRef} className="gw-studio-output">
             <div className="duet-column-heading duet-output-heading">
               <div><p className="duet-index">02 / Their voice</p><h2 className="duet-title">Another voice.</h2></div>
-          <QuickStartsPanel actionsOnly
-            input={input}
-            onSelect={setInput}
-            onRewrite={() => {
-              setPromptsOpen(false);
-              setPreviewOpen(false);
-              if (accessView?.signIn) openPortfolioSignIn();
-              else void handleRewrite();
-            }}
-            loading={loading}
-            canRewrite={canRewrite}
-            completed={Boolean(latestRun.rewrite) && !error}
-          />
             </div>
         <DuetControls mode={rewriteMode} author={active.id} mood={mood} outcome={outcome} disabled={loading}
           onMode={(value) => { setRewriteMode(value); setError(null); }}
@@ -968,16 +980,7 @@ export function GhostwriterPage({
               source={displayedSource}
             /></div>
           </div>
-          <RewriteAllowance input={input}
-            onRetryAccess={portfolioAccess?.session.status === "unavailable"
-              ? () => window.dispatchEvent(new Event("ghostwriter-session-retry"))
-              : undefined}
-            status={cooldownSeconds > 0
-              ? "Next rewrite in " + cooldownSeconds + "s. Your free-rewrite allowance is unchanged."
-              : accessView || !features.rewriteEnabled
-                ? rewriteUnavailableMessage
-                : null}
-          />
+
         {previewOpen && latestRun.rewrite && !loading && <button type="button" className="duet-return-result" onClick={() => setPreviewOpen(false)}>Back to your rewrite</button>}
           </div>
 

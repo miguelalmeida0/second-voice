@@ -2,18 +2,16 @@ import { test, expect } from "../fixtures/test";
 import { mockGhostwriterApi } from "../utils/mockApi";
 import { apiResponses } from "../fixtures/testData";
 
-test("primary action stays above the preview inside the forest workspace", async ({ app, page }) => {
+test("primary action sits directly below the draft at its right edge", async ({ app, page }) => {
   await app.goto();
   await page.setViewportSize({ width: 1440, height: 1100 });
   await app.fillDraft("A sentence to rewrite.");
-  const controls = await page.locator(".duet-output-heading").boundingBox();
-  const action = await app.rewriteButton().boundingBox();
-  const strength = (await page.locator(".duet-output-heading").boundingBox())!;
-  expect(Math.abs(action!.y + action!.height/2 - (strength.y + strength.height/2))).toBeLessThanOrEqual(1);
-  expect(action!.y + action!.height).toBeLessThanOrEqual(controls!.y + controls!.height);
-  expect(action!.x).toBeGreaterThanOrEqual(controls!.x);
-  expect(action!.x).toBeGreaterThan(page.viewportSize()!.width / 2);
-  expect(action!.width).toBeGreaterThanOrEqual(140);
+  const source = (await page.locator(".gw-composer-field").boundingBox())!;
+  const action = (await app.rewriteButton().boundingBox())!;
+  expect(action.y - (source.y + source.height)).toBeGreaterThanOrEqual(8);
+  expect(action.y - (source.y + source.height)).toBeLessThanOrEqual(16);
+  expect(Math.abs(action.x + action.width - (source.x + source.width))).toBeLessThanOrEqual(1);
+  expect(action.width).toBeGreaterThanOrEqual(140);
 });
 
 test("Duet starts empty and preserves the draft through responsive layouts", async ({ app, page }) => {

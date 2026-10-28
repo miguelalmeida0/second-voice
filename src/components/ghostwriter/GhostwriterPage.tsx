@@ -840,11 +840,10 @@ export function GhostwriterPage({
       data-app-ready={preferencesReady ? "true" : "false"}
       data-voice={active.id}
     >
-      {identity}
       <div className="gw-studio-shell">
         <header className="duet-header">
           <div className="duet-brand"><h1 className="sr-only">Second Voice AI</h1><StudioBrand /></div>
-          <nav aria-label="Workspace"><button ref={howItWorksTriggerRef} type="button" aria-haspopup="dialog" aria-expanded={howItWorksOpen} aria-controls="gw-how-drawer" onClick={() => setHowItWorksOpen(true)}>How it works <ArrowUpRight aria-hidden="true" /></button><a href="/account">Account <ArrowUpRight aria-hidden="true" /></a></nav>
+          <nav aria-label="Workspace"><button ref={howItWorksTriggerRef} type="button" aria-haspopup="dialog" aria-expanded={howItWorksOpen} aria-controls="gw-how-drawer" onClick={() => setHowItWorksOpen(true)}>How it works <ArrowUpRight aria-hidden="true" /></button><a href="/account">Account <ArrowUpRight aria-hidden="true" /></a>{identity}</nav>
         </header>
         <section
           id="ghostwriter-studio"

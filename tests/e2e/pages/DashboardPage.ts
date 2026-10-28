@@ -17,8 +17,11 @@ export class DashboardPage {
   async expectAuthorConsole() {
     await expect(this.page.getByRole("combobox", { name: "Author", exact: true })).toBeVisible();
     await expect(this.page.getByRole("combobox", { name: "Rewrite mode" })).toBeVisible();
-    await expect(this.page.getByRole("combobox", { name: "Author", exact: true }).locator("option[value=tolkien]")).toHaveCount(1);
-    await expect(this.page.getByRole("combobox", { name: "Author", exact: true }).locator("option[value=stephenking]")).toHaveCount(1);
+    const author = this.page.getByRole("combobox", { name: "Author", exact: true });
+    await author.click();
+    await expect(this.page.getByRole("option", { name: "J.R.R. Tolkien", exact: true })).toBeVisible();
+    await expect(this.page.getByRole("option", { name: "Stephen King", exact: true })).toBeVisible();
+    await author.press("Escape");
     await expect(this.page.getByLabel(/mood dial/i)).toBeVisible();
   }
 
@@ -26,7 +29,10 @@ export class DashboardPage {
     await this.app.switchToOutcomes();
     await expect(this.app.rewriteModeSelect()).toHaveAttribute("data-value", "outcome");
     await expect(this.page.getByRole("combobox", { name: "Writing outcome" })).toBeVisible();
-    await expect(this.page.getByRole("combobox", { name: "Writing outcome" }).locator("option").filter({ hasText: "Improve clarity" })).toHaveCount(1);
-    await expect(this.page.getByRole("combobox", { name: "Writing outcome" }).locator("option").filter({ hasText: "Be concise" })).toHaveCount(1);
+    const outcome = this.page.getByRole("combobox", { name: "Writing outcome" });
+    await outcome.click();
+    await expect(this.page.getByRole("option", { name: "Improve clarity", exact: true })).toBeVisible();
+    await expect(this.page.getByRole("option", { name: "Be concise", exact: true })).toBeVisible();
+    await outcome.press("Escape");
   }
 }

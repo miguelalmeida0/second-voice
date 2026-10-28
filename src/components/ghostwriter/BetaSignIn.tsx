@@ -312,7 +312,9 @@ export function BetaSignIn({
     };
   });
 
-  if (headless) { return <>{githubEnabled?<button ref={githubRef} type="button" className="sr-only" tabIndex={-1} disabled={busy} onClick={()=>void act("github")}>Sign in with GitHub</button>:null}{message?<p role="status" className="duet-auth-message">{message}</p>:null}</>; }
+  // This is an event bridge for the visible header action, not a second control.
+  // Keep it out of both layout and the accessibility tree; .click() still works.
+  if (headless) { return <>{githubEnabled?<button ref={githubRef} type="button" hidden disabled={busy} onClick={()=>void act("github")}>Sign in with GitHub</button>:null}{message?<p role="status" className="duet-auth-message">{message}</p>:null}</>; }
 
   return (
     <details

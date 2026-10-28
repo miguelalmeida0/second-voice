@@ -13,6 +13,7 @@
     "lint": "eslint",
     "security:check": "node scripts/security-check.mjs",
     "test:e2e": "playwright test",
+    "test:stress": "playwright test --config playwright.stress.config.ts",
     "test:instant": "playwright test --config playwright.instant.config.ts",
     "test:e2e:install": "playwright install --with-deps",
     "test:e2e:ui": "playwright test --ui",

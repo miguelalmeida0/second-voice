@@ -148,7 +148,7 @@ test.describe("error, retry, and empty states", () => {
     await app.runRewrite();
     await app.openRewriteLab();
 
-    await expect(page.getByRole("status")).toContainText("Rewrite Lab could not finish this run.");
+    await expect(page.getByRole("status").filter({ hasText: "Rewrite Lab could not finish this run." })).toBeVisible();
     await expect(page.getByText(apiResponses.rewrite)).toBeVisible();
 
     await page.getByRole("button", { name: "Try Rewrite Lab again" }).click();

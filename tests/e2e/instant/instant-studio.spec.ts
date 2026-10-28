@@ -99,7 +99,7 @@ test("studio preserves native scrolling and readable fields across widths", asyn
   await page.route("**/api/ghostwriter/auth", route => route.fulfill({ json: { mode: "anonymous", allowance } }));
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: width > 1000 ? 900 : 844 });
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "commit" });
     await expect(page.locator(editorSelector)).toBeVisible();
     const logo = page.locator(".duet-logo img");
     await expect(logo).toHaveCount(1);

@@ -46,7 +46,7 @@ test.describe("navigation and route coverage", () => {
     await app.goto();
 
     await expect(page.getByRole("button", { name: "How it works" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Surprise me" })).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "More quick starts", exact: true })).toHaveCount(1);
     await expect(page.getByRole("button", { name: /^Rewrite my draft$/ })).toBeVisible();
 
     await app.openHowItWorks();

@@ -200,9 +200,9 @@ html, body { background: var(--duet-cream); }
 /* Preview first: draft on paper, voice and its actions on forest. */
 .ghostwriter.gw-studio { --duet-gutter: clamp(20px, 3vw, 40px); --duet-heading: clamp(1.75rem, 2.5vw, 2.25rem); --duet-prose: 1.125rem; }
 @media (min-width: 768px) {
-  .gw-studio::before { left: calc(50% - min(2.75vw, 44px)); }
+  .gw-studio::before { left: 50%; }
   .ghostwriter.gw-studio .gw-studio-shell { padding-inline: var(--duet-gutter); }
-  .duet-header, .ghostwriter.gw-studio .gw-studio-workspace { grid-template-columns: minmax(0, calc(50% - var(--duet-gutter) - min(2.75vw, 44px))) minmax(0, 1fr); column-gap: calc(var(--duet-gutter) * 2); }
+  .duet-header, .ghostwriter.gw-studio .gw-studio-workspace { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: calc(var(--duet-gutter) * 2); }
   .duet-identity { right: max(var(--duet-gutter), calc((100vw - 1488px) / 2)); }
 }
 .ghostwriter.gw-studio .gw-studio-shell { padding-bottom: calc(28px + var(--duet-action-clearance, 0px)); }

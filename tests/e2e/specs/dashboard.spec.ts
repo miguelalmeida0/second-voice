@@ -15,7 +15,7 @@ test.describe("rewrite console dashboard", () => {
     await dashboard.app.openQuickStarts();
     await expect(page.getByRole("button", { name: "A rainy day thought" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Copy rewrite" })).toHaveCount(0);
-    await expect(page.getByText("Your rewrite will appear here.")).toBeVisible();
+    await expect(page.getByRole("region", { name: "How to start your rewrite" })).toContainText("Your rewrite will appear here.");
   });
 
   test("selecting an author updates selected state, mood label, and rewrite CTA", async ({ app, page }) => {

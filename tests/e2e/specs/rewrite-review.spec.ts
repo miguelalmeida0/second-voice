@@ -594,3 +594,79 @@ test("integrated review aligns papers and keeps actions in a laptop viewport", a
     await page.screenshot({ path: testInfo.outputPath(`integrated-review-${width}.png`) });
   }
 });
+
+test("completed decisions cannot be applied twice and copying becomes the next action", async ({ app, page }, info) => {
+  await mockGhostwriterApi(page, { rewrite: response(result) });
+  await app.goto();
+  await app.fillDraft(source);
+  await app.runRewrite();
+  await page.getByRole("button", { name: "Review changes", exact: true }).click();
+  const review = page.getByRole("region", { name: "Review your rewrite" });
+  await review.getByRole("button", { name: "Accept all changes", exact: true }).click();
+  for (const layout of ["Duet", "Inline", "Focus"]) {
+    await review.getByRole("button", { name: layout, exact: true }).click();
+    const applied = review.getByRole("button", { name: /^(Accept change|Accepted)$/ });
+    await expect(applied).toBeDisabled();
+    await expect(applied).toHaveAccessibleName("Accepted");
+    await expect(review.getByRole("button", { name: "All accepted", exact: true })).toBeDisabled();
+    await expect(review.getByRole("status")).toContainText("Review complete");
+    const copy = review.getByRole("button", { name: "Copy revision", exact: true });
+    await expect(copy).toBeEnabled();
+    await expect(copy).toHaveCSS("background-color", "rgb(238, 153, 101)");
+  }
+  await page.screenshot({ path: info.outputPath("review-complete.png"), fullPage: true });
+  await review.getByRole("button", { name: "Copy revision", exact: true }).click();
+  expect(await page.evaluate(() => (window as Window & { copiedText?: string }).copiedText)).toBe(result);
+  await review.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(review.getByRole("status")).toContainText("0 of 2 reviewed");
+  await expect(review.getByRole("button", { name: "Accept change", exact: true })).toBeEnabled();
+  await review.getByRole("button", { name: "Keep original", exact: true }).click();
+  await review.getByRole("button", { name: "Accept change", exact: true }).click();
+  await review.getByRole("button", { name: "Change 1, original kept", exact: true }).click();
+  await expect(review.getByRole("button", { name: "Original kept", exact: true })).toBeDisabled();
+  await expect(review.getByRole("button", { name: "Accept change", exact: true })).toBeEnabled();
+  await review.getByRole("button", { name: "Copy revision", exact: true }).click();
+  expect(await page.evaluate(() => (window as Window & { copiedText?: string }).copiedText)).toBe("The rain stopped.\n\nMara listened.");
+  await review.getByRole("button", { name: "Reset", exact: true }).click();
+  await expect(review.getByRole("status")).toContainText("0 of 2 reviewed");
+  await expect(review.getByRole("button", { name: "Undo", exact: true })).toBeEnabled();
+  await review.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(review.getByRole("button", { name: "Original kept", exact: true })).toBeDisabled();
+  await review.getByRole("button", { name: "Back to rewrite", exact: true }).click();
+  await expect(app.draftInput()).toHaveValue(source);
+  await expect(app.draftInput()).toBeEditable();
+});
+
+test("background and writing columns stay centered in composer and review", async ({ app, page }, info) => {
+  await mockGhostwriterApi(page, { rewrite: response(result) });
+  await app.goto();
+  const centered = async (leftSelector: string, rightSelector: string) => {
+    const split = await page.locator("main.gw-studio").evaluate(el => ({
+      x: el.getBoundingClientRect().x,
+      left: parseFloat(getComputedStyle(el, "::before").left),
+    }));
+    const width = page.viewportSize()!.width;
+    expect(Math.abs(split.x + split.left - width / 2)).toBeLessThanOrEqual(1);
+    const left = (await page.locator(leftSelector).boundingBox())!;
+    const right = (await page.locator(rightSelector).boundingBox())!;
+    expect(Math.abs(left.width - right.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs((left.x + left.width + right.x) / 2 - width / 2)).toBeLessThanOrEqual(1);
+    expect(Math.abs(left.y - right.y)).toBeLessThanOrEqual(1);
+  };
+  for (const width of [768, 1024, 1512, 2560]) {
+    await page.setViewportSize({ width, height: 900 });
+    await centered(".gw-composer-field", ".duet-canvas");
+  }
+  await app.fillDraft(source);
+  await app.runRewrite();
+  await page.getByRole("button", { name: "Review changes", exact: true }).click();
+  for (const width of [768, 1024, 1512, 2560]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const name of ["Duet", "Inline", "Focus"]) {
+      await page.getByRole("button", { name, exact: true }).click();
+      await centered('[data-testid="review-source-paper"]', '[data-testid="review-result-paper"]');
+    }
+  }
+  await page.setViewportSize({ width: 1512, height: 738 });
+  await page.screenshot({ path: info.outputPath("centered-review.png") });
+});

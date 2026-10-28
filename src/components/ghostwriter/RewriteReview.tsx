@@ -85,6 +85,8 @@ export function RewriteReview({
   ).length;
   const pending = reviewed < changes.length;
   const edit = changes[selected];
+  const selectedDecision = state.decisions[selected];
+  const allAccepted = changes.length > 0 && state.decisions.every((decision) => decision === "accept");
   const copied =
     copyState?.text === revision &&
     copyState.preview === pending &&
@@ -99,7 +101,7 @@ export function RewriteReview({
   }, [hidden]);
 
   function decide(decision: "accept" | "keep") {
-    if (!edit) return;
+    if (!edit || selectedDecision === decision) return;
     dispatch({ type: "decide", id: edit.id, decision });
     const next =
       changes.find(
@@ -302,11 +304,11 @@ export function RewriteReview({
           <button
             className={styles.acceptAll}
             type="button"
-            disabled={!changes.length || state.decisions.every((decision) => decision === "accept")}
+            disabled={!changes.length || allAccepted}
             onClick={() => dispatch({ type: "accept-all" })}
           >
             <Check aria-hidden="true" />
-            Accept all changes
+            {!changes.length ? "No changes" : allAccepted ? "All accepted" : "Accept all changes"}
           </button>
         </div>
         <div
@@ -358,6 +360,7 @@ export function RewriteReview({
           <div className={styles.progress}>
             <p role="status" aria-live="polite" aria-atomic="true">
               {reviewed} of {changes.length} reviewed
+              {!pending && changes.length > 0 ? " · Review complete" : ""}
               {copied
                 ? pending
                   ? " · Preview copied, including pending suggestions"
@@ -429,18 +432,20 @@ export function RewriteReview({
                 <div className={styles.actions}>
                   <button
                     type="button"
-                    aria-pressed={state.decisions[selected] === "keep"}
+                    aria-pressed={selectedDecision === "keep"}
+                    disabled={selectedDecision === "keep"}
                     onClick={() => decide("keep")}
                   >
-                    Keep original
+                    {selectedDecision === "keep" ? "Original kept" : "Keep original"}
                   </button>
                   <button
                     className={styles.accept}
                     type="button"
-                    aria-pressed={state.decisions[selected] === "accept"}
+                    aria-pressed={selectedDecision === "accept"}
+                    disabled={selectedDecision === "accept"}
                     onClick={() => decide("accept")}
                   >
-                    Accept change
+                    {selectedDecision === "accept" ? "Accepted" : "Accept change"}
                     <Check aria-hidden="true" />
                   </button>
                 </div>
@@ -484,6 +489,7 @@ export function RewriteReview({
             <button
               type="button"
               className={styles.copy}
+              data-primary={!pending || undefined}
               aria-disabled={copying}
               onClick={() => void copyRevision()}
             >

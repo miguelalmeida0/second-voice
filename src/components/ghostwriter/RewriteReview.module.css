@@ -1,9 +1,7 @@
 .workspace {
   --review-line: #2a3c3233;
   display: grid;
-  grid-template-columns:
-    minmax(0, calc(50% - var(--duet-gutter) - min(2.75vw, 44px)))
-    minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: calc(var(--duet-gutter) * 2);
   grid-template-rows: auto auto auto auto;
   min-height: 0;
@@ -608,4 +606,17 @@
 @media (pointer: coarse) {
   .layouts button, .changeList button, .footer button { min-height: 44px; }
   .changeNav button, .progressDots button { min-width: 44px; min-height: 44px; }
+}
+
+/* Once decisions are complete, copying is the primary next step. */
+.footer .copy[data-primary="true"] {
+  background: #ee9965;
+  border-color: #ee9965;
+  color: #2a3c32;
+  font-weight: 600;
+}
+.actions .accept:disabled {
+  background: transparent;
+  color: #c4ceb9;
+  border-color: #eeeee030;
 }

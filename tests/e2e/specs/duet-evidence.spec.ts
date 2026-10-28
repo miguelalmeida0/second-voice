@@ -41,7 +41,7 @@ test("Duet evidence: real controls, request lifecycle, responsive geometry and h
   await app.switchToAuthors();
   await app.moodDial().focus();
   await page.keyboard.press("ArrowRight");
-  await expect(app.moodDial()).toHaveValue("53");
+  await expect(app.moodDial()).toHaveValue("100");
   await app.runRewrite();
   await expect(page.locator('[data-phase="requesting"]')).toBeVisible();
   const originalViewport = page.viewportSize()!;

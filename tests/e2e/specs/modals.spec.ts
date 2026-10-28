@@ -24,7 +24,7 @@ test.describe("drawers, confirmations, and modal-like panels", () => {
     await app.openHowItWorks();
     await page.getByRole("dialog", { name: "How to use Second Voice" }).getByRole("link", { name: "Read the case study" }).click();
 
-    await expect(page).toHaveURL(/\/second-voice\/case-study$/);
+    await expect(page).toHaveURL(/\/case-study$/);
     await expect(page.getByRole("link", { name: "Back to Second Voice AI" })).toBeVisible();
   });
 

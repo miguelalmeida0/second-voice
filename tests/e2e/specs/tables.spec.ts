@@ -26,7 +26,7 @@ test.describe("comparative data surfaces", () => {
     expect(api.labRequests[0]?.body).toMatchObject({
       author: "tolkien",
       baselineRewrite: apiResponses.rewrite,
-      mood: 52,
+      mood: 50,
       source: drafts.default,
     });
   });

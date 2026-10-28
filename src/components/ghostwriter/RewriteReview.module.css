@@ -5,8 +5,8 @@
     minmax(0, calc(50% - var(--duet-gutter) - min(2.75vw, 44px)))
     minmax(0, 1fr);
   column-gap: calc(var(--duet-gutter) * 2);
-  min-height: calc(100svh - 104px);
-  padding-top: 24px;
+  min-height: 0;
+  padding-top: 20px;
   color: #2a3c32;
   font-family: var(--font-sans);
 }
@@ -62,11 +62,11 @@
 }
 .heading h2 {
   margin: 0;
-  font: 600 clamp(36px, 3.3vw, 51px)/1.12 var(--font-sans);
+  font: 600 var(--duet-heading)/1.12 var(--font-sans);
   letter-spacing: -0.055em;
 }
 .intro {
-  margin: 18px 0 25px;
+  margin: 12px 0 16px;
   color: #536452;
   font-size: 12px;
   line-height: 1.7;
@@ -98,15 +98,15 @@
   text-underline-offset: 4px;
 }
 .sourcePaper {
-  border-radius: 20px;
+  border-radius: 12px;
   background: #f8f8ef;
-  padding: 30px 32px;
-  min-height: 318px;
+  padding: 20px;
+  min-height: 200px;
 }
 .prose {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font: 400 clamp(19px, 1.5vw, 23px)/1.68 var(--font-serif);
+  font: 400 var(--duet-prose)/1.6 var(--font-serif);
 }
 .edit {
   cursor: pointer;
@@ -164,8 +164,8 @@
   height: 13px;
 }
 .sourceBottom {
-  margin-top: auto;
-  padding-top: 34px;
+  margin-top: 0;
+  padding-top: 20px;
   max-width: 440px;
 }
 .sourceBottom p:not(.eyebrow) {
@@ -192,8 +192,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 7px;
-  min-height: 55px;
+  padding: 8px 7px;
+  min-height: 48px;
   border-radius: 10px;
   text-align: left;
   color: #c4ceb9;
@@ -248,9 +248,9 @@
 }
 .reviewPaper {
   background: #223229;
-  padding: 26px 28px;
-  border-radius: 20px;
-  min-height: 318px;
+  padding: 20px;
+  border-radius: 12px;
+  min-height: 200px;
 }
 .progress {
   display: flex;
@@ -326,7 +326,7 @@
   align-items: center;
   gap: 15px;
   margin: 12px 0 18px;
-  font: 400 21px/1.4 var(--font-serif);
+  font: 400 18px/1.4 var(--font-serif);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -445,7 +445,7 @@
 }
 .completion h3,
 .inspector h3 {
-  font: 400 27px/1.25 var(--font-serif);
+  font: 400 24px/1.25 var(--font-serif);
   margin: 0 0 9px;
 }
 .completion p,
@@ -458,7 +458,7 @@
 .inspector {
   background: transparent;
   padding: 5px 0;
-  min-height: 318px;
+  min-height: 200px;
 }
 .changeList {
   margin-top: 23px;
@@ -510,9 +510,9 @@
   color: #536452;
 }
 .phrase {
-  font: 400 clamp(30px, 3vw, 46px)/1.27 var(--font-serif);
+  font: 400 clamp(24px, 2.2vw, 32px)/1.27 var(--font-serif);
   letter-spacing: -0.02em;
-  margin: 0 0 30px;
+  margin: 0 0 20px;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -550,7 +550,7 @@
   }
   .sourcePaper,
   .reviewPaper:not(.inspector) {
-    padding: 24px;
+    padding: 18px;
   }
   .footer > div {
     gap: 12px;
@@ -574,7 +574,7 @@
     background: #2a3c32;
   }
   .sourcePaper {
-    min-height: 230px;
+    min-height: 180px;
   }
   .sourceBottom {
     padding-top: 20px;
@@ -583,14 +583,14 @@
     display: none;
   }
   .heading h2 {
-    font-size: clamp(35px, 8vw, 44px);
+    font-size: var(--duet-heading);
   }
   .prose {
-    font-size: 21px;
+    font-size: var(--duet-prose);
   }
   .reviewPaper,
   .inspector {
-    min-height: 230px;
+    min-height: 180px;
   }
   .layoutNumber {
     display: block;

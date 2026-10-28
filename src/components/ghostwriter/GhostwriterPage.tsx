@@ -180,6 +180,8 @@ export function GhostwriterPage({
   const [input, setInput] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [pendingCanvasHeight, setPendingCanvasHeight] = useState<number>();
+  const canvasRef = useRef<HTMLDivElement>(null);
 
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
@@ -428,6 +430,8 @@ export function GhostwriterPage({
 
     setLastAttempt(attempt);
 
+    // Preserve the action position while the guide becomes a loading state.
+    setPendingCanvasHeight(canvasRef.current?.getBoundingClientRect().height);
     setLoading(true);
 
     setRequestContext({
@@ -991,7 +995,7 @@ export function GhostwriterPage({
             <button type="button" aria-label="Outcomes" aria-pressed={rewriteMode === "outcome"} disabled={loading} onClick={() => { setRewriteMode("outcome"); setError(null); }}><span className="duet-mode-name">Outcomes</span><small>Improve your message</small></button>
           </div>
         } onAuthor={(value) => { setActiveId(value); setError(null); }} onMood={(value) => { setMood(value); setError(null); }} onOutcome={(value) => { setOutcome(value); setError(null); }} preview={
-          <div className="duet-canvas">
+          <div ref={canvasRef} className="duet-canvas" style={loading ? { minHeight: pendingCanvasHeight } : undefined}>
           {previewOpen && !loading && !error && <RewriteGuide hasDraft={Boolean(input.trim())} mode={rewriteMode} />}
             <div className="duet-result" hidden={previewOpen && !loading && !error}><RewritePlayback
               onReview={() => {

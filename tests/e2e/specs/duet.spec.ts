@@ -9,7 +9,7 @@ test("Preview first keeps the primary action inside the forest workspace", async
   const controls = await page.locator(".duet-followup").boundingBox();
   const action = await app.rewriteButton().boundingBox();
   expect(action!.y).toBeGreaterThan(controls!.y);
-  expect(action!.y + action!.height).toBeLessThan(controls!.y + controls!.height);
+  expect(action!.y + action!.height).toBeLessThanOrEqual(controls!.y + controls!.height);
   expect(action!.x).toBeGreaterThanOrEqual(controls!.x);
   expect(action!.x).toBeGreaterThan(page.viewportSize()!.width / 2);
   expect(action!.width).toBeGreaterThanOrEqual(260);
@@ -19,7 +19,7 @@ test("Duet starts empty and preserves the draft through responsive layouts", asy
   await app.goto();
   await expect(app.draftInput()).toHaveValue("");
   await expect(app.rewriteButton()).toBeDisabled();
-  await expect(page.getByRole("heading", { name: "Your words." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your words.", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Another voice." })).toBeVisible();
   await app.fillDraft("A draft that stays with me.\nAcross every screen.");
   for (const width of [320, 360, 375, 390, 430, 600, 768, 820, 844, 1024, 1280, 1440, 1920, 2560]) {

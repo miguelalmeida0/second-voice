@@ -36,3 +36,11 @@ Desktop/mobile visual inspection covered all three views, 320px recovery, long t
 | Open a dedicated review workspace | Preserve the composer, existing generation controls and signed-original actions while matching the approved split canvas | One additional click to enter review |
 
 The review found and resolved two concrete issues: exact manual-copy recovery after clipboard denial, and Unicode boundary handling in Focus excerpts. No Critical, Important or Minor findings remain.
+
+## Compact sizing and preview follow-up
+
+The owner requested restrained product sizing across the workspace and review UI. Headings now use a shared 28–36px scale at the default text size, prose is 18px, and primary actions remain 48px high. Removed forced cross-column row alignment, reduced empty panel height and spacing, and retained native text growth and mobile action docking. Loading preserves the previous canvas height so the action does not jump; enlarged text still disables docking.
+
+The deployed test environment has no preview configuration and explicitly prohibits inference. `/demo/rewrite-review` therefore offers the real review component with clearly labelled prepared text and no API calls. It is available in development and Vercel preview only, with no production credential or policy changes. A production-build smoke check without application credentials returned 200 for the preview environment and 404 for the production environment.
+
+Validation: review interactions and exact copy recovery on desktop/mobile Chromium, sample route state preservation and zero API requests, responsive action checks from 320px through 2560px, keyboard/accessibility checks, 22 scroll guards, TypeScript, lint (only three existing warnings), and production build. Bottom-edge screenshots inspected; Safari remains untested.

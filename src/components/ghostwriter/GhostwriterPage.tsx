@@ -968,6 +968,9 @@ export function GhostwriterPage({
             loading={loading}
             canRewrite={canRewrite}
             completed={Boolean(latestRun.rewrite) && !error}
+            onRetryAccess={portfolioAccess?.session.status === "unavailable"
+              ? () => window.dispatchEvent(new Event("ghostwriter-session-retry"))
+              : undefined}
             status={cooldownSeconds > 0
               ? "Next rewrite in " + cooldownSeconds + "s. Your free-rewrite allowance is unchanged."
               : accessView || !features.rewriteEnabled

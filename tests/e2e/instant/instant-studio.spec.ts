@@ -113,3 +113,44 @@ test("studio preserves native scrolling and readable fields across widths", asyn
     await expect(page.locator(".gw-inspiration-rewrite")).toBeInViewport();
   }
 });
+
+
+for (const remaining of [4, 5]) {
+ test(`production allowance ${remaining} enables writing and preserves the chosen author`, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const api = await mockGhostwriterApi(page);
+  await page.route("**/api/ghostwriter/auth", route => route.fulfill({ json: {
+   mode: "anonymous", allowance: { remaining, todayRemaining: remaining, available: true, globalLimited: false },
+  } }));
+  await page.goto("/");
+  await page.getByRole("textbox", { name: "Write or paste here" }).fill("My draft must remain editable and ready to rewrite.");
+  await page.getByRole("button", { name: "Choose Ernest Hemingway", exact: true }).click();
+  await expect(page.locator(".gw-inspiration-rewrite")).toBeEnabled();
+  await expect(page.locator("#duet-action-allowance")).toContainText(`${remaining} free rewrites left`);
+  await page.locator(".gw-inspiration-rewrite").click();
+  await expect(page.locator('[data-phase="complete"]')).toBeVisible();
+  expect(api.rewriteRequests).toHaveLength(1);
+  expect(api.rewriteRequests[0].body).toMatchObject({ author: "hemingway", text: "My draft must remain editable and ready to rewrite." });
+  await expect(page.getByRole("button", { name: "Review changes", exact: true })).toBeVisible();
+ });
+}
+
+test("availability can recover without discarding the draft or enabling unchecked generation", async ({ page }) => {
+ const api = await mockGhostwriterApi(page);
+ let available = false;
+ await page.route("**/api/ghostwriter/auth", route => route.fulfill({ status: available ? 200 : 503, json: available
+  ? { mode: "authenticated", allowance: { remaining: 5, todayRemaining: 5, available: true } }
+  : { message: "Authentication is temporarily unavailable." },
+ }));
+ await page.goto("/");
+ const draft = page.getByRole("textbox", { name: "Write or paste here" });
+ await draft.fill("Keep this text while the availability check recovers.");
+ await expect(page.getByRole("button", { name: "Check availability", exact: true })).toBeVisible();
+ await expect(page.locator(".gw-inspiration-rewrite")).toBeDisabled();
+ expect(api.rewriteRequests).toHaveLength(0);
+ available = true;
+ await page.getByRole("button", { name: "Check availability", exact: true }).click();
+ await expect(page.locator(".gw-inspiration-rewrite")).toBeEnabled();
+ await expect(draft).toHaveValue("Keep this text while the availability check recovers.");
+ expect(api.rewriteRequests).toHaveLength(0);
+});

@@ -368,8 +368,7 @@ html, body { background: var(--duet-cream); }
   .duet-mode small { font-size: 10px; }
 }
 
-/* Product density: independent columns avoid empty space above the draft.
-   Textareas and results continue growing with content in the document. */
+/* Compact controls. Both papers grow with content in the native document. */
 .ghostwriter.gw-studio .gw-studio-workspace { align-items: start; min-height: 0; padding-top: 20px; }
 .gw-studio .duet-title { font-size: var(--duet-heading); line-height: 1.15; letter-spacing: -.04em; }
 .gw-studio .duet-index { margin-bottom: 8px; }
@@ -408,3 +407,56 @@ html, body { background: var(--duet-cream); }
 .ghostwriter.gw-studio .gw-loading-note { font-size: 13px; line-height: 1.5; }
 .ghostwriter.gw-studio .duet-result [aria-busy="true"] { padding-bottom: 0; }
 .ghostwriter.gw-studio .duet-result [data-phase="requesting"] > .duet-playback-toolbar { display: none; }
+
+/* Shared desktop tracks align both writing surfaces, including wrapped controls
+   and returned text. Mobile keeps its native stacked reading order. */
+@media (min-width: 768px) {
+  .ghostwriter.gw-studio .gw-studio-workspace {
+    grid-template-rows: auto auto auto auto auto;
+    row-gap: 12px;
+    align-items: stretch;
+  }
+  .ghostwriter.gw-studio .gw-studio-input,
+  .ghostwriter.gw-studio .gw-studio-output {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: 1 / span 5;
+  }
+  .ghostwriter.gw-studio .gw-studio-input { grid-column: 1; }
+  .ghostwriter.gw-studio .gw-studio-output { grid-column: 2; }
+  .duet-column-heading { grid-row: 1; }
+  .gw-studio .duet-note { grid-row: 2; align-self: end; margin: 0; }
+  .ghostwriter.gw-studio .gw-composer-field { grid-row: 3; }
+  .duet-input-support { grid-row: 4; align-self: start; }
+  .duet-draft-footer { grid-row: 5; align-self: start; padding-top: 0; }
+  .ghostwriter.gw-studio .duet-controls {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: 2 / span 4;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: inherit;
+    margin: 0;
+    align-items: stretch;
+  }
+  .duet-voice { grid-row: 1; }
+  .duet-canvas { grid-row: 2; }
+  .duet-followup { grid-row: 3 / span 2; align-self: start; }
+}
+.duet-retry-access {
+  min-height: 44px;
+  padding: 6px 0;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.duet-retry-access:focus-visible {
+  outline: 2px solid var(--duet-cream);
+  outline-offset: 3px;
+}
+@media (min-width: 768px) and (max-height: 700px) {
+  .ghostwriter.gw-studio .gw-studio-workspace { padding-top: 12px; row-gap: 8px; }
+  .ghostwriter.gw-studio .gw-composer-field textarea { min-height: 160px; padding: 14px; }
+  .duet-canvas { min-height: 160px; padding: 16px; }
+  .ghostwriter.gw-studio .duet-guide h3 { margin-bottom: 6px; }
+  .duet-guide ol { margin-top: 8px; gap: 4px; }
+}

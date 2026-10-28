@@ -12,7 +12,7 @@ const DETAILS = [
   { icon: PenLine, description: "Close the day with clarity" },
 ];
 
-export function QuickStartsPanel({ input, onSelect, onRewrite, loading, canRewrite, completed, status, actionsOnly = false, promptsOnly = false, promptsOpen = false, onPromptsOpenChange }: {
+export function QuickStartsPanel({ input, onSelect, onRewrite, loading, canRewrite, completed, status, onRetryAccess, actionsOnly = false, promptsOnly = false, promptsOpen = false, onPromptsOpenChange }: {
   actionsOnly?: boolean;
   promptsOnly?: boolean;
   promptsOpen?: boolean;
@@ -24,6 +24,7 @@ export function QuickStartsPanel({ input, onSelect, onRewrite, loading, canRewri
   canRewrite?: boolean;
   completed?: boolean;
   status?: string | null;
+  onRetryAccess?: () => void;
 }) {
   const actionRef = useDuetActionDock(!promptsOnly);
   // Keep the policy's exact wording; put the first sentence near the action.
@@ -43,6 +44,7 @@ export function QuickStartsPanel({ input, onSelect, onRewrite, loading, canRewri
         <div className="duet-action-copy">
         <p id="duet-action-hint" className="duet-action-hint">{!input.trim() ? "Add text to enable rewriting." : "Uses 1 rewrite."}</p>
         {allowance ? <p id="duet-action-allowance" className="gw-inspiration-status" role="status">{allowance}</p> : <span id="duet-action-allowance" className="sr-only" />}
+        {onRetryAccess && <button type="button" className="duet-retry-access" onClick={onRetryAccess}>Check availability</button>}
         </div>
       </div>
       {actionableDetail ? <p className="gw-inspiration-status-detail">{actionableDetail}</p> : null}

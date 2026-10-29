@@ -39,3 +39,9 @@ Local browser validation used desktop and touch Chromium. Firefox/WebKit were re
 ## Review
 
 The changed implementation received separate reuse, quality and efficiency reviews plus a targeted correctness review. Follow-ups removed redundant scroll writes, avoid desktop scroll measurements, measure the safe-area inset, and keep dock geometry stable across state changes. The final review identified no remaining substantiated code defect. No external cross-model CLI review was available.
+
+## CI follow-up: branding and dependency patch
+
+The first CI attempt passed build, types, unit/security, scroll and PostgreSQL integration checks, then exposed a stalled mobile logo optimizer request. Its traces showed the desktop wordmark returning 200 while both mobile icon requests remained pending. The logo now uses pre-encoded WebP files at three times its rendered size (6,918-byte wordmark and 1,916-byte icon), served directly without runtime optimization. The original masters and existing crop are preserved. The native-scroll/branding check now deliberately aborts optimizer requests; it failed before this change.
+
+The dependency scan also identified advisories affecting the installed Next.js and Zod versions. Next.js and its ESLint configuration were updated to 16.4.3; Zod to 4.6.6. `npm audit --omit=dev` then reported zero vulnerabilities. References: https://github.com/advisories/GHSA-2464-fhr4-w9xw and https://github.com/advisories/GHSA-mrhx-c7xc-m3w5. The Next-generated AGENTS heading update accompanies the framework version.

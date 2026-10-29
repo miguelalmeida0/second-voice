@@ -97,6 +97,8 @@ test("rewrite feedback stays in output and reduced motion stops its signal", asy
 
 test("studio preserves native scrolling and readable fields across widths", async ({ page }, info) => {
   await page.route("**/api/ghostwriter/auth", route => route.fulfill({ json: { mode: "anonymous", allowance } }));
+  // Branding must still decode if runtime image optimization is unavailable.
+  await page.route("**/_next/image?**", route => route.abort());
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: width > 1000 ? 900 : 844 });
     await page.goto("/", { waitUntil: "commit" });
@@ -104,7 +106,7 @@ test("studio preserves native scrolling and readable fields across widths", asyn
     const logo = page.locator(".duet-logo img");
     await expect(logo).toHaveCount(1);
     await expect.poll(() => logo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
-    expect(await logo.evaluate((image: HTMLImageElement) => decodeURIComponent(image.currentSrc))).toContain(width >= 768 ? "second-voice-wordmark.png" : "second-voice-icon.png");
+    expect(await logo.evaluate((image: HTMLImageElement) => decodeURIComponent(image.currentSrc))).toContain(width >= 768 ? "second-voice-wordmark.webp" : "second-voice-icon.webp");
     const brand = (await page.locator(".duet-logo").boundingBox())!;
     expect(brand.width).toBeLessThanOrEqual(180);
     expect(brand.height).toBeLessThanOrEqual(36);

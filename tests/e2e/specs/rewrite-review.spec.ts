@@ -642,12 +642,9 @@ test("background and writing columns stay centered in composer and review", asyn
   await mockGhostwriterApi(page, { rewrite: response(result) });
   await app.goto();
   const centered = async (leftSelector: string, rightSelector: string) => {
-    const split = await page.locator("main.gw-studio").evaluate(el => ({
-      x: el.getBoundingClientRect().x,
-      left: parseFloat(getComputedStyle(el, "::before").left),
-    }));
+    const split = await page.locator(".duet-backdrop").boundingBox();
     const width = page.viewportSize()!.width;
-    expect(Math.abs(split.x + split.left - width / 2)).toBeLessThanOrEqual(1);
+    expect(Math.abs(split!.x - width / 2)).toBeLessThanOrEqual(1);
     const left = (await page.locator(leftSelector).boundingBox())!;
     const right = (await page.locator(rightSelector).boundingBox())!;
     expect(Math.abs(left.width - right.width)).toBeLessThanOrEqual(1);

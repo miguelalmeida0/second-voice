@@ -266,19 +266,16 @@ export function GhostwriterPage({
 
   useEffect(() => {
     const preferenceTimer = window.setTimeout(() => {
-      const storedMode = window.localStorage.getItem(MODE_STORAGE_KEY);
-
-      const storedOutcome = window.localStorage.getItem(OUTCOME_STORAGE_KEY);
-
-      if (storedMode === "author" || storedMode === "outcome") {
-        setRewriteMode(storedMode);
+      try {
+        const storedMode = window.localStorage.getItem(MODE_STORAGE_KEY);
+        const storedOutcome = window.localStorage.getItem(OUTCOME_STORAGE_KEY);
+        if (storedMode === "author" || storedMode === "outcome") setRewriteMode(storedMode);
+        if (OUTCOMES.some((entry) => entry.id === storedOutcome)) setOutcome(storedOutcome as OutcomeId);
+      } catch {
+        // Preferences are optional when storage is blocked or unavailable.
+      } finally {
+        setPreferencesReady(true);
       }
-
-      if (OUTCOMES.some((entry) => entry.id === storedOutcome)) {
-        setOutcome(storedOutcome as OutcomeId);
-      }
-
-      setPreferencesReady(true);
     }, 0);
 
     return () => window.clearTimeout(preferenceTimer);
@@ -289,7 +286,7 @@ export function GhostwriterPage({
       return;
     }
 
-    window.localStorage.setItem(MODE_STORAGE_KEY, rewriteMode);
+    try { window.localStorage.setItem(MODE_STORAGE_KEY, rewriteMode); } catch { /* Keep this tab usable. */ }
   }, [preferencesReady, rewriteMode]);
 
   useEffect(() => {
@@ -297,7 +294,7 @@ export function GhostwriterPage({
       return;
     }
 
-    window.localStorage.setItem(OUTCOME_STORAGE_KEY, outcome);
+    try { window.localStorage.setItem(OUTCOME_STORAGE_KEY, outcome); } catch { /* Keep this tab usable. */ }
   }, [outcome, preferencesReady]);
 
   const active = useMemo(
@@ -840,10 +837,11 @@ export function GhostwriterPage({
       data-app-ready={preferencesReady ? "true" : "false"}
       data-voice={active.id}
     >
+      <div className="duet-backdrop" aria-hidden="true" />
       <div className="gw-studio-shell">
         <header className="duet-header">
           <div className="duet-brand"><h1 className="sr-only">Second Voice AI</h1><StudioBrand /></div>
-          <nav aria-label="Workspace"><button ref={howItWorksTriggerRef} type="button" aria-haspopup="dialog" aria-expanded={howItWorksOpen} aria-controls="gw-how-drawer" onClick={() => setHowItWorksOpen(true)}>How it works <ArrowUpRight aria-hidden="true" /></button><a href="/account">Account <ArrowUpRight aria-hidden="true" /></a>{identity}</nav>
+          <nav aria-label="Workspace"><button ref={howItWorksTriggerRef} type="button" aria-haspopup="dialog" aria-expanded={howItWorksOpen} aria-controls={howItWorksOpen ? "gw-how-drawer" : undefined} onClick={() => setHowItWorksOpen(true)}>How it works <ArrowUpRight aria-hidden="true" /></button><a href="/account">Account <ArrowUpRight aria-hidden="true" /></a>{identity}</nav>
         </header>
         <section
           id="ghostwriter-studio"
@@ -858,7 +856,7 @@ export function GhostwriterPage({
             <div className="duet-column-heading duet-input-heading"><p className="duet-index">01 / Your draft</p>
             <h2 className="duet-title">Your words.</h2></div>
             <div className="duet-draft-context"><p className="duet-note">Write or paste your text.</p>
-            <div className="duet-editor-meta"><span>{input.length} / 2000 characters</span><button type="button" onClick={() => setInput("")} disabled={!input || loading} aria-label="Clear text">Clear</button></div></div>
+            <div className="duet-editor-meta"><span>{input.length} / 2000 characters</span><button type="button" onClick={() => setInput("")} disabled={!input || loading}>Clear</button></div></div>
             <div className="gw-composer-field">
               <label
                 htmlFor="second-voice-input"

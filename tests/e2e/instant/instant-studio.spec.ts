@@ -35,7 +35,7 @@ test("slow auth leaves editor usable and generation closed through refresh", asy
   await page.locator(editorSelector).fill("I missed the train, so I walked home.");
   await expect(page.locator(".gw-inspiration-rewrite")).toBeDisabled();
   await page.locator(editorSelector).press("Shift+Tab");
-  await expect(page.getByRole("button", { name: "Clear text" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Clear", exact: true })).toBeFocused();
   expect(api.rewriteRequests).toHaveLength(0);
   await expect(page.locator(".sv-loading-page")).toHaveCount(0);
   await page.screenshot({ path: info.outputPath("slow-auth-studio.png"), fullPage: true });

@@ -30,6 +30,7 @@ jobs:
       - run: npx playwright test duet.spec.ts auth.spec.ts error-states.spec.ts --project=chromium --project=mobile-chrome --list
       - run: npx playwright install --with-deps chromium
       - run: npm run test:instant
+      - run: npm run test:stress
       - run: npx playwright test duet.spec.ts auth.spec.ts error-states.spec.ts --project=chromium --project=mobile-chrome
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

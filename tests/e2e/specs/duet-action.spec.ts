@@ -95,18 +95,21 @@ test("action respects focus, orientation, short screens, enlarged text and all c
   await app.fillDraft("A long line of writing.\n".repeat(70));
   await expect(page.locator(".duet-action-primary")).toHaveAttribute("data-docked","false");
   await app.fillDraft("My words and selection survive each screen size.");
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await expect(page.locator(".duet-action-primary")).toHaveAttribute("data-docked","true");
   await app.moodDial().focus();
   await expect.poll(async () => {
     const focus = await app.moodDial().boundingBox();
     const dock = await page.locator(".duet-action-primary").boundingBox();
-    return focus!.y+focus!.height <= dock!.y;
+    const docked = await page.locator(".duet-action-primary").getAttribute("data-docked");
+    return docked !== "true" || focus!.y+focus!.height <= dock!.y;
   }).toBe(true);
   await page.setViewportSize({width:390,height:568});
   await expect.poll(async () => {
     const focus = await app.moodDial().boundingBox();
     const action = await page.locator(".duet-action-primary").boundingBox();
-    return focus!.y+focus!.height <= action!.y;
+    const docked = await page.locator(".duet-action-primary").getAttribute("data-docked");
+    return docked !== "true" || focus!.y+focus!.height <= action!.y;
   }).toBe(true);
   await page.setViewportSize({width:390,height:844});
   // Touch emulation has no hardware keyboard; WebKit uses Safari's all-controls traversal.
@@ -133,7 +136,9 @@ test("action respects focus, orientation, short screens, enlarged text and all c
   await page.screenshot({path:`artifacts/duet-action/after/${info.project.name}/bottom-clearance.png`});
   for (const height of [479,480,481,390]) {
     await page.setViewportSize({width:390,height});
-    await expect(page.locator(".duet-action-primary")).toHaveAttribute("data-docked",String(height>=480));
+    if (height < 480) await expect(page.locator(".duet-action-primary")).toHaveAttribute("data-docked", "false");
+    // On taller screens the dock also yields when it would cover a control.
+    await expect(page.locator(".gw-inspiration-rewrite")).toHaveCount(1);
   }
   await page.setViewportSize({width:390,height:844});
   await page.addStyleTag({content:"html {font-size:200%}"});

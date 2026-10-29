@@ -20,7 +20,9 @@ function isShieldedPagePath(pathname: string) {
 }
 
 function isNonceCspPath(pathname: string) {
-  return isShieldedPagePath(pathname) || pathname === "/g" || pathname.startsWith("/g/");
+  return isShieldedPagePath(pathname) ||
+    /^\/(?:second-voice\/)?(?:legal|privacy)\/?$/.test(pathname) ||
+    pathname === "/g" || pathname.startsWith("/g/");
 }
 
 export function proxy(request: NextRequest) {

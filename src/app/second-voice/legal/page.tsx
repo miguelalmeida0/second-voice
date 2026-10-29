@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, Feather, Mail, MapPin, UserRound } from "lucide-react";
+import { connection } from "next/server";
+import { ArrowLeft, ArrowRight, Feather, Mail, MapPin, UserRound } from "lucide-react";
 
 export const metadata = {
   title: "Legal information — Second Voice",
@@ -10,7 +11,8 @@ const operatorName = process.env.SECOND_VOICE_LEGAL_NAME?.trim() || "Miguel Alme
 const operatorAddress = process.env.SECOND_VOICE_LEGAL_ADDRESS?.trim() || "";
 const contactEmail = process.env.SECOND_VOICE_LEGAL_EMAIL?.trim() || "";
 
-export default function LegalPage() {
+export default async function LegalPage() {
+  await connection();
   const addressLines = operatorAddress
     ? operatorAddress.split(/\n|\|/).map((line) => line.trim()).filter(Boolean)
     : [];
@@ -19,7 +21,7 @@ export default function LegalPage() {
     <main className="ghostwriter sv-legal-page">
       <div className="sv-legal-shell">
         <header className="sv-legal-nav">
-          <Link href="/" className="sv-legal-brand" aria-label="Second Voice home">
+          <Link href="/" className="sv-legal-brand">
             <Feather aria-hidden="true" />
             <span>Second Voice</span>
           </Link>
@@ -112,7 +114,7 @@ export default function LegalPage() {
 
             <Link href="/privacy" className="sv-legal-link">
               Read the full privacy notice
-              <span aria-hidden="true">→</span>
+              <ArrowRight aria-hidden="true" size={16} />
             </Link>
 
             {contactEmail ? (

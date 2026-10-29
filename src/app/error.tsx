@@ -10,7 +10,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   return (
-    <main className="ghostwriter relative min-h-dvh overflow-x-clip">
+    <main className="ghostwriter duet-route-error relative min-h-dvh overflow-x-clip">
       <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-3xl items-center px-5 py-16">
         <section className="gw-card-strong w-full p-6 sm:p-8" role="alert">
           <div className="flex items-start gap-3">

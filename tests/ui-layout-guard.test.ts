@@ -323,7 +323,7 @@ test("main app includes an accessible How It Works drawer", () => {
   assert.match(page, /const \[howItWorksOpen, setHowItWorksOpen\] = useState\(false\);/);
   assert.match(page, /aria-haspopup="dialog"/);
   assert.match(page, /aria-expanded=\{howItWorksOpen\}/);
-  assert.match(page, /aria-controls="gw-how-drawer"/);
+  assert.match(page, /aria-controls=\{howItWorksOpen \? "gw-how-drawer" : undefined\}/);
   assert.match(page, /How it works/);
   assert.match(drawer, /Photography credits/);
   assert.match(page, /<HowItWorksDrawer[\s\S]*open=\{howItWorksOpen\}[\s\S]*onClose=\{\(\) => setHowItWorksOpen\(false\)\}[\s\S]*returnFocusRef=\{howItWorksTriggerRef\}[\s\S]*\/>/);

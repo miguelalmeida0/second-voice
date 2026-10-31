@@ -8,6 +8,24 @@ Second Voice separates the source draft from its rewrite, with authored quick st
 
 > **Release boundary:** The interface is available for inspection; owner-funded inference is disabled by default. Live generation is not production-approved until the authentication, abuse-control, provider and financial launch gates are demonstrated. See [deployment readiness](docs/security/DEPLOYMENT_READINESS.md). A working sample or build is not evidence of paid inference readiness.
 
+
+## Architecture at a glance
+
+The chart below summarizes the main source and runtime boundaries documented in this repository; it is a static architecture overview, not an executable dependency trace.
+
+```mermaid
+flowchart LR
+  UI["Next.js writing studio"] --> API["POST /api/ghostwriter"]
+  API --> Guards["Origin, CSRF, input and abuse guards"]
+  Guards --> Gateway["Governed rewrite gateway"]
+  Gateway --> Auth["Supabase authentication"]
+  Gateway --> Budget["Postgres quota + budget reservation"]
+  Budget --> Gate{"AI_ENABLED?"}
+  Gate -->|"enabled, authorized"| Provider["Server-owned AI provider request"]
+  Provider --> Result["Validated private result + settlement"]
+  Gate -->|"disabled"| Stop["No paid inference"]
+```
+
 ## Engineering overview
 
 | Area | Responsibility |

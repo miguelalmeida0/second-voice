@@ -1,66 +1,55 @@
 # Second Voice
 
-**A writing studio for reshaping a draft by voice, tone and intended outcome without losing the original.**
+**Compare your original writing with a rewrite, side by side.**
 
-[Open the application](https://secondvoice.miguelalmeida.xyz/) · [Engineering documentation](docs/README.md) · [Security gate](docs/security/LAUNCH_GATE.md) · [Contributing](CONTRIBUTING.md)
+[Open the writing studio](https://secondvoice.miguelalmeida.xyz/) · [Engineering docs](docs/README.md) · [Release status](docs/security/PORTFOLIO_RELEASE.md)
 
-Second Voice separates the source draft from its rewrite, with authored quick starts, author/outcome choices, and a rewrite workspace. The product is implemented in Next.js 16, React 19 and TypeScript.
+Second Voice lets a writer explore a different voice, tone or outcome without losing the source draft. The original stays visible beside the rewrite so changes can be reviewed rather than accepted blindly.
 
-> **Release boundary:** The interface is available for inspection; owner-funded inference is disabled by default. Live generation is not production-approved until the authentication, abuse-control, provider and financial launch gates are demonstrated. See [deployment readiness](docs/security/DEPLOYMENT_READINESS.md). A working sample or build is not evidence of paid inference readiness.
+## The writing experience
 
+- Choose a voice and mood, then compare the resulting text with the original.
+- Keep the source available while reviewing and revising changes.
+- Decide explicitly what to save or share; private writing is not automatically published.
+
+**Demo boundary:** The interface can be inspected, but owner-funded AI inference is disabled by default. Enabling live generation requires the documented authentication, abuse-control, provider and financial checks.
+
+## Engineering
+
+The application uses Next.js 16, React 19 and TypeScript. The writing editor lives in `src/components/ghostwriter/`; API routes are in `src/app/`.
+
+A governed server path validates incoming requests before any provider dispatch. Session checks, idempotency and durable quota/budget reservations are separate from the editor. Supabase migrations define the persistence and financial boundaries. The model endpoint and credentials are server-owned.
 
 ## Architecture
 
-<p align="center"><img src="./docs/readme/architecture-overview.svg" alt="second-voice architecture overview" width="600"></p>
+<p align="center">
+  <picture>
+    <source media="(max-width: 640px)" srcset="./docs/readme/architecture-mobile.svg">
+    <img src="./docs/readme/architecture-overview.svg" alt="Second Voice system map: writing studio, governed rewrite gateway and private budget and provider services." width="920">
+  </picture>
+</p>
 
-## Engineering overview
+[AI call graph](docs/security/AI_CALL_GRAPH.md) · [Security and launch gate](docs/security/LAUNCH_GATE.md)
 
-| Area | Responsibility |
-| --- | --- |
-| `src/app/` | Next.js routes, pages and server endpoints |
-| `src/components/ghostwriter/` | Writing studio and interaction surfaces |
-| `src/server/` | Server-side authentication, provider and policy boundaries |
-| `src/lib/` | Shared utilities and client contracts |
-| `supabase/migrations/` | Durable database migrations and access boundaries |
-| `tests/` | Security, UI, release and browser regression coverage |
-| `scripts/release/` | Production preflight and release verification |
-| `docs/` | Architecture, release evidence, operational and security records |
+## Run locally
 
-## Develop locally
+Use Node.js 22 as specified in `.nvmrc`:
 
-Requires Node.js 22 (see `.nvmrc`). Keep AI disabled unless you are explicitly exercising the guarded provider flow.
-
-```bash
+```sh
 npm ci
 npm run dev
 ```
 
-Use [`.env.example`](.env.example) for variable names and safe defaults. **Never commit real secrets.** A local interface is not equivalent to a released generation gateway.
+The UI can run with generation disabled. For configuration, start with [`.env.example`](.env.example); do not use production credentials for local experiments.
 
-## Verify
-
-```bash
+```sh
 npm run lint
 npx tsc --noEmit
 npm run test:unit
 npm run test:security
-npm run test:scroll
-npm run security:check
 npm run verify:release
 ```
 
-Local `npm run security:check` reads `.env.local`. CI runs `npm run security:check` with explicit production environment variables.
+These commands are verification entry points, not a claim that paid inference is ready. Additional runtime requirements and launch evidence are in the [technical reference](docs/security/TECHNICAL_REFERENCE.md).
 
-Integration and end-to-end tests have additional runtime prerequisites; follow the [technical reference](docs/security/TECHNICAL_REFERENCE.md) rather than inferring coverage from a partial run. Do not enable paid inference based solely on passing local checks.
-
-## Documentation
-
-- [Documentation index](docs/README.md) — current product, operations, tests and historical records
-- [Technical reference](docs/security/TECHNICAL_REFERENCE.md) — environment variables, abuse-store operations, verification and release state
-- [Security and responsible disclosure](SECURITY.md)
-- [Release notes archive](docs/releases/README.md) — versions 7–17, preserved verbatim
-- [Visual QA evidence](docs/quality/design-qa.md) — retained historical acceptance record
-
-Development happens on `test`; only validated changes reach `main`. See [`AGENTS.md`](AGENTS.md) for the repository's two-branch policy.
-
-[Cleanup and preservation record](docs/CLEANUP_2026-10-09.md)
+Designed and built by [Miguel Almeida](https://github.com/miguelalmeida0).

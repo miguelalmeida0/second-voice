@@ -46,6 +46,7 @@ function fixture(principalType: "anonymous" | "authenticated", options: {
     failBeforeDispatch: async () => {calls.release++; return true;},
     markUncertain: async () => {calls.uncertain++; return true;},
     settleKnownFailure: async () => {calls.knownFailure++; return true;},
+    settleRejectedOutput: async () => {throw new Error("Unexpected output rejection");},
     settleSuccess: async () => {calls.settle++; return true;},
   };
   const dependencies = {

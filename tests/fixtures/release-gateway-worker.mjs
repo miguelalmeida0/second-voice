@@ -37,6 +37,7 @@ const transitions={
  failBeforeDispatch:(id,account,reason)=>sql(`select public.ghostwriter_ai_fail_before_dispatch(${quote(id)},${quote(account)},${quote(reason)});`).then(v=>v==="t"),
  markUncertain:(id,account,reason)=>sql(`select public.ghostwriter_ai_mark_uncertain(${quote(id)},${quote(account)},${quote(reason)});`).then(v=>v==="t"),
  settleKnownFailure:(id,account,reason)=>sql(`select public.ghostwriter_ai_settle_known_failure(${quote(id)},${quote(account)},${quote(reason)});`).then(v=>v==="t"),
+ settleRejectedOutput:o=>sql(`select public.ghostwriter_ai_settle_rejected_output(${quote(o.operationId)},${quote(o.accountId)},${o.actualMicroUsd},${quote(o.providerRequestId)});`).then(v=>v==="t"),
  settleSuccess:o=>sql(`select public.ghostwriter_ai_settle_success(${quote(o.operationId)},${quote(o.accountId)},${o.actualMicroUsd},${quote(o.providerRequestId)},${quote(JSON.stringify(o.result))}::jsonb);`).then(v=>v==="t")
 };
 const server=http.createServer(async(req,res)=>{

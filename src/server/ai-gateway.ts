@@ -443,6 +443,31 @@ export async function executeGovernedRewrite(
     );
   }
 
+  if (providerResult.rejectionReason) {
+    try {
+      const settled = await dependencies.ledger.settleRejectedOutput({
+        accountId,
+        actualMicroUsd,
+        operationId,
+        providerRequestId: providerResult.providerRequestId,
+      });
+      if (!settled) throw new Error("rejected_output_settlement_rejected");
+    } catch {
+      await preserveReservationAsUncertain(
+        dependencies, operationId, accountId, "settlement_failed", context.requestId,
+      );
+      return failure(prompt.moodLabel, "The model response could not be accounted for safely.", 502, operationId, "SERVICE_UNAVAILABLE");
+    }
+    logSecurityEvent("ai_provider_output_rejected", { requestId: context.requestId });
+    return failure(
+      prompt.moodLabel,
+      "The writing model returned an unusable rewrite. Your text has been kept.",
+      502,
+      operationId,
+      "PROVIDER_FAILED",
+    );
+  }
+
   let result: GhostwriterResult;
 
   try {

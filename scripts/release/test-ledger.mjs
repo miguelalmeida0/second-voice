@@ -44,6 +44,8 @@ try{
  assert.equal(sql("select state||':'||reserved_micro_usd from public.ghostwriter_ai_operations where idempotency_key='historical-upgrade-0001';"),"dispatched:750");
  sql("select public.ghostwriter_retention_maintenance();");
  evidence.push({scenario:"forward-migrations-preserve-existing-liability",status:"PASS"});
+ sql(readFileSync("tests/fixtures/rejected-output-accounting.sql","utf8"));
+ evidence.push({scenario:"rejected-output-exact-accounting-quota-idempotency",status:"PASS"});
  sql("truncate public.ghostwriter_ai_operations;");
  sql("insert into auth.users select ('00000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,now(),null,'visitor'||n||'@isolated.test' from generate_series(1,25)n; insert into auth.sessions(id,user_id,not_after) select id,id,null from auth.users; insert into public.ghostwriter_beta_entitlements(account_id,approved_slot) select id,row_number()over() from auth.users; update public.ghostwriter_ai_control set paused=false,valid_until=now()+interval '1 hour';");
  if(process.argv.includes("--portfolio")){

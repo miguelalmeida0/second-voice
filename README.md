@@ -45,10 +45,13 @@ The UI can run with generation disabled. For configuration, start with [`.env.ex
 ```sh
 npm run lint
 npx tsc --noEmit
+npm run security:check
 npm run test:unit
 npm run test:security
 npm run verify:release
 ```
+
+Locally, `npm run security:check` reads `.env.local` when `NODE_ENV` is not `production`, while preserving values already set in the environment. CI runs `npm run security:check` with explicit production environment variables and AI disabled; production checks do not read `.env.local`.
 
 These commands are verification entry points, not a claim that paid inference is ready. Additional runtime requirements and launch evidence are in the [technical reference](docs/security/TECHNICAL_REFERENCE.md).
 

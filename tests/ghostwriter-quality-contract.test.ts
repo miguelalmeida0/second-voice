@@ -86,5 +86,5 @@ test("the central provider choke point validates output before finalization", ()
   assert.match(AI_PROVIDER_SERVER, /validateRewriteProviderPayload\(json\)/);
   assert.match(AI_PROVIDER_SERVER, /ProviderEnvelopeSchema\.safeParse\(json\)/);
   assert.match(AI_PROVIDER_SERVER, /throw new AiProviderDispatchError\("malformed_response"\)/);
-  assert.match(AI_PROVIDER_SERVER, /rewrite: validatedRewrite\.rewrite/);
+  assert.match(AI_PROVIDER_SERVER, /rewrite: validatedRewrite\.ok \? validatedRewrite\.rewrite : ""/);
 });

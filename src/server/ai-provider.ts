@@ -3,7 +3,7 @@ import "../lib/server-only.ts";
 import { z } from "zod";
 import type { AiPolicyConfig } from "./ai-policy.ts";
 import { readLimitedJsonResponse } from "./ai-provider-http.ts";
-import { validateRewriteProviderPayload } from "./ghostwriter-quality.ts";
+import { validateRewriteProviderPayload, type RewriteRejectionReason } from "./ghostwriter-quality.ts";
 
 const PROVIDER_RESPONSE_MAX_BYTES = 64 * 1024;
 
@@ -22,6 +22,7 @@ export type AiProviderResult = {
   promptTokens: number;
   providerRequestId: string | null;
   rewrite: string;
+  rejectionReason?: RewriteRejectionReason;
 };
 
 export class AiProviderDispatchError extends Error {
@@ -113,7 +114,7 @@ export async function dispatchRewriteToProvider(options: {
     const envelope = ProviderEnvelopeSchema.safeParse(json);
     const validatedRewrite = validateRewriteProviderPayload(json);
 
-    if (!envelope.success || !validatedRewrite.ok) {
+    if (!envelope.success) {
       throw new AiProviderDispatchError("malformed_response");
     }
 
@@ -125,7 +126,10 @@ export async function dispatchRewriteToProvider(options: {
         response.headers.get("x-groq-id") ||
         envelope.data.id ||
         null,
-      rewrite: validatedRewrite.rewrite,
+      // Content quality is independent of financial accounting. Preserve valid
+      // usage so a rejected answer can settle without opening a fleet-wide hold.
+      rewrite: validatedRewrite.ok ? validatedRewrite.rewrite : "",
+      ...(!validatedRewrite.ok ? { rejectionReason: validatedRewrite.reason } : {}),
     };
   } catch (error) {
     if (error instanceof AiProviderDispatchError) {

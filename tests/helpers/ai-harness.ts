@@ -239,6 +239,23 @@ export class TestAiLedger implements AiLedger {
     return true;
   }
 
+  async settleRejectedOutput(options: {
+    accountId: string;
+    actualMicroUsd: number;
+    operationId: string;
+    providerRequestId: string | null;
+  }): Promise<boolean> {
+    if (this.failSettlement) throw new Error("settlement unavailable");
+    const operation = this.operations.find(candidate => candidate.id === options.operationId && candidate.accountId === options.accountId);
+    if (!operation || operation.state !== "dispatched" || !Number.isSafeInteger(options.actualMicroUsd) ||
+        options.actualMicroUsd < 0 || options.actualMicroUsd > operation.reservationMicroUsd) return false;
+    operation.actualMicroUsd = options.actualMicroUsd;
+    operation.outcome = "failed";
+    operation.state = "settled";
+    operation.result = null;
+    return true;
+  }
+
   snapshot() {
     return {
       reservedMicroUsd: this.operations

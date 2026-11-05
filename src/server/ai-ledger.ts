@@ -40,6 +40,12 @@ export interface AiLedger {
   markDispatched(operationId: string, accountId: string): Promise<boolean>;
   markUncertain(operationId: string, accountId: string, reason: string): Promise<boolean>;
   settleKnownFailure(operationId: string, accountId: string, reason: string): Promise<boolean>;
+  settleRejectedOutput(options: {
+    accountId: string;
+    actualMicroUsd: number;
+    operationId: string;
+    providerRequestId: string | null;
+  }): Promise<boolean>;
   reserve(request: AiReservationRequest): Promise<AiReservationResult>;
   settleSuccess(options: {
     accountId: string;
@@ -218,6 +224,20 @@ export class SupabaseAiLedger implements AiLedger {
       p_operation_id: options.operationId,
       p_provider_request_id: options.providerRequestId,
       p_result: options.result,
+    });
+  }
+
+  settleRejectedOutput(options: {
+    accountId: string;
+    actualMicroUsd: number;
+    operationId: string;
+    providerRequestId: string | null;
+  }): Promise<boolean> {
+    return booleanRpc("ghostwriter_ai_settle_rejected_output", {
+      p_account_id: options.accountId,
+      p_actual_micro_usd: options.actualMicroUsd,
+      p_operation_id: options.operationId,
+      p_provider_request_id: options.providerRequestId,
     });
   }
 }

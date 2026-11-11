@@ -44,6 +44,21 @@ for (const [width, height] of [[1024, 640], [1280, 720], [1512, 738]]) {
 }
 
 
+test("tall desktop gives the editor and result the available viewport height", async ({ app, page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await app.goto();
+
+  const workspace = (await page.locator(".gw-studio-workspace").boundingBox())!;
+  const source = (await page.locator(".gw-composer-field").boundingBox())!;
+  const output = (await page.locator(".duet-canvas").boundingBox())!;
+  expect(workspace.height).toBeGreaterThanOrEqual(900);
+  expect(source.height).toBeGreaterThanOrEqual(420);
+  expect(Math.abs(source.y - output.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(source.height - output.height)).toBeLessThanOrEqual(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 const cafeDraft = "Here's a short four-line text:\n\nThe café on the corner opens at seven, but the owner is usually there by six.\nShe wipes the tables, checks the milk, and turns on the old radio by the window.\nMost mornings the first customer is a bus driver who orders the same thing.\nBy the time the city wakes up, the place already feels lived in.\n\nWant it on a specific topic or for a particular use, like a bio, a caption, or a message?";
 
 for (const [width, height] of [[1512, 738], [1280, 720], [1024, 640]]) {

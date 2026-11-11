@@ -420,7 +420,7 @@ html, body { background: var(--duet-cream); }
 
 /* Both writing surfaces start after the same compact heading/settings rows. */
 @media (min-width: 768px) {
-  .ghostwriter.gw-studio .gw-studio-workspace { grid-template-rows: repeat(5, auto); row-gap: 12px; align-items: stretch; }
+  .ghostwriter.gw-studio .gw-studio-workspace { grid-template-rows: auto auto minmax(0, 1fr) auto auto; row-gap: 12px; align-items: stretch; }
   .ghostwriter.gw-studio .gw-studio-input,
   .ghostwriter.gw-studio .gw-studio-output { display: grid; grid-template-rows: subgrid; grid-row: 1 / span 5; }
   .ghostwriter.gw-studio .gw-studio-input { grid-column: 1; }
@@ -430,6 +430,16 @@ html, body { background: var(--duet-cream); }
   .ghostwriter.gw-studio .gw-composer-field, .duet-canvas { grid-row: 3; }
   .duet-input-support, .duet-allowance { grid-row: 4; align-self: start; }
   .duet-draft-footer { grid-row: 5; align-self: start; padding-top: 0; }
+}
+/* Let the writing surfaces, not empty page space, occupy tall desktop viewports. */
+@media (min-width: 768px) and (min-height: 701px) {
+  .ghostwriter.gw-studio .gw-studio-workspace {
+    min-height: calc(100dvh - 92px);
+  }
+  .ghostwriter.gw-studio .gw-composer-field textarea,
+  .duet-canvas {
+    min-height: clamp(260px, calc(100dvh - 480px), 960px);
+  }
 }
 .duet-retry-access {
   min-height: 44px;
